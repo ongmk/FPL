@@ -1,0 +1,7 @@
+*.xlsx
+*.lp
+solution.txt
+*.log
+*.png
+solver/*
+chromedriver.exe

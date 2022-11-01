@@ -7,14 +7,14 @@ from subprocess import check_output
 import re
 import itertools
 import difflib
-import logging
 import matplotlib.pyplot as plt
 import time
-
-logging.basicConfig(
-    format="%(asctime)s - %(levelname)s - %(message)s",
-    level=logging.INFO,
-)
+from logzero import logger
+import warnings
+from cryptography.utils import CryptographyDeprecationWarning
+warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
+from cplex_connection.LpRemoteCplex import RemoteCPLEXSolver
+import xml.etree.ElementTree as et
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
@@ -144,10 +144,10 @@ def get_live_data(team_id, horizon):
                 sell_price = np.ceil(np.mean([current_price, bought_price]))
                 merged_data.loc[t["element_in"], "sell_price"] = sell_price
 
-    logging.info("=" * 50)
-    logging.info(f"Team: {general_data['name']}. Current week: {current_gw}")
-    logging.info(f"Optimizing for {horizon} weeks. {gameweeks}")
-    logging.info("=" * 50 + "\n")
+    logger.info("=" * 50)
+    logger.info(f"Team: {general_data['name']}. Current week: {current_gw}")
+    logger.info(f"Optimizing for {horizon} weeks. {gameweeks}")
+    logger.info("=" * 50 + "\n")
 
     return {
         "merged_data": merged_data,
@@ -204,6 +204,33 @@ def get_name(row):
     return name
 
 
+def get_solution_status(solutionXML):
+    solution_header = solutionXML.find("header")
+    status_string = solution_header.get("solutionStatusString")
+    objective_value_string = solution_header.get("objectiveValue")
+
+    cplex_status = {
+        'Optimal': LpStatusOptimal,
+        'Feasible': LpStatusOptimal,
+        'Infeasible': LpStatusInfeasible,
+        'Unbounded': LpStatusUnbounded,
+        'Stopped': LpStatusNotSolved}
+
+    status_str = 'Undefined'
+    if 'optimal' in status_string:
+        status_str = 'Optimal'
+    elif 'feasible' in status_string:
+        status_str = 'Feasible'
+    elif 'infeasible' in status_string:
+        status_str = 'Infeasible'
+    elif 'integer unbounded' in status_string:
+        status_str = 'Integer Unbounded'
+    elif 'time limit exceeded' in status_string:
+        status_str = 'Feasible'
+
+    return cplex_status[status_str], status_str, objective_value_string
+
+
 def solve_multi_period_fpl(data, options):
 
     # Arguments
@@ -218,7 +245,7 @@ def solve_multi_period_fpl(data, options):
     ft_value = options.get("ft_value", 1.5)
     itb_value = options.get("itb_value", 0.08)
     bench_weights = options.get("bench_weights", {0: 0.03, 1: 0.21, 2: 0.06, 3: 0.002})
-    cbc_log = options.get("cbc_log", True)
+    log = options.get("log", True)
 
     # Data
     merged_data = data["merged_data"]
@@ -583,33 +610,53 @@ def solve_multi_period_fpl(data, options):
     )
     model += -decay_objective, "total_decay_xp"
 
-    t0 = time.time()
+    # t0 = time.time()
+    # model.writeLP("./model.lp")
+    # command = f"cbc model.lp cost column sec {timeout} solve solu solution.txt"
+    # output = check_output(command).decode("utf-8")
+    # with open("cbc.log", "w", encoding="utf-8") as f:
+    #     f.write(output)
+    # solve_time = time.time() - t0
+    # pattern = re.compile(r"There were.+errors on input")
+    # if log:
+    #     logger.info(output)
+    # if "No feasible solution found" in output:
+    #     raise Exception("NO FEASIBLE SOLUTION")
+    # elif pattern.search(output):
+    #     raise Exception("ERRORS ON INPUT")
+    # # Parsing
+    # for variable in model.variables():
+    #     variable.varValue = 0
+    # with open("solution.txt", "r") as f:
+    #     vars = model.variablesDict()
+    #     for line in f:
+    #         if "objective value" in line:
+    #             continue
+    #         _, variable, value, _ = line.split()
+    #         vars[variable].varValue = float(value)
 
-    model.writeLP("./model.lp")
+    lp_file_name = "fplmodel"
+    model.writeLP(f"./{lp_file_name}.lp")
+    solver = RemoteCPLEXSolver(lp_file_name, ".", log=log)
+    cplex_log = solver.solve()
+    # logger.info(f"CPLEX result: {cplex_log}")
+    solutionXML = et.parse(f"./{lp_file_name}.sol").getroot()
+    _, status_str, objValString = get_solution_status(solutionXML)
 
-    command = f"cbc model.lp cost column sec {timeout} solve solu solution.txt"
-    output = check_output(command).decode("utf-8")
-    with open("cbc.log", "w", encoding="utf-8") as f:
-        f.write(output)
-    solve_time = time.time() - t0
-    pattern = re.compile(r"There were.+errors on input")
-    if cbc_log:
-        logging.info(output)
-    if "No feasible solution found" in output:
-        raise Exception("NO FEASIBLE SOLUTION")
-    elif pattern.search(output):
-        raise Exception("ERRORS ON INPUT")
+    gap_pct = cplex_log["gap_pct"] if cplex_log else None
+    solution_time = cplex_log["solution_time"] if cplex_log else None
+    status_str = 'Acceptable' if cplex_log and cplex_log["Acceptable"] else status_str
+    logger.info(f"{status_str} solution found in: {solution_time}s. Gap: {gap_pct}%. Objective: {float(objValString):.2f}")
 
-    # Parsing
+    variables = solutionXML.find("variables")
+
     for variable in model.variables():
         variable.varValue = 0
-    with open("solution.txt", "r") as f:
-        vars = model.variablesDict()
-        for line in f:
-            if "objective value" in line:
-                continue
-            _, variable, value, _ = line.split()
-            vars[variable].varValue = float(value)
+    vars = model.variablesDict()
+
+    for variable in variables:
+        var_name, var_value = variable.get("name"), variable.get("value")
+        vars[var_name].varValue = float(var_value)
 
     # DataFrame generation
     picks = []
@@ -781,7 +828,7 @@ def solve_multi_period_fpl(data, options):
                 "itb": in_the_bank[w].value(),
                 "ft": free_transfers[w].value(),
                 "hits": penalized_transfers[w].value(),
-                "solve_time": solve_time,
+                "solve_time": solution_time,
             }
     overall_summary = "=" * 80
     overall_summary += f"\n{horizon} weeks total xP = {total_xp:.2f}"
@@ -819,9 +866,9 @@ def live_run(options):
         data=data,
         options=options,
     )
-    logging.info(f"Solved in {next_gw_dict['solve_time']}")
+    logger.info(f"Solved in {next_gw_dict['solve_time']}")
     for s in summary:
-        logging.info(s)
+        logger.info(s)
     picks.to_csv("picks.csv", index=False, encoding="utf-8-sig")
     with open("summary.txt", "w", encoding="utf-8") as f:
         f.write("\n".join(summary))
@@ -849,14 +896,14 @@ def backtest(options, title="Backtest Result"):
 
     for next_gw in all_gws["finished"]:
         gameweeks = [i for i in range(next_gw, next_gw + horizon)]
-        logging.info(80 * "=")
-        logging.info(
+        logger.info(80 * "=")
+        logger.info(
             f"Backtesting GW {next_gw}. ITB = {itb}. FT = {options['ft']}. {gameweeks}"
         )
-        logging.info(80 * "=")
+        logger.info(80 * "=")
         elements_team = get_backtest_data(latest_elements_team, next_gw)
         if elements_team.empty:
-            logging.warning(f"No data from GW {next_gw}")
+            logger.warning(f"No data from GW {next_gw}")
         else:
             pred_pts_data = get_pred_pts_data(gameweeks)
             pred_pts_data = resolve_fpl_names(
@@ -895,7 +942,7 @@ def backtest(options, title="Backtest Result"):
             #     team_id, next_gw, merged_data
             # )
 
-            logging.info(summary[0])
+            logger.info(summary[0])
             picks_df.to_csv("picks.csv", index=False, encoding="utf-8-sig")
 
             squad = picks_df.loc[picks_df["week"] == next_gw]
@@ -910,10 +957,10 @@ def backtest(options, title="Backtest Result"):
             ] * 4
             total_predicted_xp += predicted_xp
             total_xp += actual_xp
-            logging.info(
+            logger.info(
                 f"Predicted xP = {predicted_xp:.2f}. ({total_predicted_xp:.2f} overall)"
             )
-            logging.info(f"Actual xP = {actual_xp:.2f}. ({total_xp:.2f} overall)")
+            logger.info(f"Actual xP = {actual_xp:.2f}. ({total_xp:.2f} overall)")
 
             itb = next_gw_dict["itb"]
             options["ft"] = next_gw_dict["ft"]
@@ -923,7 +970,7 @@ def backtest(options, title="Backtest Result"):
         result_xp.append(total_xp)
         result_predicted_xp.append(total_predicted_xp)
         result_solve_times.append(next_gw_dict["solve_time"])
-        logging.info(
+        logger.info(
             f"Avg solve time: {sum(result_solve_times) / len(result_solve_times):.1f}"
         )
 
@@ -948,17 +995,16 @@ def backtest(options, title="Backtest Result"):
 
 if __name__ == "__main__":
 
-    # players = {"Me": 3531385, "Hazard": 1195527, "FPL Raptor": 5431}
-    # players = {"Donald": 307190}
+    players = {"Me": 3531385, "Hazard": 1195527, "FPL Raptor": 5431, "Donald": 307190}
     options = {
         "team_id": 3531385,
         "ft": 1,
-        "horizon": 5,
+        "horizon": 3,
         "tr_horizon": 2,
         "wc_on": 8,
         "timeout": 20 * 60,
-        "cbc_log": False,
-        "decay": 0.65,
+        "log": False,
+        "decay": 0.5,
     }
 
     # live_run(options)

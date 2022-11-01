@@ -5,3 +5,5 @@ solution.txt
 *.png
 solver/*
 chromedriver.exe
+__pycache__/
+env_config.ini

@@ -208,11 +208,10 @@ def solve_multi_period_fpl(data, options):
 
     # Arguments
     ft = options.get("ft", 1)
-    decay_base = options.get("decay_base", 0.84)
+    decay = options.get("decay", 0.84)
     timeout = options.get("timeout", 60)
     horizon = options.get("horizon", 5)
     tr_horizon = options.get("tr_horizon", 3)
-    objective = options.get("objective", "decay")
     wc_on = options.get("wc_on", None)
     bb_on = options.get("bb_on", None)
     fh_on = options.get("fh_on", None)
@@ -264,7 +263,7 @@ def solve_multi_period_fpl(data, options):
     )
 
     # Model
-    problem_name = f"multi_period_h{horizon}_d{decay_base}"
+    problem_name = f"multi_period"
     model = LpProblem(problem_name, LpMinimize)
 
     # Variables
@@ -579,14 +578,10 @@ def solve_multi_period_fpl(data, options):
         for w in gameweeks
     }
 
-    if objective == "regular":
-        total_xp = lpSum([gw_total[w] for w in gameweeks])
-        model += -total_xp, "total_regular_xp"
-    else:
-        decay_objective = lpSum(
-            [gw_total[w] * pow(decay_base, i) for i, w in enumerate(gameweeks)]
-        )
-        model += -decay_objective, "total_decay_xp"
+    decay_objective = lpSum(
+        [gw_total[w] * pow(decay, i) for i, w in enumerate(gameweeks)]
+    )
+    model += -decay_objective, "total_decay_xp"
 
     t0 = time.time()
 
@@ -832,7 +827,7 @@ def live_run(options):
         f.write("\n".join(summary))
 
 
-def backtest(options):
+def backtest(options, title="Backtest Result"):
 
     # Arguments
     horizon = options.get("horizon", 5)
@@ -896,6 +891,9 @@ def backtest(options):
                 },
                 options,
             )
+            # picks_df, summary, next_gw_dict = get_historical_picks(
+            #     team_id, next_gw, merged_data
+            # )
 
             logging.info(summary[0])
             picks_df.to_csv("picks.csv", index=False, encoding="utf-8-sig")
@@ -925,30 +923,49 @@ def backtest(options):
         result_xp.append(total_xp)
         result_predicted_xp.append(total_predicted_xp)
         result_solve_times.append(next_gw_dict["solve_time"])
+        logging.info(
+            f"Avg solve time: {sum(result_solve_times) / len(result_solve_times):.1f}"
+        )
 
     fig, ax = plt.subplots(figsize=(12, 8))
     plt.plot(result_gw, result_xp, label="Actual xP")
     for index in range(len(result_gw)):
         ax.text(result_gw[index], result_xp[index], f"{result_xp[index]:.1f}", size=12)
+    for index in range(len(result_gw)):
+        ax.text(
+            result_gw[index],
+            result_predicted_xp[index],
+            f"{result_predicted_xp[index]:.1f}",
+            size=12,
+        )
 
     plt.plot(result_gw, result_predicted_xp, linewidth=2.0, label="Predicted xP")
-    plt.title("Backtest Result")
+    plt.title(title)
     plt.legend()
-    plt.savefig("Backtest Result.png")
-    plt.show()
+    plt.savefig(f"{title}.png")
+    # plt.show()
 
 
 if __name__ == "__main__":
 
+    # players = {"Me": 3531385, "Hazard": 1195527, "FPL Raptor": 5431}
+    # players = {"Donald": 307190}
     options = {
         "team_id": 3531385,
         "ft": 1,
         "horizon": 5,
         "tr_horizon": 2,
         "wc_on": 8,
-        "timeout": 30,
+        "timeout": 20 * 60,
         "cbc_log": False,
+        "decay": 0.65,
     }
 
     # live_run(options)
-    backtest(options)
+    # for p, id in players.items():
+    #     options["team_id"] = id
+    backtest(
+        options,
+        # p
+        f"h={options['horizon']} ; trh={options['tr_horizon']} ; d={options['decay']}",
+    )

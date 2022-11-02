@@ -212,7 +212,6 @@ class Helper:
             if "No such file" not in exceptionMessage:
                 logger.info(f'Encountered error retriving solution file from remote Server. Local File: {localFileName}, remote file: {remotePath}, exception: {exceptionMessage}')
                 raise
-        logger.info("getFileFromRemoteServer:end")
         return success
 
     @staticmethod

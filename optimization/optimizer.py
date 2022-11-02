@@ -785,7 +785,7 @@ def solve_multi_period_fpl(data, options):
             gw_summary += "[Bench Boost Active]\n"
         if w in transfer_gws:
             gw_summary += f"Free Transfers = {free_transfers[w].value()}    Hits = {penalized_transfers[w].value()}\n"
-            gw_summary += f"Cost = {net_cost:.1f}    ITB = {in_the_bank[w].value()}   xP Gain = {net_xp:.2f}.\n\n"
+            gw_summary += f"Cost = {net_cost:.1f}    ITB = {in_the_bank[w].value():.2f}   xP Gain = {net_xp:.2f}.\n\n"
             if gw_out.empty:
                 gw_summary += str(gw_in)
             else:
@@ -989,7 +989,7 @@ def backtest(options, title="Backtest Result"):
     plt.plot(result_gw, result_predicted_xp, linewidth=2.0, label="Predicted xP")
     plt.title(title)
     plt.legend()
-    plt.savefig(f"{title}.png")
+    plt.savefig(f"[{total_predicted_xp:.1f}] {title}.png")
     # plt.show()
 
 
@@ -1010,8 +1010,15 @@ if __name__ == "__main__":
     # live_run(options)
     # for p, id in players.items():
     #     options["team_id"] = id
-    backtest(
-        options,
-        # p
-        f"h={options['horizon']} ; trh={options['tr_horizon']} ; d={options['decay']}",
-    )
+    for h in [1,3,5]:
+        for trh in [1,2,3]:
+            for d in [0.5,0.75,1]:
+                if trh <= h:
+                    options['horizon'] = h
+                    options['tr_horizon'] = trh
+                    options['decay'] = d
+                    backtest(
+                        options,
+                        # p
+                        f"h={options['horizon']} ; trh={options['tr_horizon']} ; d={options['decay']}",
+                    )

@@ -7,10 +7,11 @@ from cplex_connection.config import Config
 from logzero import logger
 
 class RemoteCPLEXSolver:
-    def __init__(self, fileName, localPath, log=True):
+    def __init__(self, fileName, localPath, log=True, cplexTimeOut=60):
         self.lpFileName = fileName
         self.localPath = localPath
         self.log = log
+        self.cplexTimeOut = cplexTimeOut
 
         self.server = Config.get('cplex', 'server')
         self.remote_path = Config.get('cplex', 'remote_path')
@@ -56,17 +57,6 @@ class RemoteCPLEXSolver:
             if not sharableFolder:
                 success = Helper.putFileOnRemoteServer(localFileName=localLPFileName, remotePath=remoteLPFileName, sftp=sftpClient)
 
-            # make backup if solution file exist
-            backupFileRemoteChannel = None
-            try:
-                backupFileRemoteChannel = remoteTransport.open_session()
-                backupFileRemoteChannel.exec_command(
-                    'mv ' + remoteSolutionFileName + ' ' + remoteSolutionFileName + '.bak')
-                backupFileRemoteChannel = None
-            except:
-                logger.info("Encountered error in backing up solution file...")
-                backupFileRemoteChannel = None
-
             try:
                 optimizationChannel = remoteTransport.open_session()
 
@@ -76,7 +66,9 @@ class RemoteCPLEXSolver:
                         ssh=sshClient, channel=optimizationChannel,
                         remoteLPPath=remoteLPFileName, remoteSolutionPath=remoteSolutionFileName,
                         cplex_executable=cplex_executable,
-                        log=self.log)
+                        log=self.log,
+                        cplexTimeOut = self.cplexTimeOut
+                        )
                 optimizationChannel.close()
 
                 if not sharableFolder:
@@ -215,15 +207,14 @@ class Helper:
         return success
 
     @staticmethod
-    def getCPLEXTunningParameters():
-        cplexTimeOut = 60
+    def getCPLEXTunningParameters(cplexTimeOut):
         cplexThreads = 0  # set to 0 means using all the avaible threads
         cplex_tunning_cmds = Helper.getCPLEXTunningParametersCommon(cplexTimeOut, cplexThreads)
         return cplex_tunning_cmds
 
     @staticmethod
     def executeCPLEXThroughSSH(remoteLPPath, remoteSolutionPath, server='', username='', password='',
-                               cplex_cmds='', channel=None, ssh=None, cplex_executable='', log=True):
+                               cplex_cmds='', channel=None, ssh=None, cplex_executable='', log=True, cplexTimeOut=60):
         success = False
         cplex_log = {"timeout": False, "infeasible": False, "gap_pct": 0, "gap_val":0, "Acceptable": False}
         transport = None
@@ -232,7 +223,7 @@ class Helper:
         # cplex_executable='/home/oracle/CPLEX_Studio1262/cplex/bin/x86-64_linux/cplex' +"\n"
 
         cplex_cmds = "read " + remoteLPPath + "\n"
-        cplex_cmds += Helper().getCPLEXTunningParameters()
+        cplex_cmds += Helper().getCPLEXTunningParameters(cplexTimeOut)
         # for option in self.options:
         #    cplex_cmds += option+"\n"
         '''
@@ -283,7 +274,7 @@ class Helper:
                 if log:
                     logger.info(line.replace('\n', ''))
             with open("cplex.log", "w", encoding="utf-8") as f:
-                f.write("\n".join([l for l in stdout.readlines()]))
+                f.write("".join([l for l in data]))
 
 
             data = stderr.readlines()

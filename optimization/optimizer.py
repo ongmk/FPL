@@ -384,7 +384,7 @@ def solve_multi_period_fpl(data, options):
     
     # Free transfer constraints
     if next_gw == 1 and threshold_gw in gameweeks:
-        model += free_transfers[threshold_gw] == 1, "ps_initial_ft"
+        model += free_transfers[threshold_gw] == ft, "ps_initial_ft"
 
     # Chip constraints
     model += lpSum(use_wc[w] for w in gameweeks) <= wc_limit, "use_wc_limit"
@@ -643,11 +643,12 @@ def solve_multi_period_fpl(data, options):
 
     lp_file_name = "fplmodel"
     model.writeLP(f"./{lp_file_name}.lp")
-    solver = RemoteCPLEXSolver(lp_file_name, ".", log=log)
+    solver = RemoteCPLEXSolver(lp_file_name, ".", log=log, cplexTimeOut=timeout)
     cplex_log = solver.solve()
+    if cplex_log["infeasible"]:
+        raise Exception("Cannot find feasible solution.")
     solutionXML = et.parse(f"./{lp_file_name}.sol").getroot()
     _, status_str, objValString = get_solution_status(solutionXML)
-
     gap_pct = cplex_log["gap_pct"] if cplex_log else None
     solution_time = cplex_log["solution_time"] if cplex_log else None
     status_str = 'Acceptable' if cplex_log and cplex_log["Acceptable"] else status_str
@@ -843,11 +844,11 @@ def solve_multi_period_fpl(data, options):
             else:
                 chip_used = None
             next_gw_dict = {
-                "itb": in_the_bank[w].value(),
-                "ft": free_transfers[w].value(),
-                "hits": penalized_transfers[w].value(),
+                "itb": round(in_the_bank[w].value(),1),
+                "ft": round(free_transfers[w+1].value()),
+                "hits": round(penalized_transfers[w].value()),
                 "solve_time": solution_time,
-                "n_transfers": lpSum([transfer_out[p, w] for p in players]).value(),
+                "n_transfers": round(lpSum([transfer_out[p, w] for p in players]).value()),
                 "chip_used": chip_used
             }
     overall_summary = (
@@ -874,7 +875,7 @@ def get_historical_picks(team_id, next_gw, merged_data):
         right_index=True,
     ).rename({f"xPts_{next_gw}": "predicted_xP"}, axis=1)
     summary = [picks_df]
-    next_gw_dict = {"hits": 0, "itb": 0, "ft": 0, "solve_time": 0, "n_transfers":0}
+    next_gw_dict = {"hits": 0, "itb": 0, "ft": 0, "solve_time": 0, "n_transfers":0,"chip_used":None}
     return picks_df, summary, next_gw_dict
 
 
@@ -950,6 +951,7 @@ def backtest(options, title="Backtest Result"):
                 right_on=["FPL name", "Team"],
             ).set_index("id")
             merged_data["sell_price"] = merged_data["now_cost"]
+            # merged_data[f"xPts_{next_gw}"] = merged_data["xP"] # peek actual xp
 
             if player_history:
                 picks_df, summary, next_gw_dict = get_historical_picks(
@@ -989,10 +991,11 @@ def backtest(options, title="Backtest Result"):
             )
             logger.info(f"Actual xP = {actual_xp:.2f}. ({total_xp:.2f} overall)")
 
-            if next_gw_dict["chip_used"] not in ("fh", "wc") and next_gw!=1:
-                assert next_gw_dict["ft"] == min(2, max(1,options["ft"] - next_gw_dict["n_transfers"] + 1))
-            else:
-                assert next_gw_dict["ft"] == options["ft"]
+            if not player_history:
+                if next_gw_dict["chip_used"] not in ("fh", "wc") and next_gw!=1:
+                    assert next_gw_dict["ft"] == min(2, max(1,options["ft"] - next_gw_dict["n_transfers"] + 1))
+                else:
+                    assert next_gw_dict["ft"] == options["ft"]
 
             itb = next_gw_dict["itb"]
             options["ft"] = next_gw_dict["ft"]
@@ -1021,7 +1024,7 @@ def backtest(options, title="Backtest Result"):
     plt.plot(result_gw, result_predicted_xp, linewidth=2.0, label="Predicted xP")
     plt.title(title)
     plt.legend()
-    plt.savefig(f"[{total_predicted_xp:.1f}] {title}.png")
+    plt.savefig(f"[{total_predicted_xp:.1f}, {total_xp:.1f}] {title}.png")
     # plt.show()
 
 
@@ -1034,30 +1037,30 @@ if __name__ == "__main__":
         "horizon": 3,
         "tr_horizon": 2,
         "wc_on": 8,
-        "timeout": 20 * 60,
+        "timeout": 60,
         "log": False,
         "decay": 0.5,
     }
 
     # live_run(options)
 
-    # options["player_history"] = True
-    # for p, id in players.items():
-    #     options["team_id"] = id
-    #     backtest(
-    #         options,
-    #         p
-    #     )
+    options["player_history"] = True
+    for p, id in players.items():
+        options["team_id"] = id
+        backtest(
+            options,
+            p
+        )
     
-    for h in [5,4,3]:
-        for trh in [1,2,3]:
-            for d in [0.65,0.75,0.85,1]:
-                if trh <= h:
-                    options['horizon'] = h
-                    options['tr_horizon'] = trh
-                    options['decay'] = d
-                    backtest(
-                        options,
-                        # p
-                        f"h={options['horizon']} ; trh={options['tr_horizon']} ; d={options['decay']}",
-                    )
+    # for h in [4]:
+    #     for trh in [2]:
+    #         for d in [0.65]:
+    #             if trh <= h:
+    #                 options['horizon'] = h
+    #                 options['tr_horizon'] = trh
+    #                 options['decay'] = d
+    #                 backtest(
+    #                     options,
+    #                     # p
+    #                     f"(CHEATS) h={options['horizon']} ; trh={options['tr_horizon']} ; d={options['decay']}",
+    #                 )

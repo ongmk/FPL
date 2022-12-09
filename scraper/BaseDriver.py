@@ -17,7 +17,7 @@ from selenium.common.exceptions import TimeoutException
 
 
 class BaseDriver:
-    """Custom web driver for FBRef.com"""
+    """Base Web Driver for handling timeouts"""
 
     def __init__(self):
         chrome_options = webdriver.ChromeOptions()

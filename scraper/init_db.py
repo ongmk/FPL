@@ -13,7 +13,8 @@ def create_table(sql):
 if __name__ == "__main__":
     sqls = [
         # "create_team_match_log.sql",
-        "create_player_match_log.sql"
+        # "create_player_match_log.sql",
+        # "create_match_odds.sql"
     ]
 
     for sql in sqls:

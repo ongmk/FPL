@@ -1,4 +1,5 @@
 import sqlite3
+import pandas as pd
 
 
 def create_table(sql):
@@ -7,6 +8,15 @@ def create_table(sql):
     sql_file = open(sql).read()
     cursor.executescript(sql_file)
     conn.commit()
+    conn.close()
+
+
+def fpl_data_to_sql():
+    conn = sqlite3.connect("../data/fpl.db")
+    df = pd.read_csv(
+        "../data/backtest_data/merged_seasons.csv", index_col=0, dtype={"team_x": str}
+    )
+    df.to_sql("FPL_DATA", conn, if_exists="replace", index=False)
     conn.close()
 
 
@@ -19,3 +29,5 @@ if __name__ == "__main__":
 
     for sql in sqls:
         create_table(sql)
+
+    fpl_data_to_sql()

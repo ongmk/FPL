@@ -14,7 +14,7 @@ def crawl_team_match_logs():
     seasons = [f"{s}-{s+1}" for s in seasons]
 
     logger.info(f"Initializing SQLite connection...")
-    conn = sqlite3.connect("fpl.db")
+    conn = sqlite3.connect("../data/fpl.db")
 
     logger.info(f"Initializing FBRefDriver...")
 
@@ -41,6 +41,7 @@ def crawl_team_match_logs():
                 match_log_df.to_sql(
                     "TEAM_MATCH_LOG", conn, if_exists="append", index=False
                 )
+    conn.close()
 
 
 def crawl_player_match_logs():
@@ -48,7 +49,7 @@ def crawl_player_match_logs():
     seasons = [f"{s}-{s+1}" for s in seasons]
 
     logger.info(f"Initializing SQLite connection...")
-    conn = sqlite3.connect("fpl.db")
+    conn = sqlite3.connect("../data/fpl.db")
 
     logger.info(f"Initializing FBRefDriver...")
     with FBRefDriver() as d:
@@ -76,13 +77,15 @@ def crawl_player_match_logs():
                 )
                 crawled_df.loc[len(crawled_df)] = [player, s]
 
+    conn.close()
+
 
 def crawl_match_odds():
     seasons = [2021 - i for i in range(10)]
     seasons = [f"{s}-{s+1}" for s in seasons]
 
     logger.info(f"Initializing SQLite connection...")
-    conn = sqlite3.connect("fpl.db")
+    conn = sqlite3.connect("../data/fpl.db")
 
     logger.info(f"Initializing OddsPortalDriver...")
     with OddsPortalDriver() as d:
@@ -108,6 +111,8 @@ def crawl_match_odds():
                     "MATCH_ODDS", conn, if_exists="append", index=False
                 )
                 crawled_df.loc[len(crawled_df)] = [h_team, a_team, s]
+
+    conn.close()
 
 
 if __name__ == "__main__":

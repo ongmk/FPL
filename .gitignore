@@ -9,3 +9,5 @@ chromedriver.exe
 .vscode/*
 *.db
 *.pyc
+__pycache__/
+env_config.ini

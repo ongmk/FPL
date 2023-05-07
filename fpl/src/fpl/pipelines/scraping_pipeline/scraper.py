@@ -20,7 +20,7 @@ def crawl_team_match_logs():
 
     with FBRefDriver() as d:
         crawled_df = pd.read_sql(
-            "select distinct TEAM, SEASON from TEAM_MATCH_LOG", conn
+            "select distinct TEAM, SEASON from 01_TEAM_MATCH_LOG", conn
         )
 
         for s in tqdm(seasons, desc="Seasons crawled"):
@@ -39,7 +39,7 @@ def crawl_team_match_logs():
 
                 logger.info(f"Saving Match Log:\t{s} {team}")
                 match_log_df.to_sql(
-                    "TEAM_MATCH_LOG", conn, if_exists="append", index=False
+                    "01_TEAM_MATCH_LOG", conn, if_exists="append", index=False
                 )
     conn.close()
 
@@ -54,7 +54,7 @@ def crawl_player_match_logs():
     logger.info(f"Initializing FBRefDriver...")
     with FBRefDriver() as d:
         crawled_df = pd.read_sql(
-            "select distinct PLAYER, SEASON from PLAYER_MATCH_LOG", conn
+            "select distinct PLAYER, SEASON from 01_PLAYER_MATCH_LOG", conn
         )
 
         for s in tqdm(seasons, desc="Seasons crawled"):
@@ -73,7 +73,7 @@ def crawl_player_match_logs():
 
                 logger.info(f"Saving Match Log:\t{s} {player}")
                 match_log_df.to_sql(
-                    "PLAYER_MATCH_LOG", conn, if_exists="append", index=False
+                    "01_PLAYER_MATCH_LOG", conn, if_exists="append", index=False
                 )
                 crawled_df.loc[len(crawled_df)] = [player, s]
 
@@ -90,7 +90,7 @@ def crawl_match_odds():
     logger.info(f"Initializing OddsPortalDriver...")
     with OddsPortalDriver() as d:
         crawled_df = pd.read_sql(
-            "select distinct H_TEAM, A_TEAM, SEASON from MATCH_ODDS", conn
+            "select distinct H_TEAM, A_TEAM, SEASON from 01_MATCH_ODDS", conn
         )
         for s in tqdm(seasons, desc="Seasons crawled"):
             match_links = d.get_match_links(s)
@@ -108,7 +108,7 @@ def crawl_match_odds():
 
                 logger.info(f"Saving Match Odds:\t{s} {match}")
                 match_odds_df.to_sql(
-                    "MATCH_ODDS", conn, if_exists="append", index=False
+                    "01_MATCH_ODDS", conn, if_exists="append", index=False
                 )
                 crawled_df.loc[len(crawled_df)] = [h_team, a_team, s]
 

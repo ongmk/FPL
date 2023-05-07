@@ -16,7 +16,7 @@ def fpl_data_to_sql():
     df = pd.read_csv(
         "../data/backtest_data/merged_seasons.csv", index_col=0, dtype={"team_x": str}
     )
-    df.to_sql("FPL_DATA", conn, if_exists="replace", index=False)
+    df.to_sql("01_FPL_DATA", conn, if_exists="replace", index=False)
     conn.close()
 
 

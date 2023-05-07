@@ -2,10 +2,11 @@ from kedro.pipeline import Pipeline, node, pipeline
 
 from .nodes import (
     calculate_elo_score,
-    preprocess_train_data,
+    preprocess_data,
     split_data,
     train_model,
     evaluate_model,
+    xg_elo_correlation,
 )
 
 
@@ -14,16 +15,21 @@ def create_pipeline(**kwargs) -> Pipeline:
         [
             node(
                 func=calculate_elo_score,
-                inputs="match_data",
-                outputs="preprocessed_companies",
+                inputs=["MATCH_DATA", "params:data"],
+                outputs="ELO_DATA",
                 name="elo_score_node",
             ),
-            # node(
-            #     func=preprocess_train_data,
-            #     inputs="shuttles",
-            #     outputs="preprocessed_data",
-            #     name="preprocess_node",
-            # ),
+            node(
+                func=preprocess_data,
+                inputs=["TEAM_MATCH_LOG", "ELO_DATA"],
+                outputs="PROCESSED_DATA",
+                name="preprocess_node",
+            ),
+            node(
+                func=xg_elo_correlation,
+                inputs=["PROCESSED_DATA", "params:data"],
+                outputs="correlation",
+            )
             # node(
             #     func=split_data,
             #     inputs="train_data",

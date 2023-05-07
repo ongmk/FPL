@@ -92,12 +92,15 @@ def custom_kedro_run(
             return {
                 "loss": res[target_name] if strategy == "min" else -res[target_name],
                 "status": STATUS_OK,
+                target_name: res[target_name],
             }
 
         hyperopt_run_config["fn"] = optimize
         fmin(**hyperopt_run_config, show_progressbar=False)
 
-        print(f"Best parameters are: {trials.best_trial.best_trial['misc']['vals']}")
+        print(f"Best parameters are: {trials.best_trial['misc']['vals']}")
+        print(f"{target_name} = {trials.best_trial['result'][target_name]}")
+        return None
 
     else:
         run_kedro_task(
@@ -106,6 +109,7 @@ def custom_kedro_run(
             run_args_cli=run_args_cli,
             project_path=project_path,
         )
+        return None
 
 
 def run_kedro_task(env, params, run_args_cli, project_path):

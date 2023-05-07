@@ -83,6 +83,8 @@ def custom_kedro_run(
         def optimize(parameters: Dict):
             parameters = tuple_list_type_check(hyperopt_run_config["space"], parameters)
 
+            trial_num = len(hyperopt_run_config["trials"].tids)
+            print(f"Hyperopt trial {trial_num}/{hyperopt_run_config['max_evals']}")
             res = run_kedro_task(
                 env=env,
                 params=parameters,

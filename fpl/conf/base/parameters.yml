@@ -5,10 +5,14 @@ data:
 hyperopt:
   target:
     name: correlation
-    max_trials: 3
+    max_trials: 100
     strategy: max
   data:
     elo_learning_rate:
       method: uniform
       low: 0.1
       high: 0.2
+    home_away_weight:
+      method: uniform
+      low: 0
+      high: 0.5

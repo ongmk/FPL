@@ -28,3 +28,4 @@ PROCESSED_DATA:
   credentials: db_credentials
   save_args:
     if_exists: replace
+    index: True

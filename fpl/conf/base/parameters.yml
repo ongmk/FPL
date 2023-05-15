@@ -1,18 +1,19 @@
 data:
-  elo_learning_rate: 0.15
+  elo_learning_rate: 0.1
   home_away_weight: 0.5
-
-hyperopt:
-  target:
-    name: correlation
-    max_trials: 100
-    strategy: max
-  data:
-    elo_learning_rate:
-      method: uniform
-      low: 0.1
-      high: 0.2
-    home_away_weight:
-      method: uniform
-      low: 0
-      high: 0.5
+  test_size: 0.2
+  random_seed: 42
+# hyperopt:
+#   target:
+#     name: correlation
+#     max_trials: 10
+#     strategy: max
+#   data:
+#     # elo_learning_rate:
+#     #   method: uniform
+#     #   low: 0.1
+#     #   high: 0.2
+#     home_away_weight:
+#       method: uniform
+#       low: 0.4
+#       high: 0.6

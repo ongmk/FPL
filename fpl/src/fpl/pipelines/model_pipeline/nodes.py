@@ -4,10 +4,10 @@ import logging
 
 logger = logging.getLogger(__name__)
 import statistics
+from sklearn.model_selection import train_test_split
 
 
 def _get_init_elo(match_data):
-
     first_season = match_data.SEASON.min()
     home_xg_mean = (
         match_data.loc[match_data["SEASON"] == first_season]
@@ -195,21 +195,7 @@ def calculate_elo_score(match_data, parameters):
     return elo_df
 
 
-def preprocess_data(team_match_log, elo_data):
-    team_match_log = team_match_log.sort_values(["SEASON", "DATE", "TEAM"]).reset_index(
-        drop=True
-    )
-    team_match_log["DATE"] = pd.to_datetime(team_match_log["DATE"])
-    team_match_log["DAYS_TILL_NEXT"] = (
-        (team_match_log.groupby("TEAM")["DATE"].shift(-1) - team_match_log["DATE"])
-        .apply(lambda x: x.days)
-        .clip(upper=7)
-    )
-    team_match_log["DAYS_SINCE_LAST"] = (
-        (team_match_log["DATE"] - team_match_log.groupby("TEAM")["DATE"].shift(1))
-        .apply(lambda x: x.days)
-        .clip(upper=7)
-    )
+def combine_data(team_match_log, elo_data):
     team_match_log = team_match_log.loc[
         (team_match_log["COMP"] == "Premier League")
         & (team_match_log["SEASON"] > "2017"),
@@ -279,8 +265,28 @@ def preprocess_data(team_match_log, elo_data):
     combined_data["XGA_MA"] = combined_data.groupby("TEAM")["XGA"].apply(
         lambda x: x.shift(1).rolling(window=5).sum()
     )
-
     return combined_data
+
+
+def preprocess_data(team_match_log, elo_data):
+    team_match_log = team_match_log.sort_values(["SEASON", "DATE", "TEAM"]).reset_index(
+        drop=True
+    )
+    team_match_log["DATE"] = pd.to_datetime(team_match_log["DATE"])
+    team_match_log["DAYS_TILL_NEXT"] = (
+        (team_match_log.groupby("TEAM")["DATE"].shift(-1) - team_match_log["DATE"])
+        .apply(lambda x: x.days)
+        .clip(upper=7)
+    )
+    team_match_log["DAYS_SINCE_LAST"] = (
+        (team_match_log["DATE"] - team_match_log.groupby("TEAM")["DATE"].shift(1))
+        .apply(lambda x: x.days)
+        .clip(upper=7)
+    )
+    combined_df = combine_data(team_match_log, elo_data)
+    combined_df["ROUND"] = combined_df["ROUND"].apply(lambda x: int(x.split()[-1]))
+
+    return combined_df
 
 
 def xg_elo_correlation(processed_data, parameters):
@@ -300,8 +306,15 @@ def xg_elo_correlation(processed_data, parameters):
     return correlation
 
 
-def split_data():
-    pass
+def split_data(processed_data, parameters):
+    X = processed_data.drop("XG", axis=1)
+    y = processed_data["XG"]
+
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=parameters["test_size"], random_state=parameters["random_seed"]
+    )
+
+    return X_train, X_test, y_train, y_test
 
 
 def train_model():

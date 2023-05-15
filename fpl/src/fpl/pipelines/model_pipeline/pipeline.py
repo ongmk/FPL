@@ -25,15 +25,15 @@ def create_pipeline(**kwargs) -> Pipeline:
                 outputs="PROCESSED_DATA",
                 name="preprocess_node",
             ),
-            node(
-                func=xg_elo_correlation,
-                inputs=["PROCESSED_DATA", "params:data"],
-                outputs="correlation",
-            )
+            # node(
+            #     func=xg_elo_correlation,
+            #     inputs=["PROCESSED_DATA", "params:data"],
+            #     outputs="correlation",
+            # )
             # node(
             #     func=split_data,
             #     inputs="train_data",
-            #     outputs=["X_train", "y_train", "X_test", "y_test"],
+            #     outputs=["X_train", "X_test", "y_train", "y_test"],
             #     name="split_data_node",
             # ),
             # node(

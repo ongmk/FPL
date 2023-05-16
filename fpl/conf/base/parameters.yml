@@ -3,6 +3,7 @@ data:
   home_away_weight: 0.5
   test_size: 0.2
   random_seed: 42
+  start_year: 2017-2018
 # hyperopt:
 #   target:
 #     name: correlation

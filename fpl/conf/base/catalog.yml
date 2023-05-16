@@ -22,6 +22,11 @@ ELO_DATA:
   save_args:
     if_exists: replace
 
+ODDS_DATA:
+  type: pandas.SQLTableDataSet
+  table_name: 01_MATCH_ODDS
+  credentials: db_credentials
+
 PROCESSED_DATA:
   type: pandas.SQLTableDataSet
   table_name: 02_PROCESSED_DATA

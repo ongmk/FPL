@@ -21,7 +21,7 @@ def create_pipeline(**kwargs) -> Pipeline:
             ),
             node(
                 func=preprocess_data,
-                inputs=["TEAM_MATCH_LOG", "ELO_DATA"],
+                inputs=["TEAM_MATCH_LOG", "ELO_DATA", "ODDS_DATA", "params:data"],
                 outputs="PROCESSED_DATA",
                 name="preprocess_node",
             ),

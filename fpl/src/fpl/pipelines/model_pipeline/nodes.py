@@ -114,7 +114,7 @@ def calculate_elo_score(match_data, parameters):
     )
     match_data = match_data.loc[
         (match_data["COMP"] == "Premier League")
-        & (match_data["SEASON"] > "2017")
+        & (match_data["SEASON"] > parameters["start_year"])
         & (match_data["VENUE"] == "Home"),
         ["SEASON", "TEAM", "ROUND", "DATE", "OPPONENT", "XG", "XGA"],
     ]
@@ -195,10 +195,10 @@ def calculate_elo_score(match_data, parameters):
     return elo_df
 
 
-def combine_data(team_match_log, elo_data):
+def combine_data(team_match_log, elo_data, odds_data, parameters):
     team_match_log = team_match_log.loc[
         (team_match_log["COMP"] == "Premier League")
-        & (team_match_log["SEASON"] > "2017"),
+        & (team_match_log["SEASON"] > parameters["start_year"]),
         [
             "SEASON",
             "TEAM",
@@ -259,16 +259,71 @@ def combine_data(team_match_log, elo_data):
         combined_data.filter(regex="_OPP$").columns, axis=1
     )
     combined_data = combined_data.drop("NEXT_MATCH", axis=1)
-    combined_data["XG_MA"] = combined_data.groupby("TEAM")["XG"].apply(
-        lambda x: x.shift(1).rolling(window=5).sum()
+
+    combined_data = pd.merge(
+        combined_data, odds_data, on=["SEASON", "TEAM", "OPPONENT", "VENUE"]
     )
-    combined_data["XGA_MA"] = combined_data.groupby("TEAM")["XGA"].apply(
-        lambda x: x.shift(1).rolling(window=5).sum()
-    )
+
     return combined_data
 
 
-def preprocess_data(team_match_log, elo_data):
+def weighted_average(df):
+    h_score_sum = (df["H_SCORE"] * (1 / (df["ODDS"] + 1))).sum()
+    a_score_sum = (df["A_SCORE"] * (1 / (df["ODDS"] + 1))).sum()
+    inverse_odds_sum = (1 / (df["ODDS"] + 1)).sum()
+    return pd.Series(
+        {
+            "H_ODDS_2_SCORE": h_score_sum / inverse_odds_sum,
+            "A_ODDS_2_SCORE": a_score_sum / inverse_odds_sum,
+        }
+    )
+
+
+def aggregate_odds_data(odds_data, parameters):
+    odds_data = odds_data.loc[odds_data["SEASON"] >= parameters["start_year"]]
+
+    agg_odds_data = (
+        odds_data.groupby(["SEASON", "H_TEAM", "A_TEAM"])
+        .apply(lambda group: weighted_average(group))
+        .reset_index()
+    )
+    mapping = pd.read_csv("./src/fpl/pipelines/model_pipeline/team_mapping.csv")
+    mapping = mapping.set_index("ODDS_PORTAL_NAME")["FBREF_NAME"].to_dict()
+    agg_odds_data["H_TEAM"] = agg_odds_data["H_TEAM"].map(mapping)
+    agg_odds_data["A_TEAM"] = agg_odds_data["A_TEAM"].map(mapping)
+
+    temp_df = agg_odds_data.copy()
+    temp_df.columns = [
+        "SEASON",
+        "TEAM",
+        "OPPONENT",
+        "TEAM_ODDS_2_SCORE",
+        "OPPONENT_ODDS_2_SCORE",
+    ]
+
+    # Create two copies of the temporary dataframe, one for home matches and one for away matches
+    home_df = temp_df.copy()
+    away_df = temp_df.copy()
+
+    # Add a 'venue' column to each dataframe
+    home_df["VENUE"] = "Home"
+    away_df["VENUE"] = "Away"
+
+    # Swap the 'team' and 'opponent' columns in the away_df
+    away_df["TEAM"], away_df["OPPONENT"] = away_df["OPPONENT"], away_df["TEAM"]
+    away_df["TEAM_ODDS_2_SCORE"], away_df["OPPONENT_ODDS_2_SCORE"] = (
+        away_df["OPPONENT_ODDS_2_SCORE"],
+        away_df["TEAM_ODDS_2_SCORE"],
+    )
+
+    # Concatenate the two dataframes to get the final unpivoted dataframe
+    unpivoted_df = pd.concat([home_df, away_df], ignore_index=True)
+
+    return unpivoted_df
+
+
+def preprocess_data(team_match_log, elo_data, odds_data, parameters):
+    odds_data = aggregate_odds_data(odds_data, parameters)
     team_match_log = team_match_log.sort_values(["SEASON", "DATE", "TEAM"]).reset_index(
         drop=True
     )
@@ -283,8 +338,14 @@ def preprocess_data(team_match_log, elo_data):
         .apply(lambda x: x.days)
         .clip(upper=7)
     )
-    combined_df = combine_data(team_match_log, elo_data)
+    combined_df = combine_data(team_match_log, elo_data, odds_data, parameters)
     combined_df["ROUND"] = combined_df["ROUND"].apply(lambda x: int(x.split()[-1]))
+    combined_df["XG_MA"] = combined_df.groupby("TEAM")["XG"].apply(
+        lambda x: x.shift(1).rolling(window=5).mean()
+    )
+    combined_df["XGA_MA"] = combined_df.groupby("TEAM")["XGA"].apply(
+        lambda x: x.shift(1).rolling(window=5).mean()
+    )
 
     return combined_df
 

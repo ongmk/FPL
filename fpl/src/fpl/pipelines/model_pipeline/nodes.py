@@ -114,7 +114,7 @@ def calculate_elo_score(match_data, parameters):
     )
     match_data = match_data.loc[
         (match_data["COMP"] == "Premier League")
-        & (match_data["SEASON"] > parameters["start_year"])
+        & (match_data["SEASON"] >= parameters["start_year"])
         & (match_data["VENUE"] == "Home"),
         ["SEASON", "TEAM", "ROUND", "DATE", "OPPONENT", "XG", "XGA"],
     ]
@@ -198,7 +198,7 @@ def calculate_elo_score(match_data, parameters):
 def combine_data(team_match_log, elo_data, odds_data, parameters):
     team_match_log = team_match_log.loc[
         (team_match_log["COMP"] == "Premier League")
-        & (team_match_log["SEASON"] > parameters["start_year"]),
+        & (team_match_log["SEASON"] >= parameters["start_year"]),
         [
             "SEASON",
             "TEAM",

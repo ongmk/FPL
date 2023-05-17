@@ -1,10 +1,15 @@
 import pandas as pd
 from tqdm import tqdm
+import numpy as np
 import logging
+import statistics
+from sklearn.model_selection import GroupKFold
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.metrics import mean_squared_error
+from xgboost import XGBRegressor
+import matplotlib.pyplot as plt
 
 logger = logging.getLogger(__name__)
-import statistics
-from sklearn.model_selection import train_test_split
 
 
 def _get_init_elo(match_data):
@@ -195,7 +200,7 @@ def calculate_elo_score(match_data, parameters):
     return elo_df
 
 
-def combine_data(team_match_log, elo_data, odds_data, parameters):
+def _combine_data(team_match_log, elo_data, odds_data, parameters):
     team_match_log = team_match_log.loc[
         (team_match_log["COMP"] == "Premier League")
         & (team_match_log["SEASON"] >= parameters["start_year"]),
@@ -267,7 +272,7 @@ def combine_data(team_match_log, elo_data, odds_data, parameters):
     return combined_data
 
 
-def weighted_average(df):
+def _weighted_average(df):
     h_score_sum = (df["H_SCORE"] * (1 / (df["ODDS"] + 1))).sum()
     a_score_sum = (df["A_SCORE"] * (1 / (df["ODDS"] + 1))).sum()
     inverse_odds_sum = (1 / (df["ODDS"] + 1)).sum()
@@ -279,12 +284,12 @@ def weighted_average(df):
     )
 
 
-def aggregate_odds_data(odds_data, parameters):
+def _aggregate_odds_data(odds_data, parameters):
     odds_data = odds_data.loc[odds_data["SEASON"] >= parameters["start_year"]]
 
     agg_odds_data = (
         odds_data.groupby(["SEASON", "H_TEAM", "A_TEAM"])
-        .apply(lambda group: weighted_average(group))
+        .apply(lambda group: _weighted_average(group))
         .reset_index()
     )
     mapping = pd.read_csv("./src/fpl/pipelines/model_pipeline/team_mapping.csv")
@@ -323,7 +328,7 @@ def aggregate_odds_data(odds_data, parameters):
 
 
 def preprocess_data(team_match_log, elo_data, odds_data, parameters):
-    odds_data = aggregate_odds_data(odds_data, parameters)
+    odds_data = _aggregate_odds_data(odds_data, parameters)
     team_match_log = team_match_log.sort_values(["SEASON", "DATE", "TEAM"]).reset_index(
         drop=True
     )
@@ -338,7 +343,7 @@ def preprocess_data(team_match_log, elo_data, odds_data, parameters):
         .apply(lambda x: x.days)
         .clip(upper=7)
     )
-    combined_df = combine_data(team_match_log, elo_data, odds_data, parameters)
+    combined_df = _combine_data(team_match_log, elo_data, odds_data, parameters)
     combined_df["ROUND"] = combined_df["ROUND"].apply(lambda x: int(x.split()[-1]))
     combined_df["XG_MA"] = combined_df.groupby("TEAM")["XG"].apply(
         lambda x: x.shift(1).rolling(window=5).mean()
@@ -368,22 +373,143 @@ def xg_elo_correlation(processed_data, parameters):
 
 
 def split_data(processed_data, parameters):
-    X = processed_data.drop("XG", axis=1)
-    y = processed_data["XG"]
+    numerical_features = parameters["numerical_features"]
+    categorical_features = parameters["categorical_features"]
+    target = parameters["target"]
+    train_val_data = processed_data[processed_data["SEASON"] < "2021-2022"]
+    X_train_val = train_val_data[numerical_features + categorical_features]
+    y_train_val = train_val_data[target]
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=parameters["test_size"], random_state=parameters["random_seed"]
+    holdout_data = processed_data[processed_data["SEASON"] >= "2021-2022"]
+    X_holdout = holdout_data[numerical_features + categorical_features]
+    y_holdout = holdout_data[target]
+
+    groups = train_val_data[parameters["group_by"]]
+
+    return X_train_val, y_train_val, X_holdout, y_holdout, groups
+
+
+def _encode_features(X, categorical_features, numerical_features, encoder):
+    X_cat = X[categorical_features]
+    X_num = X[numerical_features]
+
+    X_encoded = np.hstack([encoder.transform(X_cat).toarray(), X_num])
+    return X_encoded
+
+
+def train_model(X_train_val, y_train_val, groups, parameters):
+    categorical_features = parameters["categorical_features"]
+    numerical_features = parameters["numerical_features"]
+
+    n_splits = groups.nunique()
+    logger.info(f"{groups.unique() = }")
+    group_kfold = GroupKFold(n_splits=n_splits)
+
+    X_train_val_cat = X_train_val[categorical_features]
+    categories = [
+        np.append(X_train_val_cat[col].unique(), "Unknown")
+        for col in X_train_val_cat.columns
+    ]
+    encoder = OneHotEncoder(
+        handle_unknown="infrequent_if_exist", categories=categories, min_frequency=1
+    )
+    encoder.fit(X_train_val_cat)
+
+    model = XGBRegressor(
+        random_state=parameters["random_seed"],
+        **parameters["xgboost_params"],
     )
 
-    return X_train, X_test, y_train, y_test
+    cross_val_scores = []
+    for train_index, val_index in group_kfold.split(X_train_val, y_train_val, groups):
+        # Remove outliers
+        X_train, y_train = X_train_val.iloc[train_index], y_train_val.iloc[train_index]
+        outlier = y_train > 4
+        X_train, y_train = X_train.loc[~outlier], y_train.loc[~outlier]
+
+        X_train_encoded = _encode_features(
+            X_train, categorical_features, numerical_features, encoder
+        )
+        X_val_encoded = _encode_features(
+            X_train_val.iloc[val_index],
+            categorical_features,
+            numerical_features,
+            encoder,
+        )
+        y_val = y_train_val.iloc[val_index]
+
+        model.fit(
+            X_train_encoded,
+            y_train,
+            eval_set=[(X_train_encoded, y_train), (X_val_encoded, y_val)],
+            verbose=100,
+        )
+
+        val_predictions = model.predict(X_val_encoded)
+        val_accuracy = mean_squared_error(y_val, val_predictions)
+        cross_val_scores.append(val_accuracy)
+
+    avg_cv_accuracy = sum(cross_val_scores) / n_splits
+    logger.info(f"Average cross-validation accuracy: {avg_cv_accuracy}")
+    logger.info(cross_val_scores)
+    return model, encoder
 
 
-def train_model():
-    pass
+def evaluate_model(X_holdout, y_holdout, model, encoder, parameters):
+    categorical_features = parameters["categorical_features"]
+    numerical_features = parameters["numerical_features"]
 
+    # Feature Importance
+    encoded_cat_cols = encoder.get_feature_names_out(
+        input_features=categorical_features
+    )
+    features_importance = pd.DataFrame(
+        data=model.feature_importances_,
+        index=encoded_cat_cols.tolist() + numerical_features,
+        columns=["importance"],
+    )
+    features_importance = features_importance.sort_values(
+        by="importance", ascending=False
+    ).head(10)
+    features_importance.sort_values("importance").plot(
+        kind="barh", title="Feature Importance"
+    )
+    plt.show()
 
-def evaluate_model():
-    pass
+    # Holdout set evaluation
+    X_holdout_encoded = _encode_features(
+        X_holdout, categorical_features, numerical_features, encoder
+    )
+    holdout_predictions = model.predict(X_holdout_encoded)
+
+    baseline_columns = ["XG_MA", "TEAM_ODDS_2_SCORE", "ATT_TOTAL"]
+    output_cols = list(
+        set(
+            ["index"]
+            + numerical_features
+            + categorical_features
+            + [target]
+            + baseline_columns
+        )
+    )
+    output_df = holdout_data[output_cols].copy()
+    eval_cols = ["prediction"] + baseline_columns
+    output_df["prediction"] = holdout_predictions
+
+    fig, axes = plt.subplots(
+        nrows=1, ncols=len(eval_cols), figsize=(20, 5), sharey=True
+    )
+
+    for i, col in enumerate(eval_cols):
+        output_df[f"{col}_error"] = output_df[col] - output_df[target]
+        output_df[f"{col}_error"].hist(
+            ax=axes[i], bins=np.arange(-3.5, 3.5, 0.1), color=color_pal[i]
+        )
+        mae = output_df[f"{col}_error"].abs().mean()
+        axes[i].set_xlabel(f"{col} MAE: {mae:.2f}")
+    output_df.head()
+    plt.subplots_adjust(wspace=0.1)
+    plt.show()
 
 
 if __name__ == "__main__":

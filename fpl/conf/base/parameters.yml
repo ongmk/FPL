@@ -1,9 +1,38 @@
 data:
   elo_learning_rate: 0.1
   home_away_weight: 0.5
-  test_size: 0.2
-  random_seed: 42
   start_year: 2017-2018
+
+model:
+  target: XG
+  numerical_features:
+    - ROUND
+    - POSS
+    - DAYS_TILL_NEXT
+    - DAYS_SINCE_LAST
+    - ATT_TOTAL
+    - HOME_ATT_TOTAL
+    - AWAY_ATT_TOTAL
+    # - DEF_TOTAL
+    # - HOME_DEF_TOTAL
+    # - AWAY_DEF_TOTAL
+    # - DATE
+    # - XGA
+  categorical_features:
+    - VENUE
+    - TEAM
+    - OPPONENT
+  group_by: SEASON
+  random_seed: 42
+  xgboost_params:
+    base_score: 0.5
+    n_estimators: 1000
+    early_stopping_rounds: 50
+    objective: reg:squarederror
+    learning_rate: 0.01
+    eval_metric: mae
+
+  
 # hyperopt:
 #   target:
 #     name: correlation

@@ -5,43 +5,46 @@
 # 05 Model Outputs
 # 06 Serving
 
-MATCH_DATA:
+FPL_DATA_CSV:
+  type: pandas.CSVDataSet
+  filepath: data/raw/backtest_data/merged_seasons.csv
+
+FPL_DATA:
   type: pandas.SQLTableDataSet
-  table_name: 01_TEAM_MATCH_LOG
+  table_name: raw_fpl_data
   credentials: db_credentials
 
 TEAM_MATCH_LOG:
   type: pandas.SQLTableDataSet
-  table_name: 01_TEAM_MATCH_LOG
+  table_name: raw_team_match_log
   credentials: db_credentials
 
 ODDS_DATA:
   type: pandas.SQLTableDataSet
-  table_name: 01_MATCH_ODDS
+  table_name: raw_match_odds
   credentials: db_credentials
 
 ELO_DATA:
   type: pandas.SQLTableDataSet
-  table_name: 02_ELO_DATA
+  table_name: elo_data
   credentials: db_credentials
   save_args:
     if_exists: replace
 
 PROCESSED_DATA:
   type: pandas.SQLTableDataSet
-  table_name: 02_PROCESSED_DATA
+  table_name: processed_data
   credentials: db_credentials
   save_args:
     if_exists: replace
-    index: True
 
 EVALUATION_RESULT:
   type: pandas.SQLTableDataSet
-  table_name: 03_EVALUATION_RESULT
+  table_name: evaluation_result
   credentials: db_credentials
   save_args:
     if_exists: append
 
 EVALUATION_PLOTS:
   type: matplotlib.MatplotlibWriter
-  filepath: ./data/03_evaluation
+  filepath: ./data/evaluation

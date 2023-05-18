@@ -23,7 +23,7 @@ def create_pipeline(**kwargs) -> Pipeline:
             ),
             # node(
             #     func=calculate_elo_score,
-            #     inputs=["MATCH_DATA", "params:data"],
+            #     inputs=["TEAM_MATCH_LOG", "params:data"],
             #     outputs="ELO_DATA",
             #     name="elo_score_node",
             # ),
@@ -37,7 +37,7 @@ def create_pipeline(**kwargs) -> Pipeline:
             #     func=xg_elo_correlation,
             #     inputs=["PROCESSED_DATA", "params:data"],
             #     outputs="correlation",
-            # )
+            # ),
             node(
                 func=split_data,
                 inputs=["PROCESSED_DATA", "params:data"],

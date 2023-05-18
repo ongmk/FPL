@@ -5,29 +5,29 @@ data:
   holdout_year: 2021-2022
 
 model:
-  target: XG
+  target: xg
   numerical_features:
-    - ROUND
-    - POSS
-    - DAYS_TILL_NEXT
-    - DAYS_SINCE_LAST
-    - ATT_TOTAL
-    - HOME_ATT_TOTAL
-    - AWAY_ATT_TOTAL
-    # - DEF_TOTAL
-    # - HOME_DEF_TOTAL
-    # - AWAY_DEF_TOTAL
-    # - DATE
-    # - XGA
+    - round
+    - poss
+    - days_till_next
+    - days_since_last
+    - att_total
+    - home_att_total
+    - away_att_total
+    # - def_total
+    # - home_def_total
+    # - away_def_total
+    # - date
+    # - xga
   categorical_features:
-    - VENUE
-    - TEAM
-    - OPPONENT
-  group_by: SEASON
+    - venue
+    - team
+    - opponent
+  group_by: season
   baseline_columns: 
-    - XG_MA
-    - TEAM_ODDS_2_SCORE
-    - ATT_TOTAL
+    - xg_ma
+    - team_odds_2_score
+    - att_total
   random_seed: 42
   xgboost_params:
     base_score: 0.5

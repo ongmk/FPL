@@ -21,23 +21,23 @@ def create_pipeline(**kwargs) -> Pipeline:
                 outputs="start_time",
                 name="get_start_time_node",
             ),
-            # node(
-            #     func=calculate_elo_score,
-            #     inputs=["TEAM_MATCH_LOG", "params:data"],
-            #     outputs="ELO_DATA",
-            #     name="elo_score_node",
-            # ),
-            # node(
-            #     func=preprocess_data,
-            #     inputs=["TEAM_MATCH_LOG", "ELO_DATA", "ODDS_DATA", "params:data"],
-            #     outputs="PROCESSED_DATA",
-            #     name="preprocess_node",
-            # ),
-            # node(
-            #     func=xg_elo_correlation,
-            #     inputs=["PROCESSED_DATA", "params:data"],
-            #     outputs="correlation",
-            # ),
+            node(
+                func=calculate_elo_score,
+                inputs=["TEAM_MATCH_LOG", "params:data"],
+                outputs="ELO_DATA",
+                name="elo_score_node",
+            ),
+            node(
+                func=preprocess_data,
+                inputs=["TEAM_MATCH_LOG", "ELO_DATA", "ODDS_DATA", "params:data"],
+                outputs="PROCESSED_DATA",
+                name="preprocess_node",
+            ),
+            node(
+                func=xg_elo_correlation,
+                inputs=["PROCESSED_DATA", "params:data"],
+                outputs="correlation",
+            ),
             node(
                 func=split_data,
                 inputs=["PROCESSED_DATA", "params:data"],

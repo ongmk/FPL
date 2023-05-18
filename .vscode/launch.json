@@ -22,6 +22,23 @@
             "justMyCode": false,
         },
         {
+            "name": "Run Init DB pipeline",
+            "type": "python",
+            "request": "launch",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}\\fpl"
+            },
+            "cwd": "${workspaceFolder}\\fpl",
+            "program": "src\\fpl\\custom_run\\kedro_cli.py",
+            "args": [
+                "run",
+                "--pipeline",
+                "init_db_pipeline"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+        },
+        {
             "name": "current file",
             "type": "python",
             "request": "launch",

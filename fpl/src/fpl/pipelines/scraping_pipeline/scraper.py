@@ -1,26 +1,23 @@
 import sqlite3
-import warnings
-
-warnings.simplefilter(action="ignore", category=FutureWarning)
 import pandas as pd
 from tqdm import tqdm
 from FBRefDriver import FBRefDriver
 from OddsPortalDriver import OddsPortalDriver
-from logger import logger
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 def crawl_team_match_logs():
     seasons = [2021 - i for i in range(10)]
     seasons = [f"{s}-{s+1}" for s in seasons]
 
-    logger.info(f"Initializing SQLite connection...")
-    conn = sqlite3.connect("../data/fpl.db")
-
+    conn = sqlite3.connect("./data/fpl.db")
     logger.info(f"Initializing FBRefDriver...")
 
     with FBRefDriver() as d:
         crawled_df = pd.read_sql(
-            "select distinct TEAM, SEASON from 01_TEAM_MATCH_LOG", conn
+            "select distinct team, season from raw_team_match_log", conn
         )
 
         for s in tqdm(seasons, desc="Seasons crawled"):
@@ -30,7 +27,7 @@ def crawl_team_match_logs():
                 team_season_links, leave=False, desc="Teams crawled"
             ):
                 if not crawled_df.loc[
-                    (crawled_df["SEASON"] == s) & (crawled_df["TEAM"] == team)
+                    (crawled_df["season"] == s) & (crawled_df["team"] == team)
                 ].empty:
                     logger.warning(f"{s} {team}\tMatch Log already crawled.\t{link}")
                     continue
@@ -39,22 +36,22 @@ def crawl_team_match_logs():
 
                 logger.info(f"Saving Match Log:\t{s} {team}")
                 match_log_df.to_sql(
-                    "01_TEAM_MATCH_LOG", conn, if_exists="append", index=False
+                    "raw_team_match_log", conn, if_exists="append", index=False
                 )
     conn.close()
+    return True
 
 
 def crawl_player_match_logs():
     seasons = [2021 - i for i in range(10)]
     seasons = [f"{s}-{s+1}" for s in seasons]
 
-    logger.info(f"Initializing SQLite connection...")
-    conn = sqlite3.connect("../data/fpl.db")
+    conn = sqlite3.connect("./data/fpl.db")
 
     logger.info(f"Initializing FBRefDriver...")
     with FBRefDriver() as d:
         crawled_df = pd.read_sql(
-            "select distinct PLAYER, SEASON from 01_PLAYER_MATCH_LOG", conn
+            "select distinct player, season from raw_player_match_log", conn
         )
 
         for s in tqdm(seasons, desc="Seasons crawled"):
@@ -64,7 +61,7 @@ def crawl_player_match_logs():
                 player_season_links, leave=False, desc="Players crawled"
             ):
                 if not crawled_df.loc[
-                    (crawled_df["SEASON"] == s) & (crawled_df["PLAYER"] == player)
+                    (crawled_df["season"] == s) & (crawled_df["player"] == player)
                 ].empty:
                     logger.warning(f"{s} {player}\tMatch Log already crawled.\t{link}")
                     continue
@@ -73,7 +70,7 @@ def crawl_player_match_logs():
 
                 logger.info(f"Saving Match Log:\t{s} {player}")
                 match_log_df.to_sql(
-                    "01_PLAYER_MATCH_LOG", conn, if_exists="append", index=False
+                    "raw_player_match_log", conn, if_exists="append", index=False
                 )
                 crawled_df.loc[len(crawled_df)] = [player, s]
 
@@ -84,22 +81,21 @@ def crawl_match_odds():
     seasons = [2021 - i for i in range(10)]
     seasons = [f"{s}-{s+1}" for s in seasons]
 
-    logger.info(f"Initializing SQLite connection...")
-    conn = sqlite3.connect("../data/fpl.db")
+    conn = sqlite3.connect("./data/fpl.db")
 
     logger.info(f"Initializing OddsPortalDriver...")
     with OddsPortalDriver() as d:
         crawled_df = pd.read_sql(
-            "select distinct H_TEAM, A_TEAM, SEASON from 01_MATCH_ODDS", conn
+            "select distinct h_team, a_team, season from raw_match_odds", conn
         )
         for s in tqdm(seasons, desc="Seasons crawled"):
             match_links = d.get_match_links(s)
             for match, link in tqdm(match_links, leave=False, desc="Matches crawled"):
                 h_team, a_team = match.split(" - ")
                 if not crawled_df.loc[
-                    (crawled_df["SEASON"] == s)
-                    & (crawled_df["H_TEAM"] == h_team)
-                    & (crawled_df["A_TEAM"] == a_team)
+                    (crawled_df["season"] == s)
+                    & (crawled_df["h_team"] == h_team)
+                    & (crawled_df["a_team"] == a_team)
                 ].empty:
                     logger.warning(f"{s} {match}\tMatch odds already crawled.\t{link}")
                     continue
@@ -108,7 +104,7 @@ def crawl_match_odds():
 
                 logger.info(f"Saving Match Odds:\t{s} {match}")
                 match_odds_df.to_sql(
-                    "01_MATCH_ODDS", conn, if_exists="append", index=False
+                    "raw_match_odds", conn, if_exists="append", index=False
                 )
                 crawled_df.loc[len(crawled_df)] = [h_team, a_team, s]
 

@@ -17,7 +17,7 @@ def create_table(sql):
 
 def create_db_tables():
     sqls = [
-        "drop_tables.sql",
+        # "drop_tables.sql",
         "create_tables.sql",
     ]
 

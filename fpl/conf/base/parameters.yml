@@ -24,7 +24,7 @@ model:
     - team
     - opponent
   group_by: season
-  baseline_columns: 
+  baseline_columns:
     - xg_ma
     - team_odds_2_score
     - att_total
@@ -39,7 +39,6 @@ model:
 
 housekeeping:
   to_keep: 10
-  
 # hyperopt:
 #   target:
 #     name: pipeline_output

@@ -158,8 +158,6 @@ solution.txt
 *.png
 solver/*
 chromedriver.exe
-*.sql
-.vscode/*
 *.db
 *.pyc
 __pycache__/

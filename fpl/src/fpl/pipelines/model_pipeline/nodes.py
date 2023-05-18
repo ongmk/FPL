@@ -8,8 +8,19 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.metrics import mean_squared_error
 from xgboost import XGBRegressor
 import matplotlib.pyplot as plt
+import seaborn as sns
+from datetime import datetime
+import sqlite3
+import os
+
+color_pal = sns.color_palette()
+plt.style.use("ggplot")
 
 logger = logging.getLogger(__name__)
+
+
+def get_start_time():
+    return datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
 
 def _get_init_elo(match_data):
@@ -373,33 +384,28 @@ def xg_elo_correlation(processed_data, parameters):
 
 
 def split_data(processed_data, parameters):
-    numerical_features = parameters["numerical_features"]
-    categorical_features = parameters["categorical_features"]
-    target = parameters["target"]
-    train_val_data = processed_data[processed_data["SEASON"] < "2021-2022"]
-    X_train_val = train_val_data[numerical_features + categorical_features]
-    y_train_val = train_val_data[target]
+    holdout_year = parameters["holdout_year"]
+    train_val_data = processed_data[processed_data["SEASON"] != holdout_year]
+    holdout_data = processed_data[processed_data["SEASON"] == holdout_year]
 
-    holdout_data = processed_data[processed_data["SEASON"] >= "2021-2022"]
-    X_holdout = holdout_data[numerical_features + categorical_features]
-    y_holdout = holdout_data[target]
-
-    groups = train_val_data[parameters["group_by"]]
-
-    return X_train_val, y_train_val, X_holdout, y_holdout, groups
+    return train_val_data, holdout_data
 
 
 def _encode_features(X, categorical_features, numerical_features, encoder):
     X_cat = X[categorical_features]
     X_num = X[numerical_features]
-
     X_encoded = np.hstack([encoder.transform(X_cat).toarray(), X_num])
     return X_encoded
 
 
-def train_model(X_train_val, y_train_val, groups, parameters):
+def train_model(train_val_data, parameters):
     categorical_features = parameters["categorical_features"]
     numerical_features = parameters["numerical_features"]
+    target = parameters["target"]
+
+    X_train_val = train_val_data[numerical_features + categorical_features]
+    y_train_val = train_val_data[target]
+    groups = train_val_data[parameters["group_by"]]
 
     n_splits = groups.nunique()
     logger.info(f"{groups.unique() = }")
@@ -455,9 +461,17 @@ def train_model(X_train_val, y_train_val, groups, parameters):
     return model, encoder
 
 
-def evaluate_model(X_holdout, y_holdout, model, encoder, parameters):
+def _ordered_set(input_list):
+    seen = set()
+    return [x for x in input_list if not (x in seen or seen.add(x))]
+
+
+def evaluate_model(holdout_data, model, encoder, start_time, parameters):
     categorical_features = parameters["categorical_features"]
     numerical_features = parameters["numerical_features"]
+    target = parameters["target"]
+    baseline_columns = parameters["baseline_columns"]
+    output_plots = {}
 
     # Feature Importance
     encoded_cat_cols = encoder.get_feature_names_out(
@@ -471,26 +485,26 @@ def evaluate_model(X_holdout, y_holdout, model, encoder, parameters):
     features_importance = features_importance.sort_values(
         by="importance", ascending=False
     ).head(10)
-    features_importance.sort_values("importance").plot(
+
+    ax = features_importance.sort_values("importance").plot(
         kind="barh", title="Feature Importance"
     )
-    plt.show()
+    output_plots[f"{start_time}__feature_importance.png"] = ax.get_figure()
 
     # Holdout set evaluation
+    X_holdout = holdout_data[numerical_features + categorical_features]
+
     X_holdout_encoded = _encode_features(
         X_holdout, categorical_features, numerical_features, encoder
     )
     holdout_predictions = model.predict(X_holdout_encoded)
 
-    baseline_columns = ["XG_MA", "TEAM_ODDS_2_SCORE", "ATT_TOTAL"]
-    output_cols = list(
-        set(
-            ["index"]
-            + numerical_features
-            + categorical_features
-            + [target]
-            + baseline_columns
-        )
+    output_cols = _ordered_set(
+        ["index"]
+        + numerical_features
+        + categorical_features
+        + [target]
+        + baseline_columns
     )
     output_df = holdout_data[output_cols].copy()
     eval_cols = ["prediction"] + baseline_columns
@@ -506,10 +520,63 @@ def evaluate_model(X_holdout, y_holdout, model, encoder, parameters):
             ax=axes[i], bins=np.arange(-3.5, 3.5, 0.1), color=color_pal[i]
         )
         mae = output_df[f"{col}_error"].abs().mean()
-        axes[i].set_xlabel(f"{col} MAE: {mae:.2f}")
+        axes[i].set_title(f"{col} MAE: {mae:.2f}")
+        axes[i].set_xlabel(f"{col}_error")
     output_df.head()
+    score = output_df["prediction_error"].abs().mean()
+    logger.info(f"Model MAE: {score}")
     plt.subplots_adjust(wspace=0.1)
-    plt.show()
+    output_plots[f"{start_time}__errors.png"] = fig
+
+    output_df["start_time"] = start_time
+    columns = ["start_time"] + [col for col in output_df.columns if col != "start_time"]
+    output_df = output_df[columns]
+    plt.close("all")
+
+    return output_df, output_plots, score
+
+
+def _delete_from_db(table_name, recent_start_times, conn):
+    cursor = conn.cursor()
+    cursor.execute(
+        f"DELETE FROM {table_name} WHERE start_time NOT IN ({','.join('?' * len(recent_start_times))})",
+        recent_start_times,
+    )
+    conn.commit()
+    return None
+
+
+def _delete_from_path(relative_path, recent_start_times):
+    file_list = os.listdir(relative_path)
+
+    for file in file_list:
+        timestamp = file.split("__")[0]
+
+        if timestamp not in recent_start_times:
+            file_path = os.path.join(relative_path, file)
+            os.remove(file_path)
+    return None
+
+
+def run_housekeeping(loss, parameters):
+    to_keep = parameters["to_keep"]
+
+    conn = sqlite3.connect("./data/fpl.db")
+    cursor = conn.cursor()
+
+    # Get all unique start_time values
+    cursor.execute('SELECT DISTINCT start_time FROM "03_EVALUATION_RESULT"')
+    unique_start_times = [row[0] for row in cursor.fetchall()]
+
+    # Sort start_time values in descending order and select the most recent ones
+    unique_start_times.sort(reverse=True)
+    recent_start_times = unique_start_times[:to_keep]
+
+    _delete_from_db('"03_EVALUATION_RESULT"', recent_start_times, conn)
+    _delete_from_path("./data/03_evaluation", recent_start_times)
+
+    conn.close()
+    return loss
 
 
 if __name__ == "__main__":

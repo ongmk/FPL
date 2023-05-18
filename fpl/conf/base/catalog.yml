@@ -44,4 +44,4 @@ EVALUATION_RESULT:
 
 EVALUATION_PLOTS:
   type: matplotlib.MatplotlibWriter
-  filepath: "./data/03_evaluation"
+  filepath: ./data/03_evaluation

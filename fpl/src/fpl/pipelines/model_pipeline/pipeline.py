@@ -8,7 +8,7 @@ from .nodes import (
     train_model,
     evaluate_model,
     xg_elo_correlation,
-    housekeeping,
+    run_housekeeping,
 )
 
 
@@ -62,15 +62,16 @@ def create_pipeline(**kwargs) -> Pipeline:
                     "start_time",
                     "params:model",
                 ],
-                outputs=["EVALUATION_RESULT", "EVALUATION_PLOTS"],
+                outputs=["EVALUATION_RESULT", "EVALUATION_PLOTS", "loss"],
                 name="evaluation_node",
             ),
             node(
-                func=housekeeping,
+                func=run_housekeeping,
                 inputs=[
+                    "loss",
                     "params:housekeeping",
                 ],
-                outputs=None,
+                outputs="pipeline_output",
                 name="housekeeping_node",
             ),
         ]

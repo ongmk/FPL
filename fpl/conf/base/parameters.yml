@@ -38,19 +38,16 @@ model:
     eval_metric: mae
 
 housekeeping:
-  to_keep
+  to_keep: 10
   
 # hyperopt:
 #   target:
-#     name: correlation
-#     max_trials: 10
-#     strategy: max
-#   data:
-#     # elo_learning_rate:
-#     #   method: uniform
-#     #   low: 0.1
-#     #   high: 0.2
-#     home_away_weight:
-#       method: uniform
-#       low: 0.4
-#       high: 0.6
+#     name: pipeline_output
+#     max_trials: 5
+#     strategy: min
+#   model:
+#     xgboost_params:
+#       early_stopping_rounds:
+#         method: uniform
+#         low: 5
+#         high: 30

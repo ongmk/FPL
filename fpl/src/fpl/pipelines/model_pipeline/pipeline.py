@@ -1,15 +1,18 @@
 from kedro.pipeline import Pipeline, node, pipeline
+from datetime import datetime
 
-from .nodes import (
-    get_start_time,
+from .elo_calculation import (
     calculate_elo_score,
-    preprocess_data,
-    split_data,
-    train_model,
-    evaluate_model,
     xg_elo_correlation,
-    run_housekeeping,
 )
+from .preprocessor import preprocess_data
+from .training import train_model, split_data
+from .evaluation import evaluate_model
+from .housekeeping import run_housekeeping
+
+
+def get_start_time():
+    return datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
 
 def create_pipeline(**kwargs) -> Pipeline:

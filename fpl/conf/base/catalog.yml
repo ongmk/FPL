@@ -15,17 +15,17 @@ TEAM_MATCH_LOG:
   table_name: 01_TEAM_MATCH_LOG
   credentials: db_credentials
 
+ODDS_DATA:
+  type: pandas.SQLTableDataSet
+  table_name: 01_MATCH_ODDS
+  credentials: db_credentials
+
 ELO_DATA:
   type: pandas.SQLTableDataSet
   table_name: 02_ELO_DATA
   credentials: db_credentials
   save_args:
     if_exists: replace
-
-ODDS_DATA:
-  type: pandas.SQLTableDataSet
-  table_name: 01_MATCH_ODDS
-  credentials: db_credentials
 
 PROCESSED_DATA:
   type: pandas.SQLTableDataSet
@@ -34,3 +34,14 @@ PROCESSED_DATA:
   save_args:
     if_exists: replace
     index: True
+
+EVALUATION_RESULT:
+  type: pandas.SQLTableDataSet
+  table_name: 03_EVALUATION_RESULT
+  credentials: db_credentials
+  save_args:
+    if_exists: append
+
+EVALUATION_PLOTS:
+  type: matplotlib.MatplotlibWriter
+  filepath: "./data/03_evaluation"

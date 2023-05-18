@@ -2,6 +2,7 @@ data:
   elo_learning_rate: 0.1
   home_away_weight: 0.5
   start_year: 2017-2018
+  holdout_year: 2021-2022
 
 model:
   target: XG
@@ -23,15 +24,21 @@ model:
     - TEAM
     - OPPONENT
   group_by: SEASON
+  baseline_columns: 
+    - XG_MA
+    - TEAM_ODDS_2_SCORE
+    - ATT_TOTAL
   random_seed: 42
   xgboost_params:
     base_score: 0.5
-    n_estimators: 1000
-    early_stopping_rounds: 50
+    n_estimators: 10
+    early_stopping_rounds: 5
     objective: reg:squarederror
     learning_rate: 0.01
     eval_metric: mae
 
+housekeeping:
+  to_keep
   
 # hyperopt:
 #   target:

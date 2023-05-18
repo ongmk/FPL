@@ -1,18 +1,26 @@
 from kedro.pipeline import Pipeline, node, pipeline
 
 from .nodes import (
+    get_start_time,
     calculate_elo_score,
     preprocess_data,
     split_data,
     train_model,
     evaluate_model,
     xg_elo_correlation,
+    housekeeping,
 )
 
 
 def create_pipeline(**kwargs) -> Pipeline:
     return pipeline(
         [
+            node(
+                func=get_start_time,
+                inputs=None,
+                outputs="start_time",
+                name="get_start_time_node",
+            ),
             # node(
             #     func=calculate_elo_score,
             #     inputs=["MATCH_DATA", "params:data"],
@@ -32,33 +40,38 @@ def create_pipeline(**kwargs) -> Pipeline:
             # )
             node(
                 func=split_data,
-                inputs=["PROCESSED_DATA", "params:model"],
+                inputs=["PROCESSED_DATA", "params:data"],
                 outputs=[
-                    "X_train_val",
-                    "y_train_val",
-                    "X_holdout",
-                    "y_holdout",
-                    "groups",
+                    "train_val_data",
+                    "holdout_data",
                 ],
                 name="split_data_node",
             ),
             node(
                 func=train_model,
-                inputs=["X_train_val", "y_train_val", "groups", "params:model"],
+                inputs=["train_val_data", "params:model"],
                 outputs=["model", "encoder"],
                 name="train_model_node",
             ),
             node(
                 func=evaluate_model,
                 inputs=[
-                    "X_holdout",
-                    "y_holdout",
+                    "holdout_data",
                     "model",
                     "encoder",
+                    "start_time",
                     "params:model",
                 ],
-                outputs="score",
+                outputs=["EVALUATION_RESULT", "EVALUATION_PLOTS"],
                 name="evaluation_node",
+            ),
+            node(
+                func=housekeeping,
+                inputs=[
+                    "params:housekeeping",
+                ],
+                outputs=None,
+                name="housekeeping_node",
             ),
         ]
     )

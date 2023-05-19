@@ -2,16 +2,17 @@ import json
 import os
 from configparser import ConfigParser
 from pathlib import PurePath
+import logging
 
-from logzero import logger
+logger = logging.getLogger(__name__)
 
 
 class Config:
-    _config_path = os.environ.get('CONFIG_PATH', '')
-    if _config_path == '':
-        _config_path_filename = 'optimization/cplex_connection/env_config.ini'
+    _config_path = os.environ.get("CONFIG_PATH", "")
+    if _config_path == "":
+        _config_path_filename = "optimization/cplex_connection/env_config.ini"
     else:
-        _config_path_filename = PurePath(_config_path) / 'env_config.ini'
+        _config_path_filename = PurePath(_config_path) / "env_config.ini"
 
     _config = ConfigParser()
     _config.read(_config_path_filename)
@@ -34,11 +35,11 @@ class Config:
 
     @classmethod
     def get_list(cls, section, key):
-        return cls._config.get(section, key).split(',')
+        return cls._config.get(section, key).split(",")
 
     @classmethod
     def get_dict(cls, section, key):
-        return json.loads(cls._config[section][key].replace('\'', '\"'))
+        return json.loads(cls._config[section][key].replace("'", '"'))
 
     @classmethod
     def get_purepath(cls, section, key):

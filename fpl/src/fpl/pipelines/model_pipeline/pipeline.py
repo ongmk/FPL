@@ -15,7 +15,7 @@ def get_start_time():
     return datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
 
-def create_pipeline(**kwargs) -> Pipeline:
+def create_pipeline() -> Pipeline:
     return pipeline(
         [
             node(

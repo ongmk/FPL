@@ -39,6 +39,21 @@ model:
 
 housekeeping:
   to_keep: 10
+
+optimization:
+  team_id: 3531385
+  ft: 1
+  horizon: 3
+  tr_horizon: 2
+  wc_on: 8
+  timeout: 60
+  log: false
+  decay: 0.5
+  backtest_players:
+    Me: 3531385
+    Hazard: 1195527
+    FPL Raptor: 5431
+    Donald: 307190
 # hyperopt:
 #   target:
 #     name: pipeline_output

@@ -5,6 +5,18 @@
 # 05 Model Outputs
 # 06 Serving
 
+PICKS_SUMMARY:
+  type: text.TextDataSet
+  filepath: data/optimization/summary.txt
+  versioned: true
+
+PICKS_CSV:
+  type: pandas.CSVData
+  filepath: data/optimization/picks.csv
+  versioned: true
+  save_args:
+    encoding: utf-8-sig
+
 FPL_DATA_CSV:
   type: pandas.CSVDataSet
   filepath: data/raw/backtest_data/merged_seasons.csv

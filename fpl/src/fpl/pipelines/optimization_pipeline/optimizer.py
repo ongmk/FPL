@@ -1,4 +1,16 @@
-from pulp import *
+from pulp import (
+    LpProblem,
+    LpMinimize,
+    LpBinary,
+    LpVariable,
+    LpContinuous,
+    LpInteger,
+    lpSum,
+    LpStatusOptimal,
+    LpStatusInfeasible,
+    LpStatusUnbounded,
+    LpStatusNotSolved,
+)
 import pandas as pd
 import requests
 import os
@@ -9,14 +21,14 @@ import itertools
 import difflib
 import matplotlib.pyplot as plt
 import time
-from logzero import logger
 import warnings
 from cryptography.utils import CryptographyDeprecationWarning
-warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
+import logging
 from cplex_connection.LpRemoteCplex import RemoteCPLEXSolver
 import xml.etree.ElementTree as et
 
-os.chdir(os.path.dirname(os.path.abspath(__file__)))
+logger = logging.getLogger(__name__)
+warnings.filterwarnings("ignore", category=CryptographyDeprecationWarning)
 
 
 def get_fpl_base_data():
@@ -61,11 +73,8 @@ def get_fpl_base_data():
     return elements_team, team_data, type_data, all_gws
 
 
-def get_pred_pts_data(gameweeks):
-    fpl_name_dict = pd.read_csv(
-        "../data/theFPLkiwi/ID_Dictionary.csv", encoding="cp1252"
-    )[["Name", "FPL name"]]
-    path = "../data/theFPLkiwi/FPL_projections_22_23/"
+def get_latest_prediction_csv(gameweeks):
+    path = "data/raw/theFPLkiwi/FPL_projections_22_23/"
     files = [
         (int(f.strip("FPL_GW").strip(".csv")), os.path.join(path, f))
         for f in os.listdir(path)
@@ -73,7 +82,15 @@ def get_pred_pts_data(gameweeks):
     ]
     files = [f for f in files if f[0] <= gameweeks[0]]
     index = np.argmax([f[0] for f in files])
-    pred_pts_data = pd.read_csv(files[index][1])
+    return files[index][1]
+
+
+def get_pred_pts_data(gameweeks):
+    latest_csv = get_latest_prediction_csv(gameweeks)
+    fpl_name_dict = pd.read_csv(
+        "data/raw/theFPLkiwi/ID_Dictionary.csv", encoding="cp1252"
+    )[["Name", "FPL name"]]
+    pred_pts_data = pd.read_csv(latest_csv)
     pred_pts_data = fpl_name_dict.merge(pred_pts_data, on="Name")
     empty_cols = ["GW xMins", "xPts if play", "Probability to play", "xPts", "npG"]
     pred_pts_data = pred_pts_data.drop(empty_cols, axis=1)
@@ -89,15 +106,28 @@ def get_pred_pts_data(gameweeks):
     return pred_pts_data
 
 
-def get_close_matches(x, y):
-    return next(iter(difflib.get_close_matches(x, y)), x)
+def fuzzy_match(row, df_to_match):
+    combined_name = row["FPL name"] + " " + row["Team"]
+    df_to_match["combined_name"] = (
+        df_to_match["web_name"] + " " + df_to_match["short_name"]
+    )
+    all_options = (df_to_match["combined_name"]).tolist()
+
+    matches = difflib.get_close_matches(combined_name, all_options, n=1, cutoff=0.6)
+    if matches:
+        matched = next(iter(matches))
+        return df_to_match.loc[
+            df_to_match["combined_name"] == matched, "web_name"
+        ].values[0]
+    else:
+        return None
 
 
 def resolve_fpl_names(df, fpl_names):
-    df["matched"] = df["FPL name"].apply(lambda x: get_close_matches(x, fpl_names))
+    df["matched"] = df.apply(lambda row: fuzzy_match(row, fpl_names), axis=1)
     df["same"] = df["FPL name"] == df["matched"]
-    df = df.sort_values("same", ascending=False)
-    df = df.drop_duplicates("matched")
+    df = df.sort_values(["same", "Price"], ascending=False)
+    df = df.drop_duplicates(["Team", "matched"])
     df.loc[:, "FPL name"] = df["matched"]
     df = df.drop(["matched", "same"], axis=1)
     return df
@@ -112,17 +142,20 @@ def get_initial_squad(team_id, gw):
 
 
 def get_live_data(team_id, horizon):
-
     elements_team, team_data, type_data, all_gws = get_fpl_base_data()
     gameweeks = all_gws["future"][:horizon]
     current_gw = all_gws["current"]
 
     pred_pts_data = get_pred_pts_data(gameweeks)
-    pred_pts_data = resolve_fpl_names(pred_pts_data, elements_team["web_name"])
+    pred_pts_data = resolve_fpl_names(
+        pred_pts_data, elements_team[["web_name", "short_name"]]
+    )
+
     merged_data = elements_team.merge(
         pred_pts_data,
         left_on=["web_name", "short_name"],
         right_on=["FPL name", "Team"],
+        how="left",
     ).set_index("id")
 
     r = requests.get(f"https://fantasy.premierleague.com/api/entry/{team_id}/")
@@ -144,6 +177,14 @@ def get_live_data(team_id, horizon):
                 sell_price = np.ceil(np.mean([current_price, bought_price]))
                 merged_data.loc[t["element_in"], "sell_price"] = sell_price
 
+    merged_data = merged_data.dropna(
+        subset=["FPL name", "Team", "Pos", "Price", "bought_price"], how="all"
+    )
+    xPts_cols = [
+        column for column in merged_data.columns if re.match(r"xPts_\d+", column)
+    ]
+    merged_data[xPts_cols] = merged_data[xPts_cols].fillna(0)
+
     logger.info("=" * 50)
     logger.info(f"Team: {general_data['name']}. Current week: {current_gw}")
     logger.info(f"Optimizing for {horizon} weeks. {gameweeks}")
@@ -160,10 +201,7 @@ def get_live_data(team_id, horizon):
 
 
 def get_backtest_data(latest_elements_team, gw):
-    backtest_data = pd.read_csv("../data/backtest_data/merged_gw.csv")[
-        ["name", "position", "team", "xP", "GW", "value"]
-    ]
-    backtest_data = pd.read_csv("../data/backtest_data/merged_gw.csv")[
+    backtest_data = pd.read_csv("data/raw/backtest_data/merged_gw.csv")[
         ["name", "position", "team", "xP", "GW", "value"]
     ]
     player_gw = pd.DataFrame(
@@ -210,29 +248,29 @@ def get_solution_status(solutionXML):
     objective_value_string = solution_header.get("objectiveValue")
 
     cplex_status = {
-        'Optimal': LpStatusOptimal,
-        'Feasible': LpStatusOptimal,
-        'Infeasible': LpStatusInfeasible,
-        'Unbounded': LpStatusUnbounded,
-        'Stopped': LpStatusNotSolved}
+        "Optimal": LpStatusOptimal,
+        "Feasible": LpStatusOptimal,
+        "Infeasible": LpStatusInfeasible,
+        "Unbounded": LpStatusUnbounded,
+        "Stopped": LpStatusNotSolved,
+    }
 
-    status_str = 'Undefined'
-    if 'optimal' in status_string:
-        status_str = 'Optimal'
-    elif 'feasible' in status_string:
-        status_str = 'Feasible'
-    elif 'infeasible' in status_string:
-        status_str = 'Infeasible'
-    elif 'integer unbounded' in status_string:
-        status_str = 'Integer Unbounded'
-    elif 'time limit exceeded' in status_string:
-        status_str = 'Feasible'
+    status_str = "Undefined"
+    if "optimal" in status_string:
+        status_str = "Optimal"
+    elif "feasible" in status_string:
+        status_str = "Feasible"
+    elif "infeasible" in status_string:
+        status_str = "Infeasible"
+    elif "integer unbounded" in status_string:
+        status_str = "Integer Unbounded"
+    elif "time limit exceeded" in status_string:
+        status_str = "Feasible"
 
     return cplex_status[status_str], status_str, objective_value_string
 
 
 def solve_multi_period_fpl(data, options):
-
     # Arguments
     ft = options.get("ft", 1)
     decay = options.get("decay", 0.84)
@@ -381,7 +419,7 @@ def solve_multi_period_fpl(data, options):
     # Initial conditions
     model += in_the_bank[next_gw - 1] == itb, "initial_itb"
     model += free_transfers[next_gw] == ft, "initial_ft"
-    
+
     # Free transfer constraints
     if next_gw == 1 and threshold_gw in gameweeks:
         model += free_transfers[threshold_gw] == ft, "ps_initial_ft"
@@ -397,7 +435,7 @@ def solve_multi_period_fpl(data, options):
     if fh_on is not None:
         model += use_fh[fh_on] == 1, "force_fh"
 
-    # Transfer horizon constraint    
+    # Transfer horizon constraint
     model += (
         lpSum(
             transfer_in[p, w] + transfer_out[p, w]
@@ -410,12 +448,12 @@ def solve_multi_period_fpl(data, options):
     )
 
     for p in players:
-        #Initial conditions
+        # Initial conditions
         if p in initial_squad:
             model += squad[p, next_gw - 1] == 1, f"initial_squad_players_{p}"
         else:
             model += squad[p, next_gw - 1] == 0, f"initial_squad_others_{p}"
-        
+
         # Multiple-sell fix
         if p in price_modified_players:
             model += (
@@ -514,7 +552,7 @@ def solve_multi_period_fpl(data, options):
             >= lpSum(fh_sell_price[p] * squad_fh[p, w] for p in players),
             f"fh_budget_{w}",
         )
-        
+
         # Chip constraints
         model += use_wc[w] + use_fh[w] + use_bb[w] <= 1, f"single_chip_{w}"
         if w > next_gw:
@@ -547,7 +585,7 @@ def solve_multi_period_fpl(data, options):
                 lineup[p, w] + lpSum(bench[p, w, o] for o in order) <= 1,
                 f"lineup_bench_rel_{p}_{w}_{o}",
             )
-    
+
             # Transfer constraints
             model += (
                 squad[p, w] == squad[p, w - 1] + transfer_in[p, w] - transfer_out[p, w],
@@ -567,7 +605,9 @@ def solve_multi_period_fpl(data, options):
                 )
                 model += (
                     horizon
-                    * lpSum(transfer_out_first[p, wbar] for wbar in gameweeks if wbar <= w)
+                    * lpSum(
+                        transfer_out_first[p, wbar] for wbar in gameweeks if wbar <= w
+                    )
                     >= lpSum(
                         transfer_out_regular[p, wbar] for wbar in gameweeks if wbar >= w
                     ),
@@ -594,13 +634,6 @@ def solve_multi_period_fpl(data, options):
                 for p in players
             ]
         )
-        for w in gameweeks
-    }
-    gw_total = {
-        w: gw_xp[w]
-        - 4 * penalized_transfers[w]
-        + ft_value * free_transfers[w]
-        + itb_value * in_the_bank[w]
         for w in gameweeks
     }
     gw_total = {
@@ -643,7 +676,18 @@ def solve_multi_period_fpl(data, options):
 
     lp_file_name = "fplmodel"
     model.writeLP(f"./{lp_file_name}.lp")
-    solver = RemoteCPLEXSolver(lp_file_name, ".", log=log, cplexTimeOut=timeout)
+    import yaml
+
+    with open("./conf/base/credentials.yml", "r") as file:
+        config = yaml.safe_load(file)
+        config = config["cplex"]
+    solver = RemoteCPLEXSolver(
+        fileName=lp_file_name,
+        localPath=".",
+        config=config,
+        log=log,
+        cplexTimeOut=timeout,
+    )
     cplex_log = solver.solve()
     if cplex_log["infeasible"]:
         raise Exception("Cannot find feasible solution.")
@@ -651,8 +695,10 @@ def solve_multi_period_fpl(data, options):
     _, status_str, objValString = get_solution_status(solutionXML)
     gap_pct = cplex_log["gap_pct"] if cplex_log else None
     solution_time = cplex_log["solution_time"] if cplex_log else None
-    status_str = 'Acceptable' if cplex_log and cplex_log["Acceptable"] else status_str
-    logger.info(f"{status_str} solution found in: {solution_time}s. Gap: {gap_pct}%. Objective: {float(objValString):.2f}")
+    status_str = "Acceptable" if cplex_log and cplex_log["Acceptable"] else status_str
+    logger.info(
+        f"{status_str} solution found in: {solution_time}s. Gap: {gap_pct}%. Objective: {float(objValString):.2f}"
+    )
 
     variables = solutionXML.find("variables")
 
@@ -831,7 +877,6 @@ def solve_multi_period_fpl(data, options):
             f"{transfer_summary}"
             f"{lineup_str}\n\n"
             f"Gameweek xP = {gw_xp:.2f} {hit_str}\n"
-
         )
         summary_of_actions.append(gw_summary)
         if w == next_gw:
@@ -844,17 +889,17 @@ def solve_multi_period_fpl(data, options):
             else:
                 chip_used = None
             next_gw_dict = {
-                "itb": round(in_the_bank[w].value(),1),
-                "ft": round(free_transfers[w+1].value()),
+                "itb": round(in_the_bank[w].value(), 1),
+                "ft": round(free_transfers[w + 1].value()),
                 "hits": round(penalized_transfers[w].value()),
                 "solve_time": solution_time,
-                "n_transfers": round(lpSum([transfer_out[p, w] for p in players]).value()),
-                "chip_used": chip_used
+                "n_transfers": round(
+                    lpSum([transfer_out[p, w] for p in players]).value()
+                ),
+                "chip_used": chip_used,
             }
     overall_summary = (
-        f"\n"
-        f"{'':{'='}^80}\n"
-        f"{horizon} weeks total xP = {total_xp:.2f}"
+        f"\n" f"{'':{'='}^80}\n" f"{horizon} weeks total xP = {total_xp:.2f}"
     )
     summary_of_actions.append(overall_summary)
 
@@ -875,31 +920,33 @@ def get_historical_picks(team_id, next_gw, merged_data):
         right_index=True,
     ).rename({f"xPts_{next_gw}": "predicted_xP"}, axis=1)
     summary = [picks_df]
-    next_gw_dict = {"hits": 0, "itb": 0, "ft": 0, "solve_time": 0, "n_transfers":0,"chip_used":None}
+    next_gw_dict = {
+        "hits": 0,
+        "itb": 0,
+        "ft": 0,
+        "solve_time": 0,
+        "n_transfers": 0,
+        "chip_used": None,
+    }
     return picks_df, summary, next_gw_dict
 
 
-def live_run(options):
-
-    # Arguments
-    team_id = options["team_id"]
-    horizon = options.get("horizon", 5)
-
-    data = get_live_data(team_id, horizon)
+def live_run(parameters):
+    data = get_live_data(parameters["team_id"], parameters["horizon"])
     picks, summary, next_gw_dict = solve_multi_period_fpl(
         data=data,
-        options=options,
+        options=parameters,
     )
     logger.info(f"Solved in {next_gw_dict['solve_time']}")
     for s in summary:
         logger.info(s)
-    picks.to_csv("picks.csv", index=False, encoding="utf-8-sig")
-    with open("summary.txt", "w", encoding="utf-8") as f:
-        f.write("\n".join(summary))
+    return summary, picks
+    # picks.to_csv("picks.csv", index=False, encoding="utf-8-sig")
+    # with open("summary.txt", "w", encoding="utf-8") as f:
+    #     f.write("\n".join(summary))
 
 
 def backtest(options, title="Backtest Result"):
-
     # Arguments
     horizon = options.get("horizon", 5)
     team_id = options.get("team_id", None)
@@ -932,7 +979,7 @@ def backtest(options, title="Backtest Result"):
         else:
             pred_pts_data = get_pred_pts_data(gameweeks)
             pred_pts_data = resolve_fpl_names(
-                pred_pts_data, latest_elements_team["web_name"]
+                pred_pts_data, elements_team[["web_name", "short_name"]]
             )
             for p in initial_squad:
                 name = elements_team.loc[elements_team["id"] == p, "web_name"].item()
@@ -941,7 +988,6 @@ def backtest(options, title="Backtest Result"):
                     (pred_pts_data["FPL name"] == name)
                     & (pred_pts_data["Team"] == team)
                 ].empty:
-
                     pred_pts_data.loc[len(pred_pts_data)] = [name, team, None, None] + [
                         0 for i in range(len(pred_pts_data.columns) - 4)
                     ]
@@ -957,7 +1003,7 @@ def backtest(options, title="Backtest Result"):
                 picks_df, summary, next_gw_dict = get_historical_picks(
                     team_id, next_gw, merged_data
                 )
-            
+
             else:
                 picks_df, summary, next_gw_dict = solve_multi_period_fpl(
                     {
@@ -992,8 +1038,10 @@ def backtest(options, title="Backtest Result"):
             logger.info(f"Actual xP = {actual_xp:.2f}. ({total_xp:.2f} overall)")
 
             if not player_history:
-                if next_gw_dict["chip_used"] not in ("fh", "wc") and next_gw!=1:
-                    assert next_gw_dict["ft"] == min(2, max(1,options["ft"] - next_gw_dict["n_transfers"] + 1))
+                if next_gw_dict["chip_used"] not in ("fh", "wc") and next_gw != 1:
+                    assert next_gw_dict["ft"] == min(
+                        2, max(1, options["ft"] - next_gw_dict["n_transfers"] + 1)
+                    )
                 else:
                     assert next_gw_dict["ft"] == options["ft"]
 
@@ -1029,8 +1077,7 @@ def backtest(options, title="Backtest Result"):
 
 
 if __name__ == "__main__":
-
-    players = {"Me": 3531385, "Hazard": 1195527, "FPL Raptor": 5431, "Donald": 307190}
+    # players = {"Me": 3531385, "Hazard": 1195527, "FPL Raptor": 5431, "Donald": 307190}
     options = {
         "team_id": 3531385,
         "ft": 1,
@@ -1041,26 +1088,11 @@ if __name__ == "__main__":
         "log": False,
         "decay": 0.5,
     }
+    logging.basicConfig(level=logging.INFO)
 
-    # live_run(options)
+    live_run(options)
 
-    options["player_history"] = True
-    for p, id in players.items():
-        options["team_id"] = id
-        backtest(
-            options,
-            p
-        )
-    
-    # for h in [4]:
-    #     for trh in [2]:
-    #         for d in [0.65]:
-    #             if trh <= h:
-    #                 options['horizon'] = h
-    #                 options['tr_horizon'] = trh
-    #                 options['decay'] = d
-    #                 backtest(
-    #                     options,
-    #                     # p
-    #                     f"(CHEATS) h={options['horizon']} ; trh={options['tr_horizon']} ; d={options['decay']}",
-    #                 )
+    # options["player_history"] = True
+    # for p, id in players.items():
+    #     options["team_id"] = id
+    #     backtest(options, p)

@@ -35,17 +35,17 @@ def copy_fpl_data(fpl_data_csv):
 def create_pipeline():
     return Pipeline(
         [
-            node(
-                func=create_db_tables,
-                inputs=None,
-                outputs="done",
-                name="create_db_tables_node",
-            ),
             # node(
-            #     func=copy_fpl_data,
-            #     inputs="FPL_DATA_CSV",
-            #     outputs="FPL_DATA",
-            #     name="copy_fpl_data_node",
+            #     func=create_db_tables,
+            #     inputs=None,
+            #     outputs="done",
+            #     name="create_db_tables_node",
             # ),
+            node(
+                func=copy_fpl_data,
+                inputs="FPL_DATA_CSV",
+                outputs="FPL_DATA",
+                name="copy_fpl_data_node",
+            ),
         ]
     )

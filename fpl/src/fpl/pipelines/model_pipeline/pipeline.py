@@ -1,14 +1,14 @@
 from kedro.pipeline import Pipeline, node, pipeline
 from datetime import datetime
 
-from .elo_calculation import (
+from src.fpl.pipelines.model_pipeline.elo_calculation import (
     calculate_elo_score,
     xg_elo_correlation,
 )
-from .preprocessor import preprocess_data
-from .training import train_model, split_data
-from .evaluation import evaluate_model
-from .housekeeping import run_housekeeping
+from src.fpl.pipelines.model_pipeline.preprocessor import preprocess_data
+from src.fpl.pipelines.model_pipeline.training import train_model, split_data
+from src.fpl.pipelines.model_pipeline.evaluation import evaluate_model
+from src.fpl.pipelines.model_pipeline.housekeeping import run_housekeeping
 
 
 def get_start_time():

@@ -8,14 +8,19 @@
 PICKS_SUMMARY:
   type: text.TextDataSet
   filepath: data/optimization/summary.txt
-  versioned: true
+  fs_args:
+    open_args_save:
+      encoding: utf-8-sig
 
 PICKS_CSV:
-  type: pandas.CSVData
+  type: pandas.CSVDataSet
   filepath: data/optimization/picks.csv
-  versioned: true
   save_args:
     encoding: utf-8-sig
+
+BACKTEST_PLOTS:
+  type: matplotlib.MatplotlibWriter
+  filepath: data/optimization/backtest
 
 FPL_DATA_CSV:
   type: pandas.CSVDataSet
@@ -63,4 +68,4 @@ EVALUATION_RESULT:
 
 EVALUATION_PLOTS:
   type: matplotlib.MatplotlibWriter
-  filepath: ./data/evaluation
+  filepath: data/evaluation

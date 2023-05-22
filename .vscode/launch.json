@@ -22,7 +22,7 @@
             "justMyCode": false,
         },
         {
-            "name": "Optimize",
+            "name": "Live Optimize",
             "type": "python",
             "request": "launch",
             "env": {
@@ -33,7 +33,24 @@
             "args": [
                 "run",
                 "--pipeline",
-                "optimization_pipeline"
+                "live_optimization_pipeline"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+        },
+        {
+            "name": "Backtest Optimize",
+            "type": "python",
+            "request": "launch",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}\\fpl"
+            },
+            "cwd": "${workspaceFolder}\\fpl",
+            "program": "src\\fpl\\custom_run\\kedro_cli.py",
+            "args": [
+                "run",
+                "--pipeline",
+                "backtest_optimization_pipeline"
             ],
             "console": "integratedTerminal",
             "justMyCode": false,

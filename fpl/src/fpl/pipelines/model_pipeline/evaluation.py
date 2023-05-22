@@ -3,7 +3,7 @@ import numpy as np
 import logging
 import matplotlib.pyplot as plt
 import seaborn as sns
-from .training import _encode_features
+from src.fpl.pipelines.model_pipeline.training import _encode_features
 
 logger = logging.getLogger(__name__)
 color_pal = sns.color_palette()

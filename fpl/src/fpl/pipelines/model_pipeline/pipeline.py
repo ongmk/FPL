@@ -20,11 +20,11 @@ def snake_to_camel(snake_str):
 
 
 def camel_reducer(k1, k2):
+    k2 = snake_to_camel(k2)
     if k1 is None:
-        return snake_to_camel(k2)
+        return k2
     else:
         k1 = snake_to_camel(k1)
-        k2 = snake_to_camel(k2)
         return f"{k1}_{k2}"
 
 

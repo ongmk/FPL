@@ -38,7 +38,7 @@ model:
     eval_metric: mae
 
 housekeeping:
-  to_keep: 10
+  to_keep: 3
 
 optimization:
   team_id: 3531385
@@ -62,7 +62,7 @@ optimization:
     Donald: 307190
 # hyperopt:
 #   target:
-#     name: pipeline_output
+#     name: loss
 #     max_trials: 5
 #     strategy: min
 #   model:

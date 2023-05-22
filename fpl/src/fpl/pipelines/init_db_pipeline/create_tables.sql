@@ -1,4 +1,4 @@
-CREATE TABLE raw_team_match_log(
+CREATE TABLE IF NOT EXISTS raw_team_match_log(
     season TEXT,
     team TEXT,
     date TEXT,
@@ -17,10 +17,10 @@ CREATE TABLE raw_team_match_log(
     link TEXT
 );
 
-CREATE UNIQUE INDEX season_team_date_opponent_pk ON raw_team_match_log(season, team, date, opponent);
+CREATE UNIQUE INDEX IF NOT EXISTS season_team_date_opponent_pk ON raw_team_match_log(season, team, date, opponent);
 
 ----------------------------
-CREATE TABLE raw_player_match_log(
+CREATE TABLE IF NOT EXISTS raw_player_match_log(
     season TEXT,
     player TEXT,
     date TEXT,
@@ -55,10 +55,10 @@ CREATE TABLE raw_player_match_log(
     link TEXT
 );
 
-CREATE UNIQUE INDEX season_player_date_opponent_pk ON raw_player_match_log(season, player, date, opponent);
+CREATE UNIQUE INDEX IF NOT EXISTS season_player_date_opponent_pk ON raw_player_match_log(season, player, date, opponent);
 
 ----------------------------
-CREATE TABLE raw_match_odds(
+CREATE TABLE IF NOT EXISTS raw_match_odds(
     season TEXT,
     h_team TEXT,
     a_team TEXT,
@@ -68,23 +68,22 @@ CREATE TABLE raw_match_odds(
     link TEXT
 );
 
-CREATE UNIQUE INDEX SEASON_MATCH_SCORE_PK ON raw_match_odds(season, h_team, a_team, h_score, a_score);
+CREATE UNIQUE INDEX IF NOT EXISTS SEASON_MATCH_SCORE_PK ON raw_match_odds(season, h_team, a_team, h_score, a_score);
 
 ----------------------------
 -- Enable foreign key support in SQLite
 PRAGMA foreign_keys = ON;
 
-CREATE TABLE experiment (
-    id INTEGER PRIMARY KEY,
-    start_time DATETIME NOT NULL,
-    features TEXT NOT NULL
+CREATE TABLE IF NOT EXISTS experiment (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    keep INTEGER,
+    start_time DATETIME NOT NULL
 );
 
 ----------------------------
-CREATE TABLE evaluation_result (
-    id INTEGER PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS evaluation_result (
+    id INTEGER,
     experiment_id INTEGER,
     start_time DATETIME NOT NULL,
-    -- Add more columns for the features here
-    FOREIGN KEY (experiment_id, start_time) REFERENCES experiment(id, start_time) ON DELETE CASCADE
+    PRIMARY KEY (experiment_id, id)
 );

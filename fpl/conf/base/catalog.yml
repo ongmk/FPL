@@ -22,6 +22,13 @@ BACKTEST_PLOTS:
   type: matplotlib.MatplotlibWriter
   filepath: data/optimization/backtest
 
+EXPERIMENT_RECORD:
+  type: fpl.extras.datasets.FlexibleSQLTableDataSet
+  table_name: experiment
+  credentials: db_credentials
+  save_args:
+    if_exists: append
+
 FPL_DATA_CSV:
   type: pandas.CSVDataSet
   filepath: data/raw/backtest_data/merged_seasons.csv
@@ -60,7 +67,7 @@ PROCESSED_DATA:
     if_exists: replace
 
 EVALUATION_RESULT:
-  type: pandas.SQLTableDataSet
+  type: fpl.extras.datasets.FlexibleSQLTableDataSet
   table_name: evaluation_result
   credentials: db_credentials
   save_args:

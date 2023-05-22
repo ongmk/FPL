@@ -6,7 +6,7 @@ import os
 logger = logging.getLogger(__name__)
 
 
-def create_table(sql):
+def execute_sql(sql):
     conn = sqlite3.connect("./data/fpl.db")
     cursor = conn.cursor()
     sql_file = open(sql).read()
@@ -23,8 +23,8 @@ def create_db_tables():
 
     for sql in sqls:
         path = os.path.join("./src/fpl/pipelines/init_db_pipeline/", sql)
-        create_table(path)
-        logger.info(f"Created table with {sql}")
+        execute_sql(path)
+        logger.info(f"Executed SQL {sql}")
     return True
 
 
@@ -35,12 +35,12 @@ def copy_fpl_data(fpl_data_csv):
 def create_pipeline():
     return Pipeline(
         [
-            # node(
-            #     func=create_db_tables,
-            #     inputs=None,
-            #     outputs="done",
-            #     name="create_db_tables_node",
-            # ),
+            node(
+                func=create_db_tables,
+                inputs=None,
+                outputs="done",
+                name="create_db_tables_node",
+            ),
             node(
                 func=copy_fpl_data,
                 inputs="FPL_DATA_CSV",

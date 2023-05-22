@@ -15,7 +15,7 @@ def _ordered_set(input_list):
     return [x for x in input_list if not (x in seen or seen.add(x))]
 
 
-def evaluate_model(holdout_data, model, encoder, start_time, parameters):
+def evaluate_model(holdout_data, model, encoder, experiment_id, start_time, parameters):
     categorical_features = parameters["categorical_features"]
     numerical_features = parameters["numerical_features"]
     target = parameters["target"]
@@ -73,8 +73,11 @@ def evaluate_model(holdout_data, model, encoder, start_time, parameters):
     plt.subplots_adjust(wspace=0.1)
     output_plots[f"{start_time}__errors.png"] = fig
 
+    output_df["experiment_id"] = experiment_id
     output_df["start_time"] = start_time
-    columns = ["start_time"] + [col for col in output_df.columns if col != "start_time"]
+    columns = ["experiment_id", "start_time"] + [
+        col for col in output_df.columns if col not in ("experiment_id", "start_time")
+    ]
     output_df = output_df[columns]
     plt.close("all")
 

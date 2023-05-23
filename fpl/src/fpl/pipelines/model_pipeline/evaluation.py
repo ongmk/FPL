@@ -2,8 +2,11 @@ import pandas as pd
 import numpy as np
 import logging
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 import seaborn as sns
+from sklearn.preprocessing import OneHotEncoder
 from src.fpl.pipelines.model_pipeline.training import _encode_features
+from typing import Any
 
 logger = logging.getLogger(__name__)
 color_pal = sns.color_palette()
@@ -15,7 +18,14 @@ def _ordered_set(input_list):
     return [x for x in input_list if not (x in seen or seen.add(x))]
 
 
-def evaluate_model(holdout_data, model, encoder, experiment_id, start_time, parameters):
+def evaluate_model(
+    holdout_data: pd.DataFrame,
+    model,
+    encoder: OneHotEncoder,
+    experiment_id: int,
+    start_time: str,
+    parameters: dict[str, Any],
+) -> tuple[float, pd.DataFrame, dict[str, Figure], tuple[int, dict[str, float]]]:
     categorical_features = parameters["categorical_features"]
     numerical_features = parameters["numerical_features"]
     target = parameters["target"]
@@ -68,8 +78,9 @@ def evaluate_model(holdout_data, model, encoder, experiment_id, start_time, para
         axes[i].set_title(f"{col} MAE: {mae:.2f}")
         axes[i].set_xlabel(f"{col}_error")
     output_df.head()
-    score = output_df["prediction_error"].abs().mean()
-    logger.info(f"Model MAE: {score}")
+    output_metrics = {"mae": output_df["prediction_error"].abs().mean()}
+    for metric, score in output_metrics.items():
+        logger.info(f"{metric} = {score}")
     plt.subplots_adjust(wspace=0.1)
     output_plots[f"{start_time}__errors.png"] = fig
 
@@ -79,6 +90,11 @@ def evaluate_model(holdout_data, model, encoder, experiment_id, start_time, para
         col for col in output_df.columns if col not in ("experiment_id", "start_time")
     ]
     output_df = output_df[columns]
-    plt.close("all")
+    # plt.close("all")
 
-    return output_df, output_plots, score
+    return (
+        output_metrics["mae"],
+        output_df,
+        output_plots,
+        (experiment_id, output_metrics),
+    )

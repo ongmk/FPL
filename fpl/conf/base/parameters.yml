@@ -38,7 +38,7 @@ model:
     eval_metric: mae
 
 housekeeping:
-  to_keep: 3
+  to_keep: 30
 
 optimization:
   team_id: 3531385
@@ -57,18 +57,23 @@ optimization:
   solver: cplex
   backtest_player_history: true
   backtest_players:
-    # Me: 3531385
+    Me: 3531385
     Hazard: 1195527
-    # FPL Raptor: 5431
+    FPL Raptor: 5431
     Donald: 307190
-# hyperopt:
-#   target:
-#     name: loss
-#     max_trials: 5
-#     strategy: min
-#   model:
-#     xgboost_params:
-#       early_stopping_rounds:
-#         method: uniform
-#         low: 5
-#         high: 30
+hyperopt:
+  target:
+    name: loss
+    max_trials: 100
+    strategy: min
+  model:
+    xgboost_params:
+      learning_rate:
+        method: uniform
+        low:  0.01
+        high: 0.1
+      n_estimators:
+        method: quniform
+        low: 10
+        high: 100
+        q: 1

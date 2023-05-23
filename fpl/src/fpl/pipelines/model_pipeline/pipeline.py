@@ -54,6 +54,12 @@ def create_pipeline() -> Pipeline:
     return pipeline(
         [
             node(
+                func=run_housekeeping,
+                inputs="params:housekeeping",
+                outputs=None,
+                name="housekeeping_node",
+            ),
+            node(
                 func=init_experiment,
                 inputs="params:model",
                 outputs=["experiment_id", "start_time", "EXPERIMENT_RECORD"],
@@ -101,14 +107,13 @@ def create_pipeline() -> Pipeline:
                     "start_time",
                     "params:model",
                 ],
-                outputs=["EVALUATION_RESULT", "EVALUATION_PLOTS", "loss"],
+                outputs=[
+                    "loss",
+                    "EVALUATION_RESULT",
+                    "EVALUATION_PLOTS",
+                    "EVALUATION_METRICS",
+                ],
                 name="evaluation_node",
-            ),
-            node(
-                func=run_housekeeping,
-                inputs="params:housekeeping",
-                outputs=None,
-                name="housekeeping_node",
             ),
         ]
     )

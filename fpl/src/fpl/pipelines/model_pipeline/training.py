@@ -4,6 +4,7 @@ from sklearn.metrics import mean_squared_error
 from xgboost import XGBRegressor
 import numpy as np
 import logging
+import pandas as pd
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +17,12 @@ def split_data(processed_data, parameters):
     return train_val_data, holdout_data
 
 
-def _encode_features(X, categorical_features, numerical_features, encoder):
+def _encode_features(
+    X: np.ndarray,
+    categorical_features: list[str],
+    numerical_features: list[str],
+    encoder: OneHotEncoder,
+) -> np.ndarray:
     X_cat = X[categorical_features]
     X_num = X[numerical_features]
     X_encoded = np.hstack([encoder.transform(X_cat).toarray(), X_num])
@@ -46,9 +52,11 @@ def train_model(train_val_data, parameters):
     )
     encoder.fit(X_train_val_cat)
 
+    xgb_parameters = parameters["xgboost_params"]
+    xgb_parameters["n_estimators"] = int(xgb_parameters["n_estimators"])
     model = XGBRegressor(
         random_state=parameters["random_seed"],
-        **parameters["xgboost_params"],
+        **xgb_parameters,
     )
 
     cross_val_scores = []

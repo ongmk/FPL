@@ -77,13 +77,13 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS experiment (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     keep INTEGER,
-    start_time DATETIME NOT NULL
+    start_time TEXT NOT NULL
 );
 
 ----------------------------
 CREATE TABLE IF NOT EXISTS evaluation_result (
     id INTEGER,
     experiment_id INTEGER,
-    start_time DATETIME NOT NULL,
+    start_time TEXT NOT NULL,
     PRIMARY KEY (experiment_id, id)
 );

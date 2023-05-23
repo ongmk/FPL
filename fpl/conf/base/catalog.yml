@@ -76,3 +76,8 @@ EVALUATION_RESULT:
 EVALUATION_PLOTS:
   type: matplotlib.MatplotlibWriter
   filepath: data/evaluation
+
+EVALUATION_METRICS:
+  type: fpl.extras.datasets.ExperimentMetrics
+  table_name: experiment
+  credentials: db_credentials

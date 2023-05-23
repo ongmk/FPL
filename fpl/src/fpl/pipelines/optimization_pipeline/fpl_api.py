@@ -71,9 +71,7 @@ def get_live_data(team_id: int, horizon: int) -> FplData:
     current_gw = all_gws["current"]
 
     pred_pts_data = get_pred_pts_data(gameweeks)
-    pred_pts_data = resolve_fpl_names(
-        pred_pts_data, elements_team[["web_name", "short_name"]]
-    )
+    pred_pts_data = resolve_fpl_names(pred_pts_data)
 
     merged_data = elements_team.merge(
         pred_pts_data,

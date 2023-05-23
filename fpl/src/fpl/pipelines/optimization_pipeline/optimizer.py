@@ -1,6 +1,5 @@
 import pandas as pd
 from subprocess import check_output
-from kedro_datasets import text
 
 import logging
 from src.fpl.pipelines.optimization_pipeline.lp_constructor import construct_lp
@@ -304,7 +303,7 @@ def backtest_single_player(parameters: dict, title: str = "Backtest Result"):
     # Arguments
     horizon = parameters["horizon"]
     team_id = parameters["team_id"]
-    player_history = parameters["player_history"]
+    backtest_player_history = parameters["backtest_player_history"]
 
     # Pre season
     latest_elements_team, team_data, type_data, all_gws = get_fpl_base_data()
@@ -320,7 +319,7 @@ def backtest_single_player(parameters: dict, title: str = "Backtest Result"):
     result_predicted_xp = []
     result_solve_times = []
 
-    for next_gw in tqdm(all_gws["finished"][18:20]):
+    for next_gw in tqdm(all_gws["finished"]):
         gameweeks = [i for i in range(next_gw, next_gw + horizon)]
         logger.info(80 * "=")
         logger.info(
@@ -332,9 +331,7 @@ def backtest_single_player(parameters: dict, title: str = "Backtest Result"):
             logger.warning(f"No data from GW {next_gw}")
         else:
             pred_pts_data = get_pred_pts_data(gameweeks)
-            pred_pts_data = resolve_fpl_names(
-                pred_pts_data, elements_team[["web_name", "short_name"]]
-            )
+            pred_pts_data = resolve_fpl_names(pred_pts_data)
             for p in initial_squad:
                 name = elements_team.loc[elements_team["id"] == p, "web_name"].item()
                 team = elements_team.loc[elements_team["id"] == p, "short_name"].item()
@@ -353,7 +350,7 @@ def backtest_single_player(parameters: dict, title: str = "Backtest Result"):
             merged_data["sell_price"] = merged_data["now_cost"]
             # merged_data[f"xPts_{next_gw}"] = merged_data["xP"] # peek actual xp
 
-            if player_history:
+            if backtest_player_history:
                 picks_df, summary, next_gw_dict = get_historical_picks(
                     team_id, next_gw, merged_data
                 )
@@ -391,7 +388,7 @@ def backtest_single_player(parameters: dict, title: str = "Backtest Result"):
             )
             logger.info(f"Actual xP = {actual_xp:.2f}. ({total_xp:.2f} overall)")
 
-            if not player_history:
+            if not backtest_player_history:
                 if next_gw_dict["chip_used"] not in ("fh", "wc") and next_gw != 1:
                     assert next_gw_dict["ft"] == min(
                         2, max(1, parameters["ft"] - next_gw_dict["n_transfers"] + 1)
@@ -428,3 +425,23 @@ def backtest_single_player(parameters: dict, title: str = "Backtest Result"):
     plt.legend()
     filename = f"[{total_predicted_xp:.1f},{total_xp:.1f}]{title}.png"
     return filename, fig
+
+
+if __name__ == "__main__":
+    import yaml
+    from datetime import datetime
+    from src.fpl.pipelines.optimization_pipeline.fetch_predictions import (
+        refresh_fpl_names_mapping,
+    )
+
+    with open("./conf/base/parameters.yml", "r") as file:
+        parameters = yaml.safe_load(file)
+        parameters = parameters["optimization"]
+
+    start_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    players = parameters["backtest_players"]
+    plots = {}
+    refresh_fpl_names_mapping()
+    for p, id in tqdm(players.items()):
+        parameters["team_id"] = id
+        filename, fig = backtest_single_player(parameters, p)

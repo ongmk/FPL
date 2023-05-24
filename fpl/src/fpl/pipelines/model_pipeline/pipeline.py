@@ -82,27 +82,27 @@ def create_pipeline() -> Pipeline:
             #     inputs=["PROCESSED_DATA", "params:data"],
             #     outputs="correlation",
             # ),
-            node(
-                func=split_data,
-                inputs=["PROCESSED_DATA", "params:data"],
-                outputs=[
-                    "train_val_data",
-                    "holdout_data",
-                ],
-                name="split_data_node",
-            ),
+            # node(
+            #     func=split_data,
+            #     inputs=["PROCESSED_DATA", "params:data"],
+            #     outputs=[
+            #         "TRAIN_VAL_DATA",
+            #         "HOLDOUT_DATA",
+            #     ],
+            #     name="split_data_node",
+            # ),
             node(
                 func=train_model,
-                inputs=["train_val_data", "params:model"],
-                outputs=["model", "encoder"],
+                inputs=["TRAIN_VAL_DATA", "params:model"],
+                outputs=["MODEL", "PIPELINE"],
                 name="train_model_node",
             ),
             node(
                 func=evaluate_model,
                 inputs=[
-                    "holdout_data",
-                    "model",
-                    "encoder",
+                    "HOLDOUT_DATA",
+                    "MODEL",
+                    "PIPELINE",
                     "experiment_id",
                     "start_time",
                     "params:model",

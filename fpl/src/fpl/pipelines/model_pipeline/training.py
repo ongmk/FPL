@@ -1,10 +1,16 @@
+from typing import Any
 from sklearn.model_selection import GroupKFold
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder
+from sklearn.decomposition import PCA
 from sklearn.metrics import mean_squared_error
 from xgboost import XGBRegressor
 import numpy as np
 import logging
 import pandas as pd
+
 
 logger = logging.getLogger(__name__)
 
@@ -17,19 +23,9 @@ def split_data(processed_data, parameters):
     return train_val_data, holdout_data
 
 
-def _encode_features(
-    X: np.ndarray,
-    categorical_features: list[str],
-    numerical_features: list[str],
-    encoder: OneHotEncoder,
-) -> np.ndarray:
-    X_cat = X[categorical_features]
-    X_num = X[numerical_features]
-    X_encoded = np.hstack([encoder.transform(X_cat).toarray(), X_num])
-    return X_encoded
-
-
-def train_model(train_val_data, parameters):
+def train_model(
+    train_val_data: pd.DataFrame, parameters: dict[str, Any]
+) -> tuple[Any, Pipeline]:
     categorical_features = parameters["categorical_features"]
     numerical_features = parameters["numerical_features"]
     target = parameters["target"]
@@ -42,15 +38,44 @@ def train_model(train_val_data, parameters):
     logger.info(f"{groups.unique() = }")
     group_kfold = GroupKFold(n_splits=n_splits)
 
-    X_train_val_cat = X_train_val[categorical_features]
-    categories = [
-        np.append(X_train_val_cat[col].unique(), "Unknown")
-        for col in X_train_val_cat.columns
-    ]
-    encoder = OneHotEncoder(
-        handle_unknown="infrequent_if_exist", categories=categories, min_frequency=1
+    numerical_pipeline = Pipeline(
+        [
+            ("num_imputer", SimpleImputer(strategy="constant", fill_value=-999)),
+            ("scaler", StandardScaler()),
+            ("pca", PCA(n_components=parameters["pca_components"])),
+        ]
     )
-    encoder.fit(X_train_val_cat)
+
+    categorical_data = X_train_val[categorical_features]
+    categories = [
+        np.append(categorical_data[col].unique(), "Unknown")
+        for col in categorical_data.columns
+    ]
+    categorical_pipeline = Pipeline(
+        [
+            ("cat_imputer", SimpleImputer(strategy="constant", fill_value="missing")),
+            (
+                "one_hot_encoder",
+                OneHotEncoder(
+                    handle_unknown="infrequent_if_exist",
+                    categories=categories,
+                    min_frequency=1,
+                ),
+            ),
+        ]
+    )
+
+    preprocessor = ColumnTransformer(
+        transformers=[
+            ("num", numerical_pipeline, numerical_features),
+            ("cat", categorical_pipeline, categorical_features),
+        ]
+    )
+    pipeline = Pipeline(
+        [
+            ("preprocessor", preprocessor),
+        ]
+    )
 
     xgb_parameters = parameters["xgboost_params"]
     xgb_parameters["n_estimators"] = int(xgb_parameters["n_estimators"])
@@ -66,29 +91,45 @@ def train_model(train_val_data, parameters):
         outlier = y_train > 4
         X_train, y_train = X_train.loc[~outlier], y_train.loc[~outlier]
 
-        X_train_encoded = _encode_features(
-            X_train, categorical_features, numerical_features, encoder
-        )
-        X_val_encoded = _encode_features(
-            X_train_val.iloc[val_index],
-            categorical_features,
-            numerical_features,
-            encoder,
-        )
+        X_train_preprocessed = pipeline.fit_transform(X_train)
+        X_val_preprocessed = pipeline.transform(X_train_val.iloc[val_index])
+
         y_val = y_train_val.iloc[val_index]
 
         model.fit(
-            X_train_encoded,
+            X_train_preprocessed,
             y_train,
-            eval_set=[(X_train_encoded, y_train), (X_val_encoded, y_val)],
+            eval_set=[(X_train_preprocessed, y_train), (X_val_preprocessed, y_val)],
             verbose=100,
         )
 
-        val_predictions = model.predict(X_val_encoded)
+        val_predictions = model.predict(X_val_preprocessed)
         val_accuracy = mean_squared_error(y_val, val_predictions)
         cross_val_scores.append(val_accuracy)
 
     avg_cv_accuracy = sum(cross_val_scores) / n_splits
     logger.info(f"Average cross-validation accuracy: {avg_cv_accuracy}")
     logger.info(cross_val_scores)
-    return model, encoder
+    return model, pipeline
+
+
+if __name__ == "__main__":
+    import sqlite3
+    import pandas as pd
+    import yaml
+
+    # Connect to the SQLite database
+    connection = sqlite3.connect("./data/fpl.db")
+    train_val_data = pd.read_sql_query("SELECT * FROM train_val_data", connection)
+    with open("./conf/base/parameters.yml", "r") as file:
+        parameters = yaml.safe_load(file)
+        parameters = parameters["model"]
+
+    outputs = train_model(train_val_data=train_val_data, parameters=parameters)
+    import pickle
+
+    filename = "train_model_output.pkl"
+
+    # Save the pipeline object to a file
+    with open(filename, "wb") as file:
+        pickle.dump(outputs, file)

@@ -4,8 +4,7 @@ import logging
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 import seaborn as sns
-from sklearn.preprocessing import OneHotEncoder
-from src.fpl.pipelines.model_pipeline.training import _encode_features
+from sklearn.pipeline import Pipeline
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -21,7 +20,7 @@ def _ordered_set(input_list):
 def evaluate_model(
     holdout_data: pd.DataFrame,
     model,
-    encoder: OneHotEncoder,
+    pipeline: Pipeline,
     experiment_id: int,
     start_time: str,
     parameters: dict[str, Any],
@@ -33,12 +32,25 @@ def evaluate_model(
     output_plots = {}
 
     # Feature Importance
+    encoder = (
+        pipeline.named_steps["preprocessor"]
+        .named_transformers_["cat"]
+        .named_steps["one_hot_encoder"]
+    )
+    pca = (
+        pipeline.named_steps["preprocessor"]
+        .named_transformers_["num"]
+        .named_steps["pca"]
+    )
+    n_pca_components = pca.n_components_
+    pca_cols = np.array([f"pca_{i}" for i in range(n_pca_components)])
+
     encoded_cat_cols = encoder.get_feature_names_out(
         input_features=categorical_features
     )
     features_importance = pd.DataFrame(
         data=model.feature_importances_,
-        index=encoded_cat_cols.tolist() + numerical_features,
+        index=encoded_cat_cols.tolist() + pca_cols.tolist(),
         columns=["importance"],
     )
     features_importance = features_importance.sort_values(
@@ -52,11 +64,8 @@ def evaluate_model(
 
     # Holdout set evaluation
     X_holdout = holdout_data[numerical_features + categorical_features]
-
-    X_holdout_encoded = _encode_features(
-        X_holdout, categorical_features, numerical_features, encoder
-    )
-    holdout_predictions = model.predict(X_holdout_encoded)
+    X_holdout_preprocessed = pipeline.transform(X_holdout)
+    holdout_predictions = model.predict(X_holdout_preprocessed)
 
     output_cols = _ordered_set(
         ["id"] + numerical_features + categorical_features + [target] + baseline_columns
@@ -97,4 +106,30 @@ def evaluate_model(
         output_df,
         output_plots,
         (experiment_id, output_metrics),
+    )
+
+
+if __name__ == "__main__":
+    import sqlite3
+    import pandas as pd
+    import yaml
+    import pickle
+
+    filename = "train_model_output.pkl"
+    with open(filename, "rb") as file:
+        model, pipeline = pickle.load(file)
+
+    connection = sqlite3.connect("./data/fpl.db")
+    holdout_data = pd.read_sql_query("SELECT * FROM holdout_data", connection)
+    with open("./conf/base/parameters.yml", "r") as file:
+        parameters = yaml.safe_load(file)
+        parameters = parameters["model"]
+
+    outputs = evaluate_model(
+        holdout_data=holdout_data,
+        model=model,
+        pipeline=pipeline,
+        experiment_id=1,
+        start_time="now",
+        parameters=parameters,
     )

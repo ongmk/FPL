@@ -66,6 +66,28 @@ PROCESSED_DATA:
   save_args:
     if_exists: replace
 
+TRAIN_VAL_DATA:
+  type: pandas.SQLTableDataSet
+  table_name: train_val_data
+  credentials: db_credentials
+  save_args:
+    if_exists: replace
+
+HOLDOUT_DATA:
+  type: pandas.SQLTableDataSet
+  table_name: holdout_data
+  credentials: db_credentials
+  save_args:
+    if_exists: replace
+
+MODEL:
+  type: pickle.PickleDataSet
+  filepath: data/model.pkl
+
+PIPELINE:
+  type: pickle.PickleDataSet
+  filepath: data/pipeline.pkl
+
 EVALUATION_RESULT:
   type: fpl.extras.datasets.FlexibleSQLTableDataSet
   table_name: evaluation_result

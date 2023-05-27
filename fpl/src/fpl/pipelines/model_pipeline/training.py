@@ -104,14 +104,15 @@ def ensemble_fit(
     y_val: pd.Series,
     parameters: dict[str, Any],
 ) -> None:
-    for _, (_, model) in models.items():
-        model.fit(
-            X_train,
-            y_train,
-            early_stopping_rounds=parameters["early_stopping_rounds"],
-            eval_set=[(X_val, y_val)],
-            verbose=parameters["verbose"],
-        )
+    for model_id, (_, model) in models.items():
+        fit_params = {}
+        if model_id in ["xgboost", "lightgbm"]:
+            fit_params = dict(
+                early_stopping_rounds=parameters["early_stopping_rounds"],
+                eval_set=[(X_val, y_val)],
+                verbose=parameters["verbose"],
+            )
+        model.fit(X_train, y_train, **fit_params)
     return None
 
 

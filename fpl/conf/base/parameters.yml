@@ -27,16 +27,24 @@ model:
   early_stopping_rounds: 5
   verbose: false
   models:
-    xgboost:
+    # xgboost:
+    #   weight: 1
+    #   params:
+    #     base_score: 0.5
+    #     n_estimators: 95
+    #     objective: reg:squarederror
+    #     learning_rate: 0.02
+    #     eval_metric: mae
+    #     random_state: 42
+    huber:
       weight: 1
       params:
-        base_score: 0.5
-        n_estimators: 95
-        objective: reg:squarederror
-        learning_rate: 0.02
-        eval_metric: mae
-        random_state: 42
-    # - huber
+        epsilon: 1.35
+        max_iter: 100
+        alpha: 0.0001
+        warm_start: False
+        fit_intercept: True
+        tol: 1.0e-5
     # - ridge
     # - lr
     # - gbr

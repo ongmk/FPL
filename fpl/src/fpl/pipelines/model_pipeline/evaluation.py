@@ -7,6 +7,9 @@ import seaborn as sns
 from sklearn.pipeline import Pipeline
 from typing import Any
 from src.fpl.pipelines.model_pipeline.training import ensemble_predict
+from sklearn.inspection import permutation_importance
+import textwrap
+
 
 logger = logging.getLogger(__name__)
 color_pal = sns.color_palette()
@@ -41,7 +44,36 @@ def get_transformed_columns(
     return encoded_cat_cols.tolist() + pca_cols.tolist()
 
 
+def plot_feature_importance(
+    model: Any, X: np.ndarray, y: np.ndarray, columns: list[str]
+) -> Figure:
+    if hasattr(model, "coef_"):
+        feature_importances = np.abs(model.coef_)
+    elif hasattr(model, "feature_importances_"):
+        feature_importances = model.feature_importances_
+    else:
+        result = permutation_importance(model, X, y, n_repeats=10, random_state=0)
+        feature_importances = result.importances_mean
+
+    columns = [textwrap.fill(label.replace("_", " "), width=10) for label in columns]
+
+    feature_importances = pd.DataFrame(
+        data=feature_importances,
+        index=columns,
+        columns=["importance"],
+    )
+    feature_importances = feature_importances.sort_values(
+        by="importance", ascending=False
+    ).head(10)
+
+    ax = feature_importances.sort_values("importance").plot(
+        kind="barh", title="Feature Importance"
+    )
+    return ax.get_figure()
+
+
 def evaluate_model(
+    train_val_data: pd.DataFrame,
     holdout_data: pd.DataFrame,
     models: dict[str, tuple[float, Any]],
     sklearn_pipeline: Pipeline,
@@ -53,29 +85,26 @@ def evaluate_model(
     numerical_features = parameters["numerical_features"]
     target = parameters["target"]
     baseline_columns = parameters["baseline_columns"]
+
+    X_train_val = train_val_data[numerical_features + categorical_features]
+    y_train_val = train_val_data[target]
+    X_train_val_preprocessed = sklearn_pipeline.fit_transform(X_train_val)
+    X_holdout = holdout_data[numerical_features + categorical_features]
+    X_holdout_preprocessed = sklearn_pipeline.transform(X_holdout)
+
     output_plots = {}
     transformed_columns = get_transformed_columns(
         sklearn_pipeline=sklearn_pipeline, categorical_features=categorical_features
     )
 
     for model_id, (_, model) in models.items():
-        # Feature Importance
-        features_importance = pd.DataFrame(
-            data=model.feature_importances_,
-            index=transformed_columns,
-            columns=["importance"],
+        output_plots[f"{start_time}__{model_id}_fi.png"] = plot_feature_importance(
+            model=model,
+            X=X_train_val_preprocessed.toarray(),
+            y=y_train_val,
+            columns=transformed_columns,
         )
-        features_importance = features_importance.sort_values(
-            by="importance", ascending=False
-        ).head(10)
 
-        ax = features_importance.sort_values("importance").plot(
-            kind="barh", title="Feature Importance"
-        )
-        output_plots[f"{start_time}__{model_id}_fi.png"] = ax.get_figure()
-
-    X_holdout = holdout_data[numerical_features + categorical_features]
-    X_holdout_preprocessed = sklearn_pipeline.transform(X_holdout)
     holdout_predictions = ensemble_predict(models, X_holdout_preprocessed)
     output_cols = _ordered_set(
         ["id"] + numerical_features + categorical_features + [target] + baseline_columns

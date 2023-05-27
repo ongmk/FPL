@@ -103,6 +103,7 @@ def create_model_pipeline() -> Pipeline:
             node(
                 func=evaluate_model,
                 inputs=[
+                    "TRAIN_VAL_DATA",
                     "HOLDOUT_DATA",
                     "FITTED_MODELS",
                     "fitted_sklearn_pipeline",

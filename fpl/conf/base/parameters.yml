@@ -23,26 +23,53 @@ model:
     - team_odds_2_score
     - att_total
   random_seed: 42
-  pca: true
-  pca_components: 4
-  model: xgboost
-  xgboost_params:
-    base_score: 0.5
-    n_estimators: 95
-    early_stopping_rounds: 5
-    objective: reg:squarederror
-    learning_rate: 0.02
-    eval_metric: mae
+  pca_components: 3
+  early_stopping_rounds: 5
+  verbose: false
+  models:
+    xgboost:
+      weight: 1
+      params:
+        base_score: 0.5
+        n_estimators: 95
+        objective: reg:squarederror
+        learning_rate: 0.02
+        eval_metric: mae
+        random_state: 42
+    # - huber
+    # - ridge
+    # - lr
+    # - gbr
+    # - rf
+  pycaret:
+    sort_models: MAE
+    plots:
+      - residuals
+      - residuals_interactive
+      - error
+      - cooks
+      - learning
+      - feature
+      - parameter
+      - tree
 
-hyperopt:
-  target:
-    name: loss
-    max_trials: 7
-    strategy: min
-  model:
-    pca_components:
-      method: choice
-      values: [1,2,3,4,5,6,7]
+# hyperopt:
+#   target:
+#     name: loss
+#     max_trials: 7
+#     strategy: min
+  # model:
+  #   model:
+  #     method: choice
+  #     values:
+  #       - linear_regression:
+  #         pca_components:
+  #           method: choice
+  #           values: [1,2,3]
+  #       - xg_boost:
+  #         pca_components:
+  #           method: choice
+  #           values: [4,5,6]
     # xgboost_params:
     #   learning_rate:
     #     method: uniform

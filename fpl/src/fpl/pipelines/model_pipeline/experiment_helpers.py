@@ -1,5 +1,8 @@
 import sqlite3
 import os
+from datetime import datetime
+from flatten_dict import flatten
+import pandas as pd
 
 
 def _delete_from_db(table_name, keep_start_times, conn):
@@ -46,3 +49,39 @@ def run_housekeeping(parameters):
 
     conn.close()
     return None
+
+
+def snake_to_camel(snake_str):
+    components = snake_str.split("_")
+    return components[0] + "".join(x.title() for x in components[1:])
+
+
+def camel_reducer(k1, k2):
+    k2 = snake_to_camel(k2)
+    if k1 is None:
+        return k2
+    else:
+        k1 = snake_to_camel(k1)
+        return f"{k1}_{k2}"
+
+
+def init_experiment(parameters):
+    conn = sqlite3.connect("./data/fpl.db")
+    query = "select COALESCE(max(id)  + 1 , 0) from experiment;"
+    cursor = conn.execute(query)
+    id = cursor.fetchone()[0]
+    start_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    cursor.close()
+    conn.close()
+
+    record = flatten(parameters, reducer=camel_reducer)
+    record = {
+        key: ", ".join(sorted(value)) if isinstance(value, list) else value
+        for key, value in record.items()
+    }
+
+    record["id"] = id
+    record["start_time"] = start_time
+    experiment_record = pd.DataFrame.from_records([record])
+
+    return id, start_time, experiment_record

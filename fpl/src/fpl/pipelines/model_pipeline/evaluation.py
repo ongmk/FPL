@@ -6,6 +6,7 @@ from matplotlib.figure import Figure
 import seaborn as sns
 from sklearn.pipeline import Pipeline
 from typing import Any
+from src.fpl.pipelines.model_pipeline.training import ensemble_predict
 
 logger = logging.getLogger(__name__)
 color_pal = sns.color_palette()
@@ -17,28 +18,16 @@ def _ordered_set(input_list):
     return [x for x in input_list if not (x in seen or seen.add(x))]
 
 
-def evaluate_model(
-    holdout_data: pd.DataFrame,
-    model,
-    pipeline: Pipeline,
-    experiment_id: int,
-    start_time: str,
-    parameters: dict[str, Any],
-) -> tuple[float, pd.DataFrame, dict[str, Figure], tuple[int, dict[str, float]]]:
-    categorical_features = parameters["categorical_features"]
-    numerical_features = parameters["numerical_features"]
-    target = parameters["target"]
-    baseline_columns = parameters["baseline_columns"]
-    output_plots = {}
-
-    # Feature Importance
+def get_transformed_columns(
+    sklearn_pipeline: Pipeline, categorical_features: list[str]
+) -> list[str]:
     encoder = (
-        pipeline.named_steps["preprocessor"]
+        sklearn_pipeline.named_steps["preprocessor"]
         .named_transformers_["cat"]
         .named_steps["one_hot_encoder"]
     )
     pca = (
-        pipeline.named_steps["preprocessor"]
+        sklearn_pipeline.named_steps["preprocessor"]
         .named_transformers_["num"]
         .named_steps["pca"]
     )
@@ -48,25 +37,46 @@ def evaluate_model(
     encoded_cat_cols = encoder.get_feature_names_out(
         input_features=categorical_features
     )
-    features_importance = pd.DataFrame(
-        data=model.feature_importances_,
-        index=encoded_cat_cols.tolist() + pca_cols.tolist(),
-        columns=["importance"],
-    )
-    features_importance = features_importance.sort_values(
-        by="importance", ascending=False
-    ).head(10)
 
-    ax = features_importance.sort_values("importance").plot(
-        kind="barh", title="Feature Importance"
-    )
-    output_plots[f"{start_time}__feature_importance.png"] = ax.get_figure()
+    return encoded_cat_cols.tolist() + pca_cols.tolist()
 
-    # Holdout set evaluation
+
+def evaluate_model(
+    holdout_data: pd.DataFrame,
+    models: dict[str, tuple[float, Any]],
+    sklearn_pipeline: Pipeline,
+    experiment_id: int,
+    start_time: str,
+    parameters: dict[str, Any],
+) -> tuple[float, pd.DataFrame, dict[str, Figure], tuple[int, dict[str, float]]]:
+    categorical_features = parameters["categorical_features"]
+    numerical_features = parameters["numerical_features"]
+    target = parameters["target"]
+    baseline_columns = parameters["baseline_columns"]
+    output_plots = {}
+    transformed_columns = get_transformed_columns(
+        sklearn_pipeline=sklearn_pipeline, categorical_features=categorical_features
+    )
+
+    for model_id, (_, model) in models.items():
+        # Feature Importance
+        features_importance = pd.DataFrame(
+            data=model.feature_importances_,
+            index=transformed_columns,
+            columns=["importance"],
+        )
+        features_importance = features_importance.sort_values(
+            by="importance", ascending=False
+        ).head(10)
+
+        ax = features_importance.sort_values("importance").plot(
+            kind="barh", title="Feature Importance"
+        )
+        output_plots[f"{start_time}__{model_id}_fi.png"] = ax.get_figure()
+
     X_holdout = holdout_data[numerical_features + categorical_features]
-    X_holdout_preprocessed = pipeline.transform(X_holdout)
-    holdout_predictions = model.predict(X_holdout_preprocessed)
-
+    X_holdout_preprocessed = sklearn_pipeline.transform(X_holdout)
+    holdout_predictions = ensemble_predict(models, X_holdout_preprocessed)
     output_cols = _ordered_set(
         ["id"] + numerical_features + categorical_features + [target] + baseline_columns
     )
@@ -124,12 +134,3 @@ if __name__ == "__main__":
     with open("./conf/base/parameters.yml", "r") as file:
         parameters = yaml.safe_load(file)
         parameters = parameters["model"]
-
-    outputs = evaluate_model(
-        holdout_data=holdout_data,
-        model=model,
-        pipeline=pipeline,
-        experiment_id=1,
-        start_time="now",
-        parameters=parameters,
-    )

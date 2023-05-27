@@ -80,13 +80,16 @@ HOLDOUT_DATA:
   save_args:
     if_exists: replace
 
-MODEL:
-  type: pickle.PickleDataSet
-  filepath: data/model.pkl
+PYCARET_RESULT:
+  type: pandas.SQLTableDataSet
+  table_name: pycaret_result
+  credentials: db_credentials
+  save_args:
+    if_exists: replace
 
-PIPELINE:
+FITTED_MODELS:
   type: pickle.PickleDataSet
-  filepath: data/pipeline.pkl
+  filepath: data/fitted_models.pkl
 
 EVALUATION_RESULT:
   type: fpl.extras.datasets.FlexibleSQLTableDataSet

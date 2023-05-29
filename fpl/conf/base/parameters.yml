@@ -33,117 +33,112 @@ model:
     - lr
     - gbr
     - rf
-  model_weights: [1]
+  model_weights: [1, 1, 1, 1]
   huber_params:
-    alpha: 0.0001
-    epsilon: 1.35
+    alpha: 2.71
+    epsilon: 1.97
     fit_intercept: True
-    max_iter: 100
-    tol: 1.0e-05
-    warm_start: False
   ridge_params:
-    alpha: 1.0
-    copy_X: True
-    fit_intercept: True
-    max_iter: null
-    positive: False
-    random_state: null
-    solver: auto
-    tol: 0.0001
+    alpha: 2.72
   lr_params:
-    copy_X: True
     fit_intercept: True
-    n_jobs: null
-    positive: False
   gbr_params:
-    alpha: 0.9
-    ccp_alpha: 0.0
-    criterion: friedman_mse
-    init: null
+    n_estimators: 100
     learning_rate: 0.1
-    loss: squared_error
+    subsample: 1.0
+    min_samples_split: 2
+    min_weight_fraction_leaf: 0.0
     max_depth: 3
     max_features: null
-    max_leaf_nodes: null
     min_impurity_decrease: 0.0
-    min_samples_leaf: 1
-    min_samples_split: 2
-    min_weight_fraction_leaf: 0.0
-    n_estimators: 100
-    n_iter_no_change: null
-    random_state: null
-    subsample: 1.0
-    tol: 0.0001
-    validation_fraction: 0.1
-    verbose: 0
-    warm_start: False
   rf_params:
-    bootstrap: True
-    ccp_alpha: 0.0
-    criterion: squared_error
-    max_depth: null
-    max_features: 1.0
-    max_leaf_nodes: null
-    max_samples: null
-    min_impurity_decrease: 0.0
-    min_samples_leaf: 1
-    min_samples_split: 2
-    min_weight_fraction_leaf: 0.0
     n_estimators: 100
-    n_jobs: null
-    oob_score: False
-    random_state: null
-    verbose: 0
-    warm_start: False
+    max_depth: null
+    min_impurity_decrease: 0.0
+    max_features: 1.0
+    bootstrap: True
+
 hyperopt:
   target:
     name: val_score
-    max_trials: 4
+    max_trials: 100
     strategy: max
     algo: tpe
     early_termination: null
   groups:
     model:
       models:
-        - [huber]
-        - [ridge]
+        - [gbr]
+        - [rf]
   0:
     model:
-      huber_params:
-        alpha: 
-          method: loguniform
-          low:  0.0001
-          high: 1
-        epsilon: 
+      model_weights: 
+        method: constant
+        value: [1]
+      gbr_params:
+        n_estimators:
           method: uniform
+          scope: int
+          low: 10
+          high: 300
+        learning_rate:
+          method: loguniform
+          low: 0.000001
+          high: 0.5
+        subsample:
+          method: uniform
+          low: 0.2
+          high: 1
+        min_samples_split:
+          method: uniform
+          scope: int
+          low: 2
+          high: 10
+        min_samples_leaf:
+          method: uniform
+          scope: int
           low: 1
-          high: 2
+          high: 5
+        max_depth:
+          method: uniform
+          scope: int
+          low: 1
+          high: 11
+        max_features:
+          method: uniform
+          low: 0.4
+          high: 1
+        min_impurity_decrease:
+          method: loguniform
+          low: 0.000000001
+          high: 0.5
   1:
     model:
-      ridge_params:
-        alpha: 
+      model_weights: 
+        method: constant
+        value: [1]
+      rf_params:
+        n_estimators: 
+          method: uniform
+          scope: int
+          low: 10
+          high: 300
+        max_depth: 
+          method: uniform
+          scope: int
+          low: 1
+          high: 11
+        min_impurity_decrease: 
           method: loguniform
-          low:  0.0001
-          high: 100
-        normalize: 
+          low: 0.000000001
+          high: 0.5
+        max_features: 
+          method: uniform
+          low: 0.4
+          high: 1
+        bootstrap:
           method: choice
-          values:  
-            - true
-            - false
-
-        # - [lr: 1]
-        # - [gbr: 1]
-        # - [rf: 1]
-    # xgboost_params:
-    #   learning_rate:
-    #     method: uniform
-    #     low:  0.01
-    #     high: 0.1
-    #   n_estimators:
-    #     method: quniform
-    #     low: 10
-    #     high: 100
-    #     q: 1
+          values: [true, false]
 
 ######################################
 
@@ -157,6 +152,9 @@ data:
 
 housekeeping:
   to_keep: 30
+  keep_model_best: 5
+  metric: val_r2
+  strategy: max
 
 ######################################
 

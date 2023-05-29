@@ -77,7 +77,10 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS experiment (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     keep INTEGER,
-    start_time TEXT NOT NULL
+    model_best INTEGER,
+    start_time TEXT NOT NULL,
+    numericalFeatures TEXT,
+    categoricalFeatures TEXT
 );
 
 ----------------------------

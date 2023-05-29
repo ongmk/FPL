@@ -4,6 +4,7 @@ from typing import Any, Dict
 from flatten_dict import flatten, unflatten
 from hyperopt import hp
 from deepdiff import DeepDiff
+from hyperopt.pyll.base import scope
 
 
 def tuple_list_type_check(search_space: Dict, parameters: Dict):
@@ -66,31 +67,37 @@ def _build_hyper_param_expression(param_name: str, hyper_param_details: Dict):
         q = default_hyper_dict["q"]
         mu = default_hyper_dict["mu"]
         sigma = default_hyper_dict["sigma"]
+        _scope = default_hyper_dict["scope"]
         method = hyper_param_details["method"]
+
         if method == "uniform":
-            return hp.uniform(param_name, low, high)
-        elif method == "quniform":
-            return hp.quniform(param_name, low, high, q)
+            search_space = hp.uniform(param_name, low, high)
         elif method == "loguniform":
-            return hp.loguniform(param_name, low, high)
-        elif method == "qloguniform":
-            return hp.qloguniform(param_name, low, high, q)
+            search_space = hp.loguniform(param_name, low, high)
         elif method == "normal":
-            return hp.normal(param_name, mu, sigma)
-        elif method == "qnormal":
-            return hp.qnormal(param_name, mu, sigma, q)
+            search_space = hp.normal(param_name, mu, sigma)
         elif method == "lognormal":
-            return hp.lognormal(param_name, mu, sigma)
+            search_space = hp.lognormal(param_name, mu, sigma)
+        elif method == "quniform":
+            search_space = hp.quniform(param_name, low, high, q)
+        elif method == "qloguniform":
+            search_space = hp.qloguniform(param_name, low, high, q)
+        elif method == "qnormal":
+            search_space = hp.qnormal(param_name, mu, sigma, q)
         elif method == "qlognormal":
-            return hp.qlognormal(param_name, mu, sigma, q)
+            search_space = hp.qlognormal(param_name, mu, sigma, q)
         elif method == "choice":
             if "values" in hyper_param_details:
                 value_list = hyper_param_details["values"]
-                return hp.choice(param_name, value_list)
+                search_space = hp.choice(param_name, value_list)
             else:
-                return hp.choice(param_name, range(low, high))
+                search_space = hp.choice(param_name, range(low, high))
+        elif method == "constant":
+            if "value" in hyper_param_details:
+                search_space = hyper_param_details["value"]
         else:
             raise ValueError(f"{param_name}: {method} is not a valid searching method.")
+        return scope.int(search_space) if _scope == "int" else search_space
     else:
         raise KeyError(f"No searching method found for {param_name}.")
 

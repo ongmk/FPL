@@ -7,13 +7,13 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.decomposition import PCA
 from sklearn.metrics import r2_score
 import numpy as np
-import logging
 import pandas as pd
 from pycaret.regression import setup, compare_models, pull
 import inspect
 from src.fpl.pipelines.model_pipeline.all_models.regression import (
     get_regression_model_instance,
 )
+import logging
 
 logger = logging.getLogger(__name__)
 
@@ -198,6 +198,7 @@ def train_model(
     sklearn_pipeline: Pipeline,
     parameters: dict[str, str],
 ) -> dict[str, Any]:
+    logger.info(f"Training models: {models}")
     categorical_features = parameters["categorical_features"]
     numerical_features = parameters["numerical_features"]
     target = parameters["target"]

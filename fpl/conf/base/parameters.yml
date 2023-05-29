@@ -33,7 +33,7 @@ model:
     - lr
     - gbr
     - rf
-  model_weights: [1, 1, 1, 1]
+  model_weights: [1, 1, 1, 1, 1]
   huber_params:
     alpha: 2.71
     epsilon: 1.97

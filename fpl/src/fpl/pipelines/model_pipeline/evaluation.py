@@ -76,7 +76,7 @@ def plot_feature_importance(
 def evaluate_model(
     train_val_data: pd.DataFrame,
     holdout_data: pd.DataFrame,
-    models: dict[str, Any],
+    models: list[Any],
     sklearn_pipeline: Pipeline,
     experiment_id: int,
     start_time: str,
@@ -86,6 +86,7 @@ def evaluate_model(
     numerical_features = parameters["numerical_features"]
     target = parameters["target"]
     baseline_columns = parameters["baseline_columns"]
+    model_ids = parameters["models"]
     model_weights = parameters["model_weights"]
 
     X_train_val = train_val_data[numerical_features + categorical_features]
@@ -99,7 +100,7 @@ def evaluate_model(
         sklearn_pipeline=sklearn_pipeline, categorical_features=categorical_features
     )
 
-    for model_id, model in models.items():
+    for model_id, model in zip(model_ids, models):
         output_plots[f"{start_time}__{model_id}_fi.png"] = plot_feature_importance(
             model=model,
             X=X_train_val_preprocessed.toarray(),

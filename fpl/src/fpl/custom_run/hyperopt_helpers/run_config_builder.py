@@ -11,8 +11,7 @@ from fpl.custom_run.hyperopt_helpers.termination_policy import (
 )
 
 
-def build_run_config(param_dict: Dict, hyperopt_param: Dict):
-    target_dict: Dict = hyperopt_param.pop("target")
+def build_run_config(param_dict: Dict, hyperopt_param: Dict, target_dict: dict):
     max_trials = target_dict["max_trials"]
     strategy = target_dict["strategy"]
     target_name = target_dict["name"]

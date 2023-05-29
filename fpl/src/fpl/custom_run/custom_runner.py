@@ -44,7 +44,6 @@ def custom_kedro_run(
         "tag": None,
     },
 ):
-
     # trains would not actaully call the python file with args, have to save this
     run_args_cli = {
         "parallel": None,
@@ -65,20 +64,12 @@ def custom_kedro_run(
 
     if "hyperopt" in param_dict:
         from hyperopt import STATUS_OK, fmin
-        from fpl.custom_run.hyperopt_helpers import (
+        from src.fpl.custom_run.hyperopt_helpers import (
             build_run_config,
             tuple_list_type_check,
+            update_parameters,
+            find_search_groups,
         )
-
-        hyperopt_param = param_dict.pop("hyperopt")
-
-        hyperopt_run_config, log_info = build_run_config(param_dict, hyperopt_param)
-        trials = hyperopt_run_config["trials"]
-        target_name = log_info["target_name"]
-        strategy = log_info["strategy"]
-        algo = log_info["algo"]
-        uuid_tag = log_info["uuid"]
-        uuid_str = uuid.uuid4().hex
 
         def optimize(parameters: Dict):
             parameters = tuple_list_type_check(hyperopt_run_config["space"], parameters)
@@ -97,11 +88,25 @@ def custom_kedro_run(
                 target_name: res[target_name],
             }
 
-        hyperopt_run_config["fn"] = optimize
-        fmin(**hyperopt_run_config, show_progressbar=False)
+        hyperopt_param = param_dict.pop("hyperopt")
+        hyperopt_run_groups = find_search_groups(hyperopt_param)
+        for i, group_param in hyperopt_run_groups:
+            base_param = update_parameters(param_dict, group_param)
+            hyperopt_run_config, log_info = build_run_config(
+                base_param, hyperopt_param[i], hyperopt_param["target"]
+            )
+            trials = hyperopt_run_config["trials"]
+            target_name = log_info["target_name"]
+            strategy = log_info["strategy"]
+            algo = log_info["algo"]
+            uuid_tag = log_info["uuid"]
+            uuid_str = uuid.uuid4().hex
 
-        print(f"Best parameters are: {trials.best_trial['misc']['vals']}")
-        print(f"{target_name} = {trials.best_trial['result'][target_name]}")
+            hyperopt_run_config["fn"] = optimize
+            fmin(**hyperopt_run_config, show_progressbar=False)
+
+            print(f"Best parameters are: {trials.best_trial['misc']['vals']}")
+            print(f"{target_name} = {trials.best_trial['result'][target_name]}")
         return None
 
     else:
@@ -115,7 +120,6 @@ def custom_kedro_run(
 
 
 def run_kedro_task(env, params, run_args_cli, project_path):
-
     print(
         dedent(
             f"""\
@@ -133,7 +137,6 @@ def run_kedro_task(env, params, run_args_cli, project_path):
         env=env,
         extra_params=dict_nested_update(old_context.load_context().params, params),
     ) as context:
-
         if run_args_cli["parallel"] and run_args_cli["runner"]:
             raise KedroCliError(
                 "Both --parallel and --runner options cannot be used together. "

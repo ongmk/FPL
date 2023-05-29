@@ -9,6 +9,7 @@ from typing import Any
 from src.fpl.pipelines.model_pipeline.training import ensemble_predict
 from sklearn.inspection import permutation_importance
 import textwrap
+from sklearn.metrics import r2_score
 
 
 logger = logging.getLogger(__name__)
@@ -75,7 +76,7 @@ def plot_feature_importance(
 def evaluate_model(
     train_val_data: pd.DataFrame,
     holdout_data: pd.DataFrame,
-    models: dict[str, tuple[float, Any]],
+    models: dict[str, Any],
     sklearn_pipeline: Pipeline,
     experiment_id: int,
     start_time: str,
@@ -85,6 +86,7 @@ def evaluate_model(
     numerical_features = parameters["numerical_features"]
     target = parameters["target"]
     baseline_columns = parameters["baseline_columns"]
+    model_weights = parameters["model_weights"]
 
     X_train_val = train_val_data[numerical_features + categorical_features]
     y_train_val = train_val_data[target]
@@ -97,7 +99,7 @@ def evaluate_model(
         sklearn_pipeline=sklearn_pipeline, categorical_features=categorical_features
     )
 
-    for model_id, (_, model) in models.items():
+    for model_id, model in models.items():
         output_plots[f"{start_time}__{model_id}_fi.png"] = plot_feature_importance(
             model=model,
             X=X_train_val_preprocessed.toarray(),
@@ -105,7 +107,9 @@ def evaluate_model(
             columns=transformed_columns,
         )
 
-    holdout_predictions = ensemble_predict(models, X_holdout_preprocessed)
+    holdout_predictions = ensemble_predict(
+        models=models, weights=model_weights, X=X_holdout_preprocessed
+    )
     output_cols = _ordered_set(
         ["id"] + numerical_features + categorical_features + [target] + baseline_columns
     )
@@ -126,7 +130,10 @@ def evaluate_model(
         axes[i].set_title(f"{col} MAE: {mae:.2f}")
         axes[i].set_xlabel(f"{col}_error")
     output_df.head()
-    output_metrics = {"mae": output_df["prediction_error"].abs().mean()}
+    output_metrics = {
+        "mae": output_df["prediction_error"].abs().mean(),
+        "r2": r2_score(output_df[target], output_df["prediction"]),
+    }
     for metric, score in output_metrics.items():
         logger.info(f"{metric} = {score}")
     plt.subplots_adjust(wspace=0.1)
@@ -138,7 +145,6 @@ def evaluate_model(
         col for col in output_df.columns if col not in ("experiment_id", "start_time")
     ]
     output_df = output_df[columns]
-    # plt.close("all")
 
     return (
         output_metrics["mae"],

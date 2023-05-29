@@ -10,7 +10,7 @@ import numpy as np
 import logging
 import pandas as pd
 from pycaret.regression import setup, compare_models, pull
-
+import inspect
 from src.fpl.pipelines.model_pipeline.all_models.regression import (
     get_regression_model_instance,
 )
@@ -90,66 +90,73 @@ def pycaret_compare_models(
         fold_groups=parameters["group_by"],
     )
 
-    pycaret_params = parameters["pycaret"]
-    compare_models(sort=pycaret_params["sort_models"])
+    compare_models(sort=parameters["sort_models"])
     pycaret_result = pull()
     return pycaret_result
 
 
+def has_fit_parameter(cls, param_name):
+    fit_method = getattr(cls, "fit", None)
+    method_signature = inspect.signature(fit_method)
+    return param_name in method_signature.parameters
+
+
 def ensemble_fit(
-    models: dict[str, tuple[float, Any]],
+    models: list[Any],
     X_train: pd.DataFrame,
     y_train: pd.Series,
     X_val: pd.DataFrame,
     y_val: pd.Series,
     parameters: dict[str, Any],
 ) -> None:
-    for model_id, (_, model) in models.items():
+    for model in models:
         fit_params = {}
-        if model_id in ["xgboost", "lightgbm"]:
-            fit_params = dict(
-                early_stopping_rounds=parameters["early_stopping_rounds"],
-                eval_set=[(X_val, y_val)],
-                verbose=parameters["verbose"],
-            )
+        if has_fit_parameter(model, "early_stopping_rounds"):
+            fit_params["early_stopping_rounds"] = parameters["early_stopping_rounds"]
+        if has_fit_parameter(model, "eval_set"):
+            fit_params["eval_set"] = [(X_val, y_val)]
+        if has_fit_parameter(model, "verbose"):
+            fit_params["verbose"] = parameters["verbose"]
+
         model.fit(X_train, y_train, **fit_params)
     return None
 
 
 def ensemble_predict(
-    models: dict[str, tuple[float, Any]],
+    models: list[Any],
+    weights: list[float],
     X: pd.DataFrame,
 ) -> np.ndarray:
     model_predictions = []
-    model_weights = []
-    for _, (weight, model) in models.items():
+    for model in models:
         model_predictions.append(model.predict(X))
-        model_weights.append(weight)
-    ensemble_predictions = np.average(model_predictions, axis=0, weights=model_weights)
+    ensemble_predictions = np.average(model_predictions, axis=0, weights=weights)
     return ensemble_predictions
 
 
-def model_selection(parameters: dict[str, Any]) -> dict[str, tuple[float, Any]]:
-    models = {}
-    for model_id, params in parameters["models"].items():
-        model_weight = params["weight"]
-        model_params = params["params"]
+def model_selection(parameters: dict[str, Any]) -> list[Any]:
+    models = []
+    for model_id in parameters["models"]:
+        model_params = parameters[f"{model_id}_params"]
         model = get_regression_model_instance(
             model_id=model_id, model_params=model_params
         )
-        models[model_id] = (model_weight, model)
+        models.append(model)
     return models
 
 
 def cross_validation(
     train_val_data: pd.DataFrame,
-    models: dict[str, tuple[float, Any]],
+    models: list[Any],
     sklearn_pipeline: Pipeline,
+    experiment_id: int,
     parameters: dict[str, Any],
-) -> float:
+) -> tuple[float, tuple[int, dict[str, float]]]:
     categorical_features = parameters["categorical_features"]
     numerical_features = parameters["numerical_features"]
     target = parameters["target"]
+    model_weights = parameters["model_weights"]
+
     X_train_val = train_val_data[numerical_features + categorical_features]
     y_train_val = train_val_data[target]
     groups = train_val_data[parameters["group_by"]]
@@ -172,6 +179,7 @@ def cross_validation(
         )
         y_pred = ensemble_predict(
             models=models,
+            weights=model_weights,
             X=X_val_preprocessed,
         )
 
@@ -180,15 +188,16 @@ def cross_validation(
     logger.info(f"Cross validation scores = {scores}")
     avg_score = np.mean(scores)
     logger.info(f"Average score = {avg_score}")
-    return avg_score
+    output_metrics = {"val_r2": avg_score}
+    return avg_score, (experiment_id, output_metrics)
 
 
 def train_model(
     train_val_data: pd.DataFrame,
-    models: dict[str, tuple[float, Any]],
+    models: list[Any],
     sklearn_pipeline: Pipeline,
     parameters: dict[str, str],
-) -> dict[str, tuple[float, Any]]:
+) -> dict[str, Any]:
     categorical_features = parameters["categorical_features"]
     numerical_features = parameters["numerical_features"]
     target = parameters["target"]

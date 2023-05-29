@@ -26,58 +26,114 @@ model:
   pca_components: 3
   early_stopping_rounds: 5
   verbose: false
+  sort_models: r2
   models:
-    # xgboost:
-    #   weight: 1
-    #   params:
-    #     base_score: 0.5
-    #     n_estimators: 95
-    #     objective: reg:squarederror
-    #     learning_rate: 0.02
-    #     eval_metric: mae
-    #     random_state: 42
-    huber:
-      weight: 1
-      params:
-        epsilon: 1.35
-        max_iter: 100
-        alpha: 0.0001
-        warm_start: False
-        fit_intercept: True
-        tol: 1.0e-5
-    # - ridge
-    # - lr
-    # - gbr
-    # - rf
-  pycaret:
-    sort_models: MAE
-    plots:
-      - residuals
-      - residuals_interactive
-      - error
-      - cooks
-      - learning
-      - feature
-      - parameter
-      - tree
+    - huber
+    - ridge
+    - lr
+    - gbr
+    - rf
+  model_weights: [1]
+  huber_params:
+    alpha: 0.0001
+    epsilon: 1.35
+    fit_intercept: True
+    max_iter: 100
+    tol: 1.0e-05
+    warm_start: False
+  ridge_params:
+    alpha: 1.0
+    copy_X: True
+    fit_intercept: True
+    max_iter: null
+    positive: False
+    random_state: null
+    solver: auto
+    tol: 0.0001
+  lr_params:
+    copy_X: True
+    fit_intercept: True
+    n_jobs: null
+    positive: False
+  gbr_params:
+    alpha: 0.9
+    ccp_alpha: 0.0
+    criterion: friedman_mse
+    init: null
+    learning_rate: 0.1
+    loss: squared_error
+    max_depth: 3
+    max_features: null
+    max_leaf_nodes: null
+    min_impurity_decrease: 0.0
+    min_samples_leaf: 1
+    min_samples_split: 2
+    min_weight_fraction_leaf: 0.0
+    n_estimators: 100
+    n_iter_no_change: null
+    random_state: null
+    subsample: 1.0
+    tol: 0.0001
+    validation_fraction: 0.1
+    verbose: 0
+    warm_start: False
+  rf_params:
+    bootstrap: True
+    ccp_alpha: 0.0
+    criterion: squared_error
+    max_depth: null
+    max_features: 1.0
+    max_leaf_nodes: null
+    max_samples: null
+    min_impurity_decrease: 0.0
+    min_samples_leaf: 1
+    min_samples_split: 2
+    min_weight_fraction_leaf: 0.0
+    n_estimators: 100
+    n_jobs: null
+    oob_score: False
+    random_state: null
+    verbose: 0
+    warm_start: False
+hyperopt:
+  target:
+    name: val_score
+    max_trials: 4
+    strategy: max
+    algo: tpe
+    early_termination: null
+  groups:
+    model:
+      models:
+        - [huber]
+        - [ridge]
+  0:
+    model:
+      huber_params:
+        alpha: 
+          method: loguniform
+          low:  0.0001
+          high: 1
+        epsilon: 
+          method: uniform
+          low: 1
+          high: 2
+  1:
+    model:
+      ridge_params:
+        alpha: 
+          method: loguniform
+          low:  0.0001
+          high: 100
+        normalize: 
+          method: choice
+          values:  
+            - true
+            - false
 
-# hyperopt:
-#   target:
-#     name: loss
-#     max_trials: 7
-#     strategy: min
-  # model:
-  #   model:
-  #     method: choice
-  #     values:
-  #       - linear_regression:
-  #         pca_components:
-  #           method: choice
-  #           values: [1,2,3]
-  #       - xg_boost:
-  #         pca_components:
-  #           method: choice
-  #           values: [4,5,6]
+        # - [lr: 1]
+        # - [gbr: 1]
+        # - [rf: 1]
     # xgboost_params:
     #   learning_rate:
     #     method: uniform

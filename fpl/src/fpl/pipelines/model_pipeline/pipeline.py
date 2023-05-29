@@ -90,35 +90,41 @@ def create_model_pipeline() -> Pipeline:
             ),
             node(
                 func=cross_validation,
-                inputs=["TRAIN_VAL_DATA", "models", "sklearn_pipeline", "params:model"],
-                outputs="validation_loss",
-                name="cross_validation_node",
-            ),
-            node(
-                func=train_model,
-                inputs=["TRAIN_VAL_DATA", "models", "sklearn_pipeline", "params:model"],
-                outputs=["FITTED_MODELS", "fitted_sklearn_pipeline"],
-                name="train_model_node",
-            ),
-            node(
-                func=evaluate_model,
                 inputs=[
                     "TRAIN_VAL_DATA",
-                    "HOLDOUT_DATA",
-                    "FITTED_MODELS",
-                    "fitted_sklearn_pipeline",
+                    "models",
+                    "sklearn_pipeline",
                     "experiment_id",
-                    "start_time",
                     "params:model",
                 ],
-                outputs=[
-                    "holdout_loss",
-                    "EVALUATION_RESULT",
-                    "EVALUATION_PLOTS",
-                    "EVALUATION_METRICS",
-                ],
-                name="evaluation_node",
+                outputs=["val_score", "TRAIN_METRICS"],
+                name="cross_validation_node",
             ),
+            # node(
+            #     func=train_model,
+            #     inputs=["TRAIN_VAL_DATA", "models", "sklearn_pipeline", "params:model"],
+            #     outputs=["FITTED_MODELS", "fitted_sklearn_pipeline"],
+            #     name="train_model_node",
+            # ),
+            # node(
+            #     func=evaluate_model,
+            #     inputs=[
+            #         "TRAIN_VAL_DATA",
+            #         "HOLDOUT_DATA",
+            #         "FITTED_MODELS",
+            #         "fitted_sklearn_pipeline",
+            #         "experiment_id",
+            #         "start_time",
+            #         "params:model",
+            #     ],
+            #     outputs=[
+            #         "holdout_loss",
+            #         "EVALUATION_RESULT",
+            #         "EVALUATION_PLOTS",
+            #         "HOLDOUT_METRICS",
+            #     ],
+            #     name="evaluation_node",
+            # ),
         ]
     )
 

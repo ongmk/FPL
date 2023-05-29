@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS experiment (
     keep INTEGER,
     model_best INTEGER,
     start_time TEXT NOT NULL,
+    models TEXT,
     numericalFeatures TEXT,
     categoricalFeatures TEXT
 );

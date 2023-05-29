@@ -103,7 +103,7 @@ def create_model_pipeline() -> Pipeline:
             node(
                 func=train_model,
                 inputs=["TRAIN_VAL_DATA", "models", "sklearn_pipeline", "params:model"],
-                outputs=["FITTED_MODELS", "fitted_sklearn_pipeline"],
+                outputs=["FITTED_MODELS", "FITTED_SKLEARN_PIPELINE"],
                 name="train_model_node",
             ),
             node(
@@ -112,7 +112,7 @@ def create_model_pipeline() -> Pipeline:
                     "TRAIN_VAL_DATA",
                     "HOLDOUT_DATA",
                     "FITTED_MODELS",
-                    "fitted_sklearn_pipeline",
+                    "FITTED_SKLEARN_PIPELINE",
                     "experiment_id",
                     "start_time",
                     "params:model",

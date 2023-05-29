@@ -23,7 +23,9 @@ def tuple_list_type_check(search_space: Dict, parameters: Dict):
 
 
 def find_search_groups(hyperopt_param: dict) -> list[tuple[int, dict[str, Any]]]:
-    hyperopt_group_params = hyperopt_param.pop("groups")
+    hyperopt_group_params = (
+        hyperopt_param.pop("groups") if "groups" in hyperopt_param else {}
+    )
     flat_param_dict = flatten(hyperopt_group_params, reducer="dot")
     if len(flat_param_dict.keys()) > 1:
         raise ValueError(f"Cannot group by more than one key.")

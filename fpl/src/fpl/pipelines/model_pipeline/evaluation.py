@@ -3,6 +3,7 @@ import numpy as np
 import logging
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
+from matplotlib.axes import Axes
 import seaborn as sns
 from sklearn.pipeline import Pipeline
 from typing import Any
@@ -46,7 +47,7 @@ def get_transformed_columns(
 
 
 def plot_feature_importance(
-    model: Any, X: np.ndarray, y: np.ndarray, columns: list[str]
+    model_id: str, model: Any, X: np.ndarray, y: np.ndarray, columns: list[str]
 ) -> Figure:
     if hasattr(model, "coef_"):
         feature_importances = np.abs(model.coef_)
@@ -68,9 +69,35 @@ def plot_feature_importance(
     ).head(10)
 
     ax = feature_importances.sort_values("importance").plot(
-        kind="barh", title="Feature Importance"
+        kind="barh", title=f"{model_id} Feature Importance"
     )
     return ax.get_figure()
+
+
+def plot_error_histogram(
+    ax: Axes, col: str, errors: np.ndarray, color: str = None
+) -> float:
+    errors.hist(ax=ax, bins=np.arange(-3.5, 3.5, 0.1), color=color)
+    mae = errors.abs().mean()
+    ax.set_title(f"{col} MAE: {mae:.2f}")
+    ax.set_xlabel(f"{col}_error")
+    return mae
+
+
+def plot_residual_scatter(
+    ax: Axes, col: str, prediction: np.ndarray, target: np.ndarray, color: str = None
+) -> float:
+    has_prediction = ~prediction.isna()
+    prediction = prediction[has_prediction]
+    target = target[has_prediction]
+    residual = target - prediction
+    ax.scatter(prediction, residual, alpha=0.5, color=color)
+    ax.axhline(0, color="black", linestyle="--")
+    ax.set_xlabel(f"{col}_predictions")
+    ax.set_ylabel(f"residual")
+    r2 = r2_score(target, prediction)
+    ax.set_title(f"{col} R^2: {r2:.2f}")
+    return r2
 
 
 def evaluate_model(
@@ -102,6 +129,7 @@ def evaluate_model(
 
     for model_id, model in zip(model_ids, models):
         output_plots[f"{start_time}__{model_id}_fi.png"] = plot_feature_importance(
+            model_id=model_id,
             model=model,
             X=X_train_val_preprocessed.toarray(),
             y=y_train_val,
@@ -119,21 +147,25 @@ def evaluate_model(
     output_df["prediction"] = holdout_predictions
 
     fig, axes = plt.subplots(
-        nrows=1, ncols=len(eval_cols), figsize=(20, 5), sharey=True
+        nrows=2, ncols=len(eval_cols), figsize=(20, 10), sharey="row"
     )
 
     for i, col in enumerate(eval_cols):
         output_df[f"{col}_error"] = output_df[col] - output_df[target]
-        output_df[f"{col}_error"].hist(
-            ax=axes[i], bins=np.arange(-3.5, 3.5, 0.1), color=color_pal[i]
+        mae = plot_error_histogram(
+            ax=axes[0, i], col=col, errors=output_df[f"{col}_error"], color=color_pal[i]
         )
-        mae = output_df[f"{col}_error"].abs().mean()
-        axes[i].set_title(f"{col} MAE: {mae:.2f}")
-        axes[i].set_xlabel(f"{col}_error")
-    output_df.head()
+        r2 = plot_residual_scatter(
+            ax=axes[1, i],
+            col=col,
+            prediction=output_df[col],
+            target=output_df[target],
+            color=color_pal[i],
+        )
+
     output_metrics = {
-        "mae": output_df["prediction_error"].abs().mean(),
-        "r2": r2_score(output_df[target], output_df["prediction"]),
+        "mae": mae,
+        "r2": r2,
     }
     for metric, score in output_metrics.items():
         logger.info(f"{metric} = {score}")

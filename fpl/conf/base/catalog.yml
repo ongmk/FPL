@@ -91,6 +91,10 @@ FITTED_MODELS:
   type: pickle.PickleDataSet
   filepath: data/fitted_models.pkl
 
+FITTED_SKLEARN_PIPELINE:
+  type: pickle.PickleDataSet
+  filepath: data/fitted_sklearn_pipeline.pkl
+
 EVALUATION_RESULT:
   type: fpl.extras.datasets.FlexibleSQLTableDataSet
   table_name: evaluation_result
@@ -102,7 +106,7 @@ EVALUATION_PLOTS:
   type: matplotlib.MatplotlibWriter
   filepath: data/evaluation
 
-TEST_METRICS:
+HOLDOUT_METRICS:
   type: fpl.extras.datasets.ExperimentMetrics
   table_name: experiment
   credentials: db_credentials

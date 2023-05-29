@@ -51,6 +51,11 @@ def delete_column(conn: Connection, table_name: str, empty_column: str):
 
 def delete_empty_columns(table_name: str, conn: Connection):
     cursor = conn.cursor()
+    cursor.execute(f"SELECT COUNT(*) FROM {table_name}")
+    row_count = cursor.fetchone()[0]
+    if row_count == 0:
+        return None
+
     cursor.execute(f"SELECT * FROM {table_name} LIMIT 1")
     col_names = [desc[0] for desc in cursor.description if desc[0] != "keep"]
 

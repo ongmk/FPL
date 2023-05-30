@@ -1,6 +1,6 @@
 from typing import Any
 import sklearn
-import sklearn.kernel_ridge
+from sklearn import kernel_ridge, neighbors, tree, ensemble, neural_network
 import xgboost
 import lightgbm
 from .model_utils import get_model_instance
@@ -19,15 +19,15 @@ regression_models = {
     "ransac": sklearn.linear_model._ransac.RANSACRegressor,
     "tr": sklearn.linear_model._theil_sen.TheilSenRegressor,
     "huber": sklearn.linear_model._huber.HuberRegressor,
-    "kr": sklearn.kernel_ridge.KernelRidge,
+    "kr": kernel_ridge.KernelRidge,
     "svm": sklearn.svm._classes.SVR,
-    "knn": sklearn.neighbors._regression.KNeighborsRegressor,
-    "dt": sklearn.tree._classes.DecisionTreeRegressor,
-    "rf": sklearn.ensemble._forest.RandomForestRegressor,
-    "et": sklearn.ensemble._forest.ExtraTreesRegressor,
-    "ada": sklearn.ensemble._weight_boosting.AdaBoostRegressor,
-    "gbr": sklearn.ensemble._gb.GradientBoostingRegressor,
-    "mlp": sklearn.neural_network._multilayer_perceptron.MLPRegressor,
+    "knn": neighbors._regression.KNeighborsRegressor,
+    "dt": tree._classes.DecisionTreeRegressor,
+    "rf": ensemble._forest.RandomForestRegressor,
+    "et": ensemble._forest.ExtraTreesRegressor,
+    "ada": ensemble._weight_boosting.AdaBoostRegressor,
+    "gbr": ensemble._gb.GradientBoostingRegressor,
+    "mlp": neural_network._multilayer_perceptron.MLPRegressor,
     "xgboost": xgboost.sklearn.XGBRegressor,
     "lightgbm": lightgbm.sklearn.LGBMRegressor,
     "dummy": sklearn.dummy.DummyRegressor,

@@ -5,15 +5,12 @@ from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 from sklearn.decomposition import PCA
-from sklearn.metrics import r2_score
 import numpy as np
 import pandas as pd
 from pycaret.regression import setup, compare_models, pull
-import inspect
-from src.fpl.pipelines.model_pipeline.all_models.regression import (
-    get_regression_model_instance,
-)
+from src.fpl.pipelines.model_pipeline.evaluation import evaluate_model
 import logging
+from src.fpl.pipelines.model_pipeline.ensemble import EnsembleModel
 
 logger = logging.getLogger(__name__)
 
@@ -95,122 +92,76 @@ def pycaret_compare_models(
     return pycaret_result
 
 
-def has_fit_parameter(cls, param_name):
-    fit_method = getattr(cls, "fit", None)
-    method_signature = inspect.signature(fit_method)
-    return param_name in method_signature.parameters
+def get_mean_metrics(metrics_list: list[dict[str, float]]) -> dict[str, float]:
+    mean_dict = {}
 
+    for key in metrics_list[0].keys():
+        scores = [metric_dict[key] for metric_dict in metrics_list]
+        avg_score = np.mean(scores)
+        mean_dict[key] = avg_score
+        logger.info(f"Cross validation {key} = {scores}")
+        logger.info(f"Average score = {avg_score}")
 
-def ensemble_fit(
-    models: list[Any],
-    X_train: pd.DataFrame,
-    y_train: pd.Series,
-    X_val: pd.DataFrame,
-    y_val: pd.Series,
-    parameters: dict[str, Any],
-) -> None:
-    for model in models:
-        fit_params = {}
-        if has_fit_parameter(model, "early_stopping_rounds"):
-            fit_params["early_stopping_rounds"] = parameters["early_stopping_rounds"]
-        if has_fit_parameter(model, "eval_set"):
-            fit_params["eval_set"] = [(X_val, y_val)]
-        if has_fit_parameter(model, "verbose"):
-            fit_params["verbose"] = parameters["verbose"]
-
-        model.fit(X_train, y_train, **fit_params)
-    return None
-
-
-def ensemble_predict(
-    models: list[Any],
-    weights: list[float],
-    X: pd.DataFrame,
-) -> np.ndarray:
-    model_predictions = []
-    for model in models:
-        model_predictions.append(model.predict(X))
-    ensemble_predictions = np.average(model_predictions, axis=0, weights=weights)
-    return ensemble_predictions
-
-
-def model_selection(parameters: dict[str, Any]) -> list[Any]:
-    models = []
-    for model_id in parameters["models"]:
-        model_params = parameters[f"{model_id}_params"]
-        model = get_regression_model_instance(
-            model_id=model_id, model_params=model_params
-        )
-        models.append(model)
-    return models
+    return mean_dict
 
 
 def cross_validation(
     train_val_data: pd.DataFrame,
-    models: list[Any],
+    model: EnsembleModel,
     sklearn_pipeline: Pipeline,
     experiment_id: int,
+    start_time: str,
     parameters: dict[str, Any],
 ) -> tuple[float, tuple[int, dict[str, float]]]:
-    categorical_features = parameters["categorical_features"]
-    numerical_features = parameters["numerical_features"]
-    target = parameters["target"]
-    model_weights = parameters["model_weights"]
-
-    X_train_val = train_val_data[numerical_features + categorical_features]
-    y_train_val = train_val_data[target]
     groups = train_val_data[parameters["group_by"]]
     group_kfold = GroupKFold(n_splits=groups.nunique())
 
-    scores = []
-    for train_index, val_index in group_kfold.split(X_train_val, y_train_val, groups):
-        X_train, X_val = X_train_val.loc[train_index], X_train_val.loc[val_index]
-        X_train_preprocessed = sklearn_pipeline.fit_transform(X_train)
-        X_val_preprocessed = sklearn_pipeline.transform(X_val)
-        y_train, y_val = y_train_val.loc[train_index], y_train_val.loc[val_index]
-
-        ensemble_fit(
-            models=models,
-            X_train=X_train_preprocessed,
-            y_train=y_train,
-            X_val=X_val_preprocessed,
-            y_val=y_val,
+    all_folds_metrics = []
+    for train_index, val_index in group_kfold.split(X=train_val_data, groups=groups):
+        train_data = train_val_data.loc[train_index]
+        val_data = train_val_data.loc[val_index]
+        model, sklearn_pipeline = train_model(
+            train_data=train_data,
+            model=model,
+            sklearn_pipeline=sklearn_pipeline,
             parameters=parameters,
         )
-        y_pred = ensemble_predict(
-            models=models,
-            weights=model_weights,
-            X=X_val_preprocessed,
+        _, last_fold_evaluation_plots, (_, fold_metrics) = evaluate_model(
+            train_data=train_data,
+            test_data=val_data,
+            model=model,
+            sklearn_pipeline=sklearn_pipeline,
+            experiment_id=experiment_id,
+            start_time=start_time,
+            parameters=parameters,
+            evaluation_set="val",
         )
+        all_folds_metrics.append(fold_metrics)
 
-        score = r2_score(y_val, y_pred)
-        scores.append(score)
-    logger.info(f"Cross validation scores = {scores}")
-    avg_score = np.mean(scores)
-    logger.info(f"Average score = {avg_score}")
-    output_metrics = {"val_r2": avg_score}
-    return avg_score, (experiment_id, output_metrics)
+    mean_metrics = get_mean_metrics(all_folds_metrics)
+
+    val_score = mean_metrics["val_r2"]
+
+    return (val_score, (experiment_id, mean_metrics), last_fold_evaluation_plots)
 
 
 def train_model(
-    train_val_data: pd.DataFrame,
-    models: list[Any],
+    train_data: pd.DataFrame,
+    model: EnsembleModel,
     sklearn_pipeline: Pipeline,
     parameters: dict[str, str],
-) -> dict[str, Any]:
-    logger.info(f"Training models: {models}")
+) -> tuple[EnsembleModel, Pipeline]:
+    logger.info(f"Training model: {model}")
     categorical_features = parameters["categorical_features"]
     numerical_features = parameters["numerical_features"]
     target = parameters["target"]
-    X_train_val = train_val_data[numerical_features + categorical_features]
-    y_train_val = train_val_data[target]
-    X_train_val_preprocessed = sklearn_pipeline.fit_transform(X_train_val)
-    ensemble_fit(
-        models=models,
-        X_train=X_train_val_preprocessed,
-        y_train=y_train_val,
-        X_val=X_train_val_preprocessed,
-        y_val=y_train_val,
-        parameters=parameters,
+    X_train = train_data[numerical_features + categorical_features]
+    y_train = train_data[target]
+    X_train_preprocessed = sklearn_pipeline.fit_transform(X_train)
+    model.fit(
+        X=X_train_preprocessed,
+        y=y_train,
+        early_stopping_rounds=parameters["early_stopping_rounds"],
+        verbose=parameters["verbose"],
     )
-    return models, sklearn_pipeline
+    return model, sklearn_pipeline

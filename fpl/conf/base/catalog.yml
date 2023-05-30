@@ -87,22 +87,22 @@ PYCARET_RESULT:
   save_args:
     if_exists: replace
 
-FITTED_MODELS:
+FITTED_MODEL:
   type: pickle.PickleDataSet
-  filepath: data/fitted_models.pkl
+  filepath: data/fitted_model.pkl
 
 FITTED_SKLEARN_PIPELINE:
   type: pickle.PickleDataSet
   filepath: data/fitted_sklearn_pipeline.pkl
 
-EVALUATION_RESULT:
+HOLDOUT_EVALUATION_RESULT:
   type: fpl.extras.datasets.FlexibleSQLTableDataSet
   table_name: evaluation_result
   credentials: db_credentials
   save_args:
     if_exists: append
 
-EVALUATION_PLOTS:
+HOLDOUT_EVALUATION_PLOTS:
   type: matplotlib.MatplotlibWriter
   filepath: data/evaluation
 
@@ -115,3 +115,7 @@ TRAIN_METRICS:
   type: fpl.extras.datasets.ExperimentMetrics
   table_name: experiment
   credentials: db_credentials
+
+LAST_FOLD_EVALUATION_PLOTS:
+  type: matplotlib.MatplotlibWriter
+  filepath: data/evaluation

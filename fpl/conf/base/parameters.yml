@@ -33,7 +33,7 @@ model:
     # - lr
     # - gbr
     - rf
-  model_weights: [1]
+  model_weights: [1, 1, 1, 1, 1]
   huber_params:
     alpha: 2.71
     epsilon: 1.97
@@ -57,42 +57,42 @@ model:
     max_features: 0.99
     bootstrap: True
 
-hyperopt:
-  target:
-    name: val_score
-    max_trials: 100
-    strategy: max
-    algo: tpe
-    early_termination: null
-#   groups:
+# hyperopt:
+#   target:
+#     name: val_score
+#     max_trials: 100
+#     strategy: max
+#     algo: tpe
+#     early_termination: null
+# #   groups:
+# #     model:
+# #       models:
+# #         - [gbr]
+# #         - [rf]
+#   0:
 #     model:
-#       models:
-#         - [gbr]
-#         - [rf]
-  0:
-    model:
-      rf_params:
-        n_estimators: 
-          method: uniform
-          scope: int
-          low: 10
-          high: 300
-        max_depth: 
-          method: uniform
-          scope: int
-          low: 1
-          high: 11
-        min_impurity_decrease: 
-          method: loguniform
-          low: 0.000000001
-          high: 0.5
-        max_features: 
-          method: uniform
-          low: 0.4
-          high: 1
-        bootstrap:
-          method: choice
-          values: [true, false]
+#       rf_params:
+#         n_estimators: 
+#           method: uniform
+#           scope: int
+#           low: 10
+#           high: 300
+#         max_depth: 
+#           method: uniform
+#           scope: int
+#           low: 1
+#           high: 11
+#         min_impurity_decrease: 
+#           method: loguniform
+#           low: 0.000000001
+#           high: 0.5
+#         max_features: 
+#           method: uniform
+#           low: 0.4
+#           high: 1
+#         bootstrap:
+#           method: choice
+#           values: [true, false]
 
 ######################################
 

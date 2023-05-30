@@ -1,3 +1,5 @@
+from datetime import datetime
+from functools import partial
 import pandas as pd
 import numpy as np
 import logging
@@ -7,8 +9,7 @@ from matplotlib.axes import Axes
 import seaborn as sns
 from sklearn.pipeline import Pipeline
 from typing import Any
-from src.fpl.pipelines.model_pipeline.training import ensemble_predict
-from sklearn.inspection import permutation_importance
+from src.fpl.pipelines.model_pipeline.ensemble import EnsembleModel, Model
 import textwrap
 from sklearn.metrics import r2_score
 
@@ -18,7 +19,7 @@ color_pal = sns.color_palette()
 plt.style.use("ggplot")
 
 
-def _ordered_set(input_list):
+def ordered_set(input_list):
     seen = set()
     return [x for x in input_list if not (x in seen or seen.add(x))]
 
@@ -47,16 +48,9 @@ def get_transformed_columns(
 
 
 def plot_feature_importance(
-    model_id: str, model: Any, X: np.ndarray, y: np.ndarray, columns: list[str]
+    model: Model, X: np.ndarray, y: np.ndarray, columns: list[str]
 ) -> Figure:
-    if hasattr(model, "coef_"):
-        feature_importances = np.abs(model.coef_)
-    elif hasattr(model, "feature_importances_"):
-        feature_importances = model.feature_importances_
-    else:
-        result = permutation_importance(model, X, y, n_repeats=10, random_state=0)
-        feature_importances = result.importances_mean
-
+    feature_importances = model.get_feature_importance(X, y)
     columns = [textwrap.fill(label.replace("_", " "), width=10) for label in columns]
 
     feature_importances = pd.DataFrame(
@@ -69,12 +63,37 @@ def plot_feature_importance(
     ).head(10)
 
     ax = feature_importances.sort_values("importance").plot(
-        kind="barh", title=f"{model_id} Feature Importance"
+        kind="barh", title=f"{model.id} Feature Importance"
     )
     return ax.get_figure()
 
 
-def plot_error_histogram(
+def evaluate_feature_importance(
+    sklearn_pipeline: Pipeline,
+    categorical_features: list[str],
+    ensemble_model: EnsembleModel,
+    X: np.ndarray,
+    y: np.ndarray,
+    evaluation_set: str,
+    start_time: str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
+):
+    transformed_columns = get_transformed_columns(
+        sklearn_pipeline=sklearn_pipeline, categorical_features=categorical_features
+    )
+
+    feature_importance_plots = {
+        f"{start_time}__{evaluation_set}_{model.id}_fi.png": plot_feature_importance(
+            model=model,
+            X=X,
+            y=y,
+            columns=transformed_columns,
+        )
+        for model in ensemble_model.models
+    }
+    return feature_importance_plots
+
+
+def plot_residual_histogram(
     ax: Axes, col: str, errors: np.ndarray, color: str = None
 ) -> float:
     errors.hist(ax=ax, bins=np.arange(-3.5, 3.5, 0.1), color=color)
@@ -100,59 +119,20 @@ def plot_residual_scatter(
     return r2
 
 
-def evaluate_model(
-    train_val_data: pd.DataFrame,
-    holdout_data: pd.DataFrame,
-    models: list[Any],
-    sklearn_pipeline: Pipeline,
-    experiment_id: int,
-    start_time: str,
-    parameters: dict[str, Any],
-) -> tuple[float, pd.DataFrame, dict[str, Figure], tuple[int, dict[str, float]]]:
-    categorical_features = parameters["categorical_features"]
-    numerical_features = parameters["numerical_features"]
-    target = parameters["target"]
-    baseline_columns = parameters["baseline_columns"]
-    model_ids = parameters["models"]
-    model_weights = parameters["model_weights"]
-
-    X_train_val = train_val_data[numerical_features + categorical_features]
-    y_train_val = train_val_data[target]
-    X_train_val_preprocessed = sklearn_pipeline.fit_transform(X_train_val)
-    X_holdout = holdout_data[numerical_features + categorical_features]
-    X_holdout_preprocessed = sklearn_pipeline.transform(X_holdout)
-
-    output_plots = {}
-    transformed_columns = get_transformed_columns(
-        sklearn_pipeline=sklearn_pipeline, categorical_features=categorical_features
-    )
-
-    for model_id, model in zip(model_ids, models):
-        output_plots[f"{start_time}__{model_id}_fi.png"] = plot_feature_importance(
-            model_id=model_id,
-            model=model,
-            X=X_train_val_preprocessed.toarray(),
-            y=y_train_val,
-            columns=transformed_columns,
-        )
-
-    holdout_predictions = ensemble_predict(
-        models=models, weights=model_weights, X=X_holdout_preprocessed
-    )
-    output_cols = _ordered_set(
-        ["id"] + numerical_features + categorical_features + [target] + baseline_columns
-    )
-    output_df = holdout_data[output_cols].copy()
-    eval_cols = ["prediction"] + baseline_columns
-    output_df["prediction"] = holdout_predictions
-
+def evaluate_residuals(
+    output_df: pd.DataFrame,
+    eval_cols: list[str],
+    target: str,
+    evaluation_set: str,
+    start_time: str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
+) -> tuple[dict[str, float], dict[str, Figure]]:
     fig, axes = plt.subplots(
         nrows=2, ncols=len(eval_cols), figsize=(20, 10), sharey="row"
     )
 
     for i, col in enumerate(eval_cols):
         output_df[f"{col}_error"] = output_df[col] - output_df[target]
-        mae = plot_error_histogram(
+        mae = plot_residual_histogram(
             ax=axes[0, i], col=col, errors=output_df[f"{col}_error"], color=color_pal[i]
         )
         r2 = plot_residual_scatter(
@@ -163,14 +143,67 @@ def evaluate_model(
             color=color_pal[i],
         )
 
-    output_metrics = {
-        "mae": mae,
-        "r2": r2,
+    error_metrics = {
+        f"{evaluation_set}_mae": mae,
+        f"{evaluation_set}_r2": r2,
     }
-    for metric, score in output_metrics.items():
+    for metric, score in error_metrics.items():
         logger.info(f"{metric} = {score}")
     plt.subplots_adjust(wspace=0.1)
-    output_plots[f"{start_time}__errors.png"] = fig
+    error_plot = {f"{start_time}__{evaluation_set}_residuals.png": fig}
+    return error_metrics, error_plot
+
+
+def evaluate_model(
+    train_data: pd.DataFrame,
+    test_data: pd.DataFrame,
+    model: EnsembleModel,
+    sklearn_pipeline: Pipeline,
+    experiment_id: int,
+    start_time: str,
+    parameters: dict[str, Any],
+    evaluation_set: str,
+) -> tuple[float, pd.DataFrame, dict[str, Figure], tuple[int, dict[str, float]]]:
+    categorical_features = parameters["categorical_features"]
+    numerical_features = parameters["numerical_features"]
+    target = parameters["target"]
+    baseline_columns = parameters["baseline_columns"]
+
+    X_train = train_data[numerical_features + categorical_features]
+    y_train = train_data[target]
+    X_train_preprocessed = sklearn_pipeline.transform(X_train)
+    X_test = test_data[numerical_features + categorical_features]
+    X_test_preprocessed = sklearn_pipeline.transform(X_test)
+
+    output_plots = {}
+
+    output_plots.update(
+        evaluate_feature_importance(
+            sklearn_pipeline=sklearn_pipeline,
+            categorical_features=categorical_features,
+            ensemble_model=model,
+            X=X_train_preprocessed.toarray(),
+            y=y_train,
+            evaluation_set=evaluation_set,
+            start_time=start_time,
+        )
+    )
+
+    test_predictions = model.predict(X=X_test_preprocessed)
+    output_cols = ordered_set(
+        ["id"] + numerical_features + categorical_features + [target] + baseline_columns
+    )
+    output_df = test_data[output_cols].copy()
+    output_df["prediction"] = test_predictions
+
+    output_metrics, error_plot = evaluate_residuals(
+        output_df=output_df,
+        eval_cols=["prediction"] + baseline_columns,
+        target=target,
+        evaluation_set=evaluation_set,
+        start_time=start_time,
+    )
+    output_plots.update(error_plot)
 
     output_df["experiment_id"] = experiment_id
     output_df["start_time"] = start_time
@@ -180,11 +213,13 @@ def evaluate_model(
     output_df = output_df[columns]
 
     return (
-        output_metrics["mae"],
         output_df,
         output_plots,
         (experiment_id, output_metrics),
     )
+
+
+evaluate_model_holdout = partial(evaluate_model, evaluation_set="holdout")
 
 
 if __name__ == "__main__":

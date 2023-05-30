@@ -161,7 +161,6 @@ def train_model(
     model.fit(
         X=X_train_preprocessed,
         y=y_train,
-        early_stopping_rounds=parameters["early_stopping_rounds"],
         verbose=parameters["verbose"],
     )
     return model, sklearn_pipeline

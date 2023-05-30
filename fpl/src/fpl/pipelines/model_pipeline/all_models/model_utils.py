@@ -1,17 +1,29 @@
 from typing import Any
+import inspect
+
+
+def has_named_parameter(cls, parameter_name):
+    signature = inspect.signature(cls.__init__)
+    return parameter_name in signature.parameters
 
 
 def get_model_instance(
     model_id: str,
-    model_params: dict[str, Any],
     available_models: dict[str, Any],
+    model_params: dict[str, Any] = {},
+    n_jobs: int = None,
+    random_state: int = None,
+    verbose: bool = None,
 ) -> Any:
-    if model_id in available_models:
-        if model_params is not None:
-            return available_models[model_id](**model_params)
-        else:
-            return available_models[model_id]()
-    else:
+    if model_id not in available_models:
         raise ValueError(
             f"Invalid model name. Available models: {', '.join(available_models.keys())}"
         )
+    model = available_models[model_id]
+    if has_named_parameter(model, "n_jobs"):
+        model_params["n_jobs"] = n_jobs
+    if has_named_parameter(model, "random_state"):
+        model_params["random_state"] = random_state
+    if has_named_parameter(model, "verbose"):
+        model_params["verbose"] = verbose
+    return model(**model_params)

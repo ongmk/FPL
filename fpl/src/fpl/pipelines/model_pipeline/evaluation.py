@@ -127,7 +127,11 @@ def evaluate_residuals(
     start_time: str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
 ) -> tuple[dict[str, float], dict[str, Figure]]:
     fig, axes = plt.subplots(
-        nrows=2, ncols=len(eval_cols), figsize=(20, 10), sharey="row"
+        nrows=2,
+        ncols=len(eval_cols),
+        figsize=(20, 13),
+        sharey="row",
+        gridspec_kw={"hspace": 0.4},
     )
 
     for i, col in enumerate(eval_cols):

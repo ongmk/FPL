@@ -4,7 +4,10 @@ from sklearn import kernel_ridge, neighbors, tree, ensemble, neural_network
 import xgboost
 import lightgbm
 from .model_utils import get_model_instance
+from functools import partial
+from typing import Callable
 
+# References pycaret models()
 regression_models = {
     "lr": sklearn.linear_model._base.LinearRegression,
     "lasso": sklearn.linear_model._coordinate_descent.Lasso,
@@ -33,12 +36,6 @@ regression_models = {
     "dummy": sklearn.dummy.DummyRegressor,
 }
 
-
-def get_regression_model_instance(
-    model_id: str, model_params: dict[str, Any] = {}
-) -> Any:
-    return get_model_instance(
-        model_id=model_id,
-        model_params=model_params,
-        available_models=regression_models,
-    )
+get_regression_model_instance = partial(
+    get_model_instance, available_models=regression_models
+)

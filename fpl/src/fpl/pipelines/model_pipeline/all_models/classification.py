@@ -1,10 +1,8 @@
-from typing import Any
 import sklearn
 import xgboost
 import lightgbm
-from pycaret.classification import models, setup
 from .model_utils import get_model_instance
-import pandas as pd
+from functools import partial
 
 classification_models = {
     "lr": sklearn.linear_model._logistic.LogisticRegression,
@@ -28,11 +26,6 @@ classification_models = {
 }
 
 
-def get_classification_model_instance(
-    model_id: str, model_params: dict[str, Any] = {}
-) -> Any:
-    return get_model_instance(
-        model_id=model_id,
-        model_params=model_params,
-        available_models=classification_models,
-    )
+get_classification_model_instanc = partial(
+    get_model_instance, available_models=classification_models
+)

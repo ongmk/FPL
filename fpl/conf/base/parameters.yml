@@ -22,10 +22,10 @@ model:
     - xg_ma
     - team_odds_2_score
     - att_total
-  random_seed: 42
   pca_components: 3
-  early_stopping_rounds: 5
+  random_state: 42
   verbose: false
+  n_jobs: -1
   sort_models: r2
   models:
     # - huber

@@ -30,19 +30,13 @@ class Model:
         y: np.ndarray,
         X_val: np.ndarray = None,
         y_val: np.ndarray = None,
-        early_stopping_rounds: int = None,
-        verbose: bool = True,
     ) -> None:
         fit_params = {}
-        if has_fit_parameter(self.model, "early_stopping_rounds"):
-            fit_params["early_stopping_rounds"] = early_stopping_rounds
         if has_fit_parameter(self.model, "eval_set"):
             if X_val is None:
                 fit_params["eval_set"] = [(X, y)]
             else:
                 fit_params["eval_set"] = [(X_val, y_val)]
-        if has_fit_parameter(self.model, "verbose"):
-            fit_params["verbose"] = verbose
         self.model.fit(X, y, **fit_params)
         return None
 
@@ -72,8 +66,6 @@ class EnsembleModel:
         y: np.ndarray,
         X_val: np.ndarray = None,
         y_val: np.ndarray = None,
-        early_stopping_rounds: int = None,
-        verbose: bool = None,
     ):
         if self.is_ensemble:
             self.ensemble_fit(
@@ -81,8 +73,6 @@ class EnsembleModel:
                 y=y,
                 X_val=X_val,
                 y_val=y_val,
-                early_stopping_rounds=early_stopping_rounds,
-                verbose=verbose,
             )
         else:
             self.models[0].fit(
@@ -90,8 +80,6 @@ class EnsembleModel:
                 y=y,
                 X_val=X_val,
                 y_val=y_val,
-                early_stopping_rounds=early_stopping_rounds,
-                verbose=verbose,
             )
 
     def predict(self, X):
@@ -134,7 +122,11 @@ def model_selection(parameters: dict[str, Any]) -> EnsembleModel:
     for model_id, model_weight in zip(model_ids, model_weights):
         model_params = parameters[f"{model_id}_params"]
         model = get_regression_model_instance(
-            model_id=model_id, model_params=model_params
+            model_id=model_id,
+            model_params=model_params,
+            n_jobs=parameters["n_jobs"],
+            random_state=parameters["random_state"],
+            verbose=parameters["verbose"],
         )
         models.append(Model(id=model_id, model=model, weight=model_weight))
 

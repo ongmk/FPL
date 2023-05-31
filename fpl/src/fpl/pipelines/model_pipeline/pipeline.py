@@ -107,30 +107,30 @@ def create_model_pipeline() -> Pipeline:
                 ],
                 name="cross_validation",
             ),
-            node(
-                func=train_model,
-                inputs=["TRAIN_VAL_DATA", "model", "sklearn_pipeline", "params:model"],
-                outputs=["FITTED_MODEL", "FITTED_SKLEARN_PIPELINE"],
-                name="train_model",
-            ),
-            node(
-                func=evaluate_model_holdout,
-                inputs=[
-                    "TRAIN_VAL_DATA",
-                    "HOLDOUT_DATA",
-                    "FITTED_MODEL",
-                    "FITTED_SKLEARN_PIPELINE",
-                    "experiment_id",
-                    "start_time",
-                    "params:model",
-                ],
-                outputs=[
-                    "HOLDOUT_EVALUATION_RESULT",
-                    "HOLDOUT_EVALUATION_PLOTS",
-                    "HOLDOUT_METRICS",
-                ],
-                name="evaluate_model_holdout",
-            ),
+            # node(
+            #     func=train_model,
+            #     inputs=["TRAIN_VAL_DATA", "model", "sklearn_pipeline", "params:model"],
+            #     outputs=["FITTED_MODEL", "FITTED_SKLEARN_PIPELINE"],
+            #     name="train_model",
+            # ),
+            # node(
+            #     func=evaluate_model_holdout,
+            #     inputs=[
+            #         "TRAIN_VAL_DATA",
+            #         "HOLDOUT_DATA",
+            #         "FITTED_MODEL",
+            #         "FITTED_SKLEARN_PIPELINE",
+            #         "experiment_id",
+            #         "start_time",
+            #         "params:model",
+            #     ],
+            #     outputs=[
+            #         "HOLDOUT_EVALUATION_RESULT",
+            #         "HOLDOUT_EVALUATION_PLOTS",
+            #         "HOLDOUT_METRICS",
+            #     ],
+            #     name="evaluate_model_holdout",
+            # ),
         ]
     )
 

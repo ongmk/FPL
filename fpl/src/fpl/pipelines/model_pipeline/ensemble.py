@@ -60,6 +60,12 @@ class EnsembleModel:
         self.models = models
         self.is_ensemble = len(models) > 1
 
+    def __repr__(self):
+        if self.is_ensemble:
+            return f"EnsembleModel({[m.model for m in self.models]})"
+        else:
+            return f"SingleModel({self.models[0].model})"
+
     def fit(
         self,
         X: np.ndarray,

@@ -10,7 +10,7 @@ def has_named_parameter(cls, parameter_name):
 def get_model_instance(
     model_id: str,
     available_models: dict[str, Any],
-    model_params: dict[str, Any] = {},
+    model_params: dict[str, Any],
     n_jobs: int = None,
     random_state: int = None,
     verbose: bool = None,
@@ -19,6 +19,8 @@ def get_model_instance(
         raise ValueError(
             f"Invalid model name. Available models: {', '.join(available_models.keys())}"
         )
+    if model_params is None:
+        model_params = {}
     model = available_models[model_id]
     if has_named_parameter(model, "n_jobs"):
         model_params["n_jobs"] = n_jobs

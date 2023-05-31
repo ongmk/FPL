@@ -24,75 +24,85 @@ model:
     - att_total
   pca_components: 3
   random_state: 42
-  verbose: false
-  n_jobs: -1
+  verbose: true
+  n_jobs: null
   sort_models: r2
   models:
-    # - huber
-    # - ridge
-    # - lr
-    # - gbr
+    - huber
+    - ridge
+    - lr
+    - gbr
     - rf
   model_weights: [1, 1, 1, 1, 1]
   huber_params:
-    alpha: 2.71
-    epsilon: 1.97
+    alpha: 0.99
+    epsilon: 2.00
     fit_intercept: True
   ridge_params:
-    alpha: 2.72
+    alpha: 9.99
   lr_params:
     fit_intercept: True
   gbr_params:
-    n_estimators: 21
-    learning_rate: 1.22
-    subsample: 0.70
+    n_estimators: 1
+    learning_rate: 0.068
+    subsample: 0.88
     min_samples_split: 7
     max_depth: 1
-    max_features: 0.73
-    min_impurity_decrease: 1.34
+    max_features: 0.63
+    min_impurity_decrease: 0.011
+    n_iter_no_change: null
   rf_params:
     n_estimators: 1000
     max_depth: 7
     min_impurity_decrease: 1.12
     max_features: 0.99
-    bootstrap: True
+    bootstrap: False
 
 # hyperopt:
 #   target:
 #     name: val_score
-#     max_trials: 100
+#     max_trials: 50
 #     strategy: max
 #     algo: tpe
 #     early_termination: null
-# #   groups:
-# #     model:
-# #       models:
-# #         - [gbr]
-# #         - [rf]
+#   groups:
+#     model:
+#       models:
+#         - [huber]
+#         - [ridge]
+#         - [lr]
 #   0:
 #     model:
-#       rf_params:
-#         n_estimators: 
+#       huber_params:
+#         epsilon:
 #           method: uniform
-#           scope: int
-#           low: 10
-#           high: 300
-#         max_depth: 
-#           method: uniform
-#           scope: int
 #           low: 1
-#           high: 11
-#         min_impurity_decrease: 
-#           method: loguniform
-#           low: 0.000000001
-#           high: 0.5
-#         max_features: 
+#           high: 2
+#         alpha:
 #           method: uniform
-#           low: 0.4
-#           high: 1
-#         bootstrap:
+#           low: 0.0000000001
+#           high: 0.9999999999
+#         fit_intercept:
 #           method: choice
-#           values: [true, false]
+#           values: [True, False]
+#   1:
+#     model:
+#       ridge_params:
+#         alpha:
+#           method: uniform
+#           low: 0.001
+#           high: 10
+#         fit_intercept:
+#           method: choice
+#           values: [True, False]
+#   2:
+#     model:
+#       lr_params:
+#         fit_intercept: 
+#           method: choice
+#           values: [True, False]
+
+
 
 ######################################
 

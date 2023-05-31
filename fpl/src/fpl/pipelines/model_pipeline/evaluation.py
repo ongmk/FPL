@@ -95,16 +95,20 @@ def evaluate_feature_importance(
 
 def plot_residual_histogram(
     ax: Axes, col: str, errors: np.ndarray, color: str = None
-) -> float:
+) -> None:
     errors.hist(ax=ax, bins=np.arange(-3.5, 3.5, 0.1), color=color)
     mae = errors.abs().mean()
     ax.set_title(f"{col} MAE: {mae:.2f}")
     ax.set_xlabel(f"{col}_error")
-    return mae
+    return None
 
 
 def plot_residual_scatter(
-    ax: Axes, col: str, prediction: np.ndarray, target: np.ndarray, color: str = None
+    ax: Axes,
+    col: str,
+    prediction: np.ndarray,
+    target: np.ndarray,
+    color: str = None,
 ) -> float:
     has_prediction = ~prediction.isna()
     prediction = prediction[has_prediction]
@@ -116,16 +120,18 @@ def plot_residual_scatter(
     ax.set_ylabel(f"residual")
     r2 = r2_score(target, prediction)
     ax.set_title(f"{col} R^2: {r2:.2f}")
-    return r2
+    return None
 
 
 def evaluate_residuals(
     output_df: pd.DataFrame,
-    eval_cols: list[str],
+    prediction_col: str,
     target: str,
+    baseline_cols: list[str],
     evaluation_set: str,
     start_time: str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
 ) -> tuple[dict[str, float], dict[str, Figure]]:
+    eval_cols = [prediction_col] + baseline_cols
     fig, axes = plt.subplots(
         nrows=2,
         ncols=len(eval_cols),
@@ -136,10 +142,10 @@ def evaluate_residuals(
 
     for i, col in enumerate(eval_cols):
         output_df[f"{col}_error"] = output_df[col] - output_df[target]
-        mae = plot_residual_histogram(
+        plot_residual_histogram(
             ax=axes[0, i], col=col, errors=output_df[f"{col}_error"], color=color_pal[i]
         )
-        r2 = plot_residual_scatter(
+        plot_residual_scatter(
             ax=axes[1, i],
             col=col,
             prediction=output_df[col],
@@ -147,9 +153,12 @@ def evaluate_residuals(
             color=color_pal[i],
         )
 
+    pred_mae = (output_df[f"{prediction_col}_error"]).abs().mean()
+    pred_r2 = r2_score(output_df[target], output_df[prediction_col])
+
     error_metrics = {
-        f"{evaluation_set}_mae": mae,
-        f"{evaluation_set}_r2": r2,
+        f"{evaluation_set}_mae": pred_mae,
+        f"{evaluation_set}_r2": pred_r2,
     }
     for metric, score in error_metrics.items():
         logger.info(f"{metric} = {score}")
@@ -202,8 +211,9 @@ def evaluate_model(
 
     output_metrics, error_plot = evaluate_residuals(
         output_df=output_df,
-        eval_cols=["prediction"] + baseline_columns,
+        prediction_col="prediction",
         target=target,
+        baseline_cols=baseline_columns,
         evaluation_set=evaluation_set,
         start_time=start_time,
     )

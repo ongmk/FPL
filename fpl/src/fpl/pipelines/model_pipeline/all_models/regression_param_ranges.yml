@@ -1,0 +1,87 @@
+rf_params:
+  n_estimators: 
+    method: uniform
+    scope: int
+    low: 10
+    high: 300
+  max_depth: 
+    method: uniform
+    scope: int
+    low: 1
+    high: 11
+  min_impurity_decrease: 
+    method: loguniform
+    low: -9
+    high: -0.69
+  max_features: 
+    method: uniform
+    low: 0.4
+    high: 1
+  bootstrap:
+    method: choice
+    values: [true, false]
+
+gbr_params:
+  n_estimators:
+    method: uniform
+    scope: int
+    low: 10
+    high: 300
+  learning_rate:
+    method: loguniform
+    low: -6
+    high: -0.69
+  subsample:
+    method: uniform
+    low: 0.2
+    high: 1
+  min_samples_split:
+    method: uniform
+    scope: int
+    low: 2
+    high: 10
+  min_samples_leaf:
+    method: uniform
+    scope: int
+    low: 1
+    high: 5
+  max_depth:
+    method: uniform
+    scope: int
+    low: 1
+    high: 11
+  max_features:
+    method: uniform
+    low: 0.4
+    high: 1
+  min_impurity_decrease:
+    method: loguniform
+    low: -9
+    high: -0.69
+
+huber_params:
+  epsilon:
+    method: uniform
+    low: 1
+    high: 2
+  alpha:
+    method: uniform
+    low: 0.0000000001
+    high: 0.9999999999
+  fit_intercept:
+    method: choice
+    values: [True, False]
+
+ridge_params:
+  alpha:
+    method: uniform
+    low: 0.001
+    high: 10
+  fit_intercept:
+    method: choice
+    values: [True, False]
+
+lr_params:
+  fit_intercept: 
+    method: choice
+    values: [True, False]

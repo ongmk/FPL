@@ -161,6 +161,5 @@ def train_model(
     model.fit(
         X=X_train_preprocessed,
         y=y_train,
-        verbose=parameters["verbose"],
     )
     return model, sklearn_pipeline

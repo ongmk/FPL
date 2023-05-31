@@ -194,7 +194,7 @@ def calculate_elo_score(match_data, parameters):
     return elo_df
 
 
-def xg_elo_correlation(processed_data, parameters):
+def xg_elo_correlation(processed_data: pd.DataFrame) -> float:
     att_corr = processed_data["xg"].corr(processed_data["att_total"])
     home_att_corr = processed_data["xg"].corr(processed_data["home_att_total"])
     away_att_corr = processed_data["xg"].corr(processed_data["away_att_total"])
@@ -205,7 +205,5 @@ def xg_elo_correlation(processed_data, parameters):
     correlation = statistics.mean(
         [att_corr, home_att_corr, away_att_corr, def_corr, home_def_corr, away_def_corr]
     )
-    logger.info(
-        f"lr={parameters['elo_learning_rate']}; h/a_weight={parameters['home_away_weight']} ==> Mean Correlation = {correlation}"
-    )
+    logger.info(f"Mean Correlation = {correlation}")
     return correlation

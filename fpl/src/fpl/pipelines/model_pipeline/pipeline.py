@@ -4,7 +4,10 @@ from src.fpl.pipelines.model_pipeline.elo_calculation import (
     calculate_elo_score,
     xg_elo_correlation,
 )
-from src.fpl.pipelines.model_pipeline.preprocessor import preprocess_data
+from src.fpl.pipelines.model_pipeline.preprocessor import (
+    clean_data,
+    feature_engineering,
+)
 from src.fpl.pipelines.model_pipeline.ensemble import model_selection
 from src.fpl.pipelines.model_pipeline.training import (
     split_data,
@@ -20,28 +23,29 @@ from src.fpl.pipelines.model_pipeline.experiment_helpers import (
     run_housekeeping,
     init_experiment,
 )
-import pandas as pd
-import sqlite3
 
 
 def create_preprocess_pipeline() -> Pipeline:
     return pipeline(
         [
+            # node(
+            #     func=calculate_elo_score,
+            #     inputs=["TEAM_MATCH_LOG", "params:data"],
+            #     outputs="ELO_DATA",
+            # ),
             node(
-                func=calculate_elo_score,
-                inputs=["TEAM_MATCH_LOG", "params:data"],
-                outputs="ELO_DATA",
-                name="elo_score_node",
+                func=clean_data,
+                inputs=["TEAM_MATCH_LOG", "ELO_DATA", "ODDS_DATA", "params:data"],
+                outputs="cleaned_data",
             ),
             node(
-                func=preprocess_data,
-                inputs=["TEAM_MATCH_LOG", "ELO_DATA", "ODDS_DATA", "params:data"],
+                func=feature_engineering,
+                inputs="cleaned_data",
                 outputs="PROCESSED_DATA",
-                name="preprocess_node",
             ),
             node(
                 func=xg_elo_correlation,
-                inputs=["PROCESSED_DATA", "params:data"],
+                inputs="PROCESSED_DATA",
                 outputs="correlation",
             ),
             node(
@@ -51,7 +55,6 @@ def create_preprocess_pipeline() -> Pipeline:
                     "TRAIN_VAL_DATA",
                     "HOLDOUT_DATA",
                 ],
-                name="split_data_node",
             ),
         ]
     )
@@ -107,30 +110,30 @@ def create_model_pipeline() -> Pipeline:
                 ],
                 name="cross_validation",
             ),
-            # node(
-            #     func=train_model,
-            #     inputs=["TRAIN_VAL_DATA", "model", "sklearn_pipeline", "params:model"],
-            #     outputs=["FITTED_MODEL", "FITTED_SKLEARN_PIPELINE"],
-            #     name="train_model",
-            # ),
-            # node(
-            #     func=evaluate_model_holdout,
-            #     inputs=[
-            #         "TRAIN_VAL_DATA",
-            #         "HOLDOUT_DATA",
-            #         "FITTED_MODEL",
-            #         "FITTED_SKLEARN_PIPELINE",
-            #         "experiment_id",
-            #         "start_time",
-            #         "params:model",
-            #     ],
-            #     outputs=[
-            #         "HOLDOUT_EVALUATION_RESULT",
-            #         "HOLDOUT_EVALUATION_PLOTS",
-            #         "HOLDOUT_METRICS",
-            #     ],
-            #     name="evaluate_model_holdout",
-            # ),
+            node(
+                func=train_model,
+                inputs=["TRAIN_VAL_DATA", "model", "sklearn_pipeline", "params:model"],
+                outputs=["FITTED_MODEL", "FITTED_SKLEARN_PIPELINE"],
+                name="train_model",
+            ),
+            node(
+                func=evaluate_model_holdout,
+                inputs=[
+                    "TRAIN_VAL_DATA",
+                    "HOLDOUT_DATA",
+                    "FITTED_MODEL",
+                    "FITTED_SKLEARN_PIPELINE",
+                    "experiment_id",
+                    "start_time",
+                    "params:model",
+                ],
+                outputs=[
+                    "HOLDOUT_EVALUATION_RESULT",
+                    "HOLDOUT_EVALUATION_PLOTS",
+                    "HOLDOUT_METRICS",
+                ],
+                name="evaluate_model_holdout",
+            ),
         ]
     )
 

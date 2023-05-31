@@ -1,7 +1,14 @@
+from typing import Any
 import pandas as pd
+import re
 
 
-def _combine_data(team_match_log, elo_data, odds_data, parameters):
+def combine_data(
+    team_match_log: pd.DataFrame,
+    elo_data: pd.DataFrame,
+    odds_data: pd.DataFrame,
+    parameters: dict[str, Any],
+) -> pd.DataFrame:
     team_match_log = team_match_log.loc[
         (team_match_log["comp"] == "Premier League")
         & (team_match_log["season"] >= parameters["start_year"]),
@@ -17,15 +24,9 @@ def _combine_data(team_match_log, elo_data, odds_data, parameters):
             "xg",
             "xga",
             "poss",
-            "days_till_next",
-            "days_since_last",
         ],
     ].reset_index(drop=True)
-    team_match_log["date"] = team_match_log["date"].dt.strftime("%Y-%m-%d")
 
-    # ELO DATA stores elo ratings AFTER playing the game on that DATE.
-    # This shifts ratings back to BEFORE playing the game.
-    elo_data["next_match"] = elo_data.groupby("team")["date"].shift(-1)
     elo_data = elo_data.drop("date", axis=1)
 
     # Combine team's and opponent's ELO Scores to get total scores
@@ -66,8 +67,10 @@ def _combine_data(team_match_log, elo_data, odds_data, parameters):
     )
     combined_data = combined_data.drop("next_match", axis=1)
 
-    combined_data = pd.merge(
-        combined_data, odds_data, on=["season", "team", "opponent", "venue"]
+    combined_data = (
+        pd.merge(combined_data, odds_data, on=["season", "team", "opponent", "venue"])
+        .reset_index()
+        .rename(columns={"index": "id"})
     )
 
     return combined_data
@@ -85,7 +88,7 @@ def _weighted_average(df):
     )
 
 
-def _aggregate_odds_data(odds_data, parameters):
+def aggregate_odds_data(odds_data, parameters):
     odds_data = odds_data.loc[odds_data["season"] >= parameters["start_year"]]
 
     agg_odds_data = (
@@ -128,29 +131,63 @@ def _aggregate_odds_data(odds_data, parameters):
     return unpivoted_df
 
 
-def preprocess_data(team_match_log, elo_data, odds_data, parameters):
-    odds_data = _aggregate_odds_data(odds_data, parameters)
+def align_data_structure(
+    odds_data: pd.DataFrame,
+    team_match_log: pd.DataFrame,
+    elo_data: pd.DataFrame,
+    parameters: dict[str, Any],
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    odds_data = aggregate_odds_data(odds_data, parameters)
     team_match_log = team_match_log.sort_values(["season", "date", "team"]).reset_index(
         drop=True
     )
-    team_match_log["date"] = pd.to_datetime(team_match_log["date"])
-    team_match_log["days_till_next"] = (
-        (team_match_log.groupby("team")["date"].shift(-1) - team_match_log["date"])
+    # ELO DATA stores elo ratings AFTER playing the game on that DATE.
+    # This shifts ratings back to BEFORE playing the game.
+    elo_data["next_match"] = elo_data.groupby("team")["date"].shift(-1)
+    return odds_data, team_match_log, elo_data
+
+
+def get_week_number(round_str: str) -> int:
+    if re.match(r"Matchweek \d+", round_str):
+        return int(re.findall(r"Matchweek (\d+)", round_str)[0])
+    else:
+        return None
+
+
+def ensure_proper_dtypes(combined_data: pd.DataFrame) -> pd.DataFrame:
+    combined_data["date"] = pd.to_datetime(combined_data["date"])
+    combined_data["round"] = combined_data["round"].apply(get_week_number)
+    return combined_data
+
+
+def impute_missing_values():
+    pass
+
+
+def clean_data(team_match_log, elo_data, odds_data, parameters):
+    odds_data, team_match_log, elo_data = align_data_structure(
+        odds_data, team_match_log, elo_data, parameters
+    )
+    combined_data = combine_data(team_match_log, elo_data, odds_data, parameters)
+    combined_data = ensure_proper_dtypes(combined_data)
+    return combined_data
+
+
+def feature_engineering(combined_data: pd.DataFrame) -> pd.DataFrame:
+    combined_data["days_till_next"] = (
+        (combined_data.groupby("team")["date"].shift(-1) - combined_data["date"])
         .apply(lambda x: x.days)
         .clip(upper=7)
     )
-    team_match_log["days_since_last"] = (
-        (team_match_log["date"] - team_match_log.groupby("team")["date"].shift(1))
+    combined_data["days_since_last"] = (
+        (combined_data["date"] - combined_data.groupby("team")["date"].shift(1))
         .apply(lambda x: x.days)
         .clip(upper=7)
     )
-    combined_df = _combine_data(team_match_log, elo_data, odds_data, parameters)
-    combined_df["round"] = combined_df["round"].apply(lambda x: int(x.split()[-1]))
-    combined_df["xg_ma"] = combined_df.groupby("team")["xg"].apply(
+    combined_data["xg_ma"] = combined_data.groupby("team")["xg"].apply(
         lambda x: x.shift(1).rolling(window=5).mean()
     )
-    combined_df["xga_ma"] = combined_df.groupby("team")["xga"].apply(
+    combined_data["xga_ma"] = combined_data.groupby("team")["xga"].apply(
         lambda x: x.shift(1).rolling(window=5).mean()
     )
-    combined_df = combined_df.reset_index().rename(columns={"index": "id"})
-    return combined_df
+    return combined_data

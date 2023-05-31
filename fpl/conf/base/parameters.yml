@@ -24,7 +24,7 @@ model:
     - att_total
   pca_components: 3
   random_state: 42
-  verbose: true
+  verbose: false
   n_jobs: null
   sort_models: r2
   models:
@@ -43,7 +43,7 @@ model:
   lr_params:
     fit_intercept: True
   gbr_params:
-    n_estimators: 1
+    n_estimators: 233
     learning_rate: 0.068
     subsample: 0.88
     min_samples_split: 7
@@ -52,11 +52,11 @@ model:
     min_impurity_decrease: 0.011
     n_iter_no_change: null
   rf_params:
-    n_estimators: 1000
-    max_depth: 7
-    min_impurity_decrease: 1.12
-    max_features: 0.99
-    bootstrap: False
+    n_estimators: 158
+    max_depth: 8
+    min_impurity_decrease: 0.0024
+    max_features: 0.43
+    bootstrap: True
 
 # hyperopt:
 #   target:

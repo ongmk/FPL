@@ -9,6 +9,23 @@ from kedro.framework.session import KedroSession
 from kedro.utils import load_obj
 from textwrap import dedent
 import yaml
+from collections.abc import MutableMapping
+from hyperopt.pyll.base import Apply as hyperopt_apply
+from hyperopt import space_eval
+from pprint import pprint
+
+
+def find_hyperopt_apply_keys(dct, parent_key=None, result=None):
+    if result is None:
+        result = {}
+    if isinstance(dct, MutableMapping):
+        for key, value in dct.items():
+            new_key = f"{parent_key}.{key}" if parent_key else key
+            if isinstance(value, hyperopt_apply):
+                result[new_key] = value
+            else:
+                find_hyperopt_apply_keys(value, new_key, result)
+    return result
 
 
 def dict_nested_update(lhs: dict, rhs: dict):
@@ -104,8 +121,15 @@ def custom_kedro_run(
 
             hyperopt_run_config["fn"] = optimize
             fmin(**hyperopt_run_config, show_progressbar=False)
+            compressed_space = find_hyperopt_apply_keys(hyperopt_run_config["space"])
+            best_trial = {}
+            for key, val in trials.best_trial["misc"]["vals"].items():
+                best_trial[key] = val[0]
 
-            print(f"Best parameters are: {trials.best_trial['misc']['vals']}")
+            best_params = space_eval(compressed_space, best_trial)
+
+            print(f"Best parameters are:")
+            pprint(best_params)
             print(f"{target_name} = {trials.best_trial['result'][target_name]}")
         return None
 

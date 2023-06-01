@@ -22,7 +22,7 @@ model:
     - xg_ma
     - team_odds_2_score
     - att_total
-  pca_components: 3
+  pca_components: 2
   random_state: 42
   verbose: false
   n_jobs: null
@@ -58,21 +58,29 @@ model:
     max_features: 0.43
     bootstrap: True
 
-# hyperopt:
-#   target:
-#     name: val_score
-#     max_trials: 50
-#     strategy: max
-#     algo: tpe
-#     early_termination: null
+hyperopt:
+  target:
+    name: val_score
+    max_trials: 2
+    strategy: max
+    algo: tpe
+    early_termination: null
 #   groups:
 #     model:
 #       models:
 #         - [huber]
 #         - [ridge]
 #         - [lr]
-#   0:
-#     model:
+  0:
+    model:
+      pca_components:
+        method: choice
+        values: [7,6,5,4,3,2,1]
+      rf_params:
+        max_features:
+          method: uniform
+          low: 0
+          high: 1
 #       huber_params:
 #         epsilon:
 #           method: uniform

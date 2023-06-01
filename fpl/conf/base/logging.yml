@@ -34,13 +34,14 @@ handlers:
     delay: True
 
   rich:
+    level: INFO
     class: rich.logging.RichHandler
 
 loggers:
   kedro:
     level: INFO
 
-  fpl:
+  src:
     level: INFO
 
 root:

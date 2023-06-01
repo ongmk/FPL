@@ -27,21 +27,21 @@ def combine_data(
         ],
     ].reset_index(drop=True)
 
-    elo_data = elo_data.drop("date", axis=1)
+    elo_data = elo_data.drop(["date", "season"], axis=1)
 
     # Combine team's and opponent's ELO Scores to get total scores
     combined_data = pd.merge(
         team_match_log,
         elo_data,
-        left_on=["team", "season", "date"],
-        right_on=["team", "season", "next_match"],
+        left_on=["team", "date"],
+        right_on=["team", "next_match"],
         how="left",
     )
     combined_data = pd.merge(
         combined_data,
         elo_data,
-        left_on=["opponent", "season", "date"],
-        right_on=["team", "season", "next_match"],
+        left_on=["opponent", "date"],
+        right_on=["team", "next_match"],
         how="left",
         suffixes=("", "_opp"),
     )
@@ -76,7 +76,7 @@ def combine_data(
     return combined_data
 
 
-def _weighted_average(df):
+def calculate_score_from_odds(df):
     h_score_sum = (df["h_score"] * (1 / (df["odds"] + 1))).sum()
     a_score_sum = (df["a_score"] * (1 / (df["odds"] + 1))).sum()
     inverse_odds_sum = (1 / (df["odds"] + 1)).sum()
@@ -93,7 +93,7 @@ def aggregate_odds_data(odds_data, parameters):
 
     agg_odds_data = (
         odds_data.groupby(["season", "h_team", "a_team"])
-        .apply(lambda group: _weighted_average(group))
+        .apply(lambda group: calculate_score_from_odds(group))
         .reset_index()
     )
     mapping = pd.read_csv("./src/fpl/pipelines/model_pipeline/team_mapping.csv")

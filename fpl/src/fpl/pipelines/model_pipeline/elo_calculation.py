@@ -1,3 +1,4 @@
+from typing import Any
 import pandas as pd
 import logging
 import statistics
@@ -6,7 +7,7 @@ from tqdm import tqdm
 logger = logging.getLogger(__name__)
 
 
-def _get_init_elo(match_data):
+def get_init_elo(match_data: pd.DataFrame) -> pd.DataFrame:
     first_season = match_data.season.min()
     home_xg_mean = (
         match_data.loc[match_data["season"] == first_season]
@@ -49,7 +50,9 @@ def _get_init_elo(match_data):
     return init_elo_df
 
 
-def _get_promotions_relegations(match_data):
+def get_promotions_relegations(
+    match_data: pd.DataFrame,
+) -> tuple[list[str], dict[str, list[str]], dict[str, list[str]]]:
     seasons = sorted(match_data.season.unique().tolist())
     promotions = {}
     relegations = {}
@@ -65,47 +68,137 @@ def _get_promotions_relegations(match_data):
     return seasons, promotions, relegations
 
 
-def _get_expected_xg(
-    att_elo, home_away_att_elo, def_elo, home_away_def_elo, home_away_weight=0.20
-):
+def get_expected_xg(
+    att_elo: float,
+    home_away_att_elo: float,
+    def_elo: float,
+    home_away_def_elo: float,
+    home_away_weight: float = 0.20,
+) -> float:
     expected_xg = (1 - home_away_weight) * (att_elo + def_elo) + home_away_weight * (
         home_away_att_elo + home_away_def_elo
     )
     return expected_xg
 
 
-def _get_next_elo(curr_elo, actual_xg, expected_xg, learning_rate=0.12):
+def get_next_elo(
+    curr_elo: float, actual_xg: float, expected_xg: float, learning_rate: float = 0.12
+) -> float:
     updated_elo = curr_elo + learning_rate * (actual_xg - expected_xg)
     return updated_elo
 
 
-def _get_latest_elos(elo_df, season, prev_season, team, promotions, relegations):
-    same_team = elo_df.team == team
-    within_2_seasons = elo_df.season.isin([season, prev_season])
-    matched = elo_df.loc[same_team & within_2_seasons]
-    elo_cols = [
-        "att_elo",
-        "def_elo",
-        "home_att_elo",
-        "home_def_elo",
-        "away_att_elo",
-        "away_def_elo",
+elo_cols = [
+    "att_elo",
+    "def_elo",
+    "home_att_elo",
+    "home_def_elo",
+    "away_att_elo",
+    "away_def_elo",
+]
+
+
+def get_relegated_teams_mean_elos(
+    elo_df: pd.DataFrame, relegated_teams: list[str], prev_season
+) -> pd.Series:
+    relegated_elo_df = elo_df.loc[
+        ((elo_df.team.isin(relegated_teams)) & (elo_df.season == prev_season)),
+        elo_cols,
     ]
-    if len(matched) == 0:
-        assert team in promotions[season]
-        relegated_teams = elo_df.team.isin(relegations[season])
-        is_prev_season = elo_df.season == prev_season
-        matched = elo_df.loc[relegated_teams & is_prev_season].drop_duplicates(
-            "team", keep="last"
-        )
-        latest_elos = matched.loc[:, elo_cols].mean()
-    else:
-        latest_elos = matched.drop_duplicates("team", keep="last").iloc[0]
-        latest_elos = latest_elos.loc[elo_cols]
+    return relegated_elo_df.mean()
+
+
+def get_latest_elos(
+    season: str,
+    prev_season: str,
+    team: str,
+    elo_df: pd.DataFrame,
+) -> pd.Series:
+    same_team_within_two_seasons = elo_df.loc[
+        (elo_df.season.isin([season, prev_season])) & (elo_df.team == team)
+    ]
+    latest_elos = same_team_within_two_seasons.drop_duplicates(
+        "team", keep="last"
+    ).iloc[0]
+    latest_elos = latest_elos.loc[elo_cols]
     return latest_elos
 
 
-def calculate_elo_score(match_data, parameters):
+def add_promoted_team_rows(
+    match_data: pd.DataFrame,
+    promotions: dict[str, list[str]],
+    relegations: dict[str, list[str]],
+    seasons: list[str],
+) -> pd.DataFrame:
+    for season, promoted_teams in promotions.items():
+        for team in promoted_teams:
+            first_match_date = match_data.loc[
+                ((match_data.team == team) | (match_data.opponent == team))
+                & (match_data["season"] == season),
+                "date",
+            ].min()
+            one_day_before = pd.to_datetime(first_match_date) - pd.DateOffset(days=1)
+            curr_idx = seasons.index(season)
+            prev_season = seasons[curr_idx - 1]
+
+            relegated_teams = relegations[season]
+            relegated_match_data = match_data.loc[
+                (
+                    (
+                        (match_data.team.isin(relegated_teams))
+                        | (match_data.opponent.isin(relegated_teams))
+                    )
+                    & (match_data.season == prev_season)
+                ),
+                ["team", "opponent", "xg", "xga", "date"],
+            ]
+
+            relegated_match_data["temp_xg"] = relegated_match_data.apply(
+                lambda row: row["xg"] if row["team"] in relegated_teams else row["xga"],
+                axis=1,
+            )
+            relegated_match_data["temp_xga"] = relegated_match_data.apply(
+                lambda row: row["xga"] if row["team"] in relegated_teams else row["xg"],
+                axis=1,
+            )
+            relegated_match_data = relegated_match_data.sort_values(
+                by="date", ascending=True
+            )
+            last_matches = relegated_match_data.groupby(
+                relegated_match_data.apply(
+                    lambda row: row["team"]
+                    if row["team"] in relegated_teams
+                    else row["opponent"],
+                    axis=1,
+                )
+            ).last()
+
+            mean_xg = last_matches["temp_xg"].mean()
+            mean_xga = last_matches["temp_xga"].mean()
+
+            new_row = {
+                "season": season,
+                "team": team,
+                "round": 0,
+                "date": one_day_before.strftime("%Y-%m-%d"),
+                "opponent": relegated_teams[0],
+                "xg": mean_xg,
+                "xga": mean_xga,
+            }
+
+            match_data = match_data.append(new_row, ignore_index=True)
+    return match_data
+
+
+def is_first_match_after_promotion(
+    team: str, promoted_teams: list[str], round=int
+) -> bool:
+    return team in promoted_teams and round == 0
+
+
+def calculate_elo_score(
+    match_data: pd.DataFrame, parameters: dict[str, Any]
+) -> pd.DataFrame:
     home_away_weight = parameters["home_away_weight"]
     learning_rate = parameters["elo_learning_rate"]
     logger.info(
@@ -117,29 +210,59 @@ def calculate_elo_score(match_data, parameters):
         & (match_data["venue"] == "Home"),
         ["season", "team", "round", "date", "opponent", "xg", "xga"],
     ]
+    elo_df = get_init_elo(match_data)
+    seasons, promotions, relegations = get_promotions_relegations(match_data)
+    match_data = add_promoted_team_rows(
+        match_data=match_data,
+        promotions=promotions,
+        relegations=relegations,
+        seasons=seasons,
+    )
+
     match_data = match_data.sort_values(["season", "date", "team"]).reset_index(
         drop=True
     )
-    elo_df = _get_init_elo(match_data)
-    seasons, promotions, relegations = _get_promotions_relegations(match_data)
-    for idx, row in tqdm(match_data.iterrows(), total=match_data.shape[0]):
+
+    for _, row in tqdm(match_data.iterrows(), total=match_data.shape[0]):
         curr_idx = seasons.index(row.season)
         prev_season = seasons[curr_idx - 1]
-        home_team_elos = _get_latest_elos(
-            elo_df, row.season, prev_season, row.team, promotions, relegations
-        )
-        away_team_elos = _get_latest_elos(
-            elo_df, row.season, prev_season, row.opponent, promotions, relegations
-        )
 
-        expected_xg = _get_expected_xg(
+        promoted_teams = promotions[row.season] if row.season in promotions else []
+        if is_first_match_after_promotion(row.team, promoted_teams, row["round"]):
+            home_team_elos = get_relegated_teams_mean_elos(
+                elo_df=elo_df,
+                relegated_teams=relegations[row.season],
+                prev_season=prev_season,
+            )
+        else:
+            home_team_elos = get_latest_elos(
+                season=row.season,
+                prev_season=prev_season,
+                team=row.team,
+                elo_df=elo_df,
+            )
+        if is_first_match_after_promotion(row.opponent, promoted_teams, row["round"]):
+            away_team_elos = get_relegated_teams_mean_elos(
+                elo_df=elo_df,
+                relegated_teams=relegations[row.season],
+                prev_season=prev_season,
+            )
+        else:
+            away_team_elos = get_latest_elos(
+                season=row.season,
+                prev_season=prev_season,
+                team=row.opponent,
+                elo_df=elo_df,
+            )
+
+        expected_xg = get_expected_xg(
             home_team_elos.att_elo,
             home_team_elos.home_att_elo,
             away_team_elos.def_elo,
             away_team_elos.away_def_elo,
             home_away_weight,
         )
-        expected_xga = _get_expected_xg(
+        expected_xga = get_expected_xg(
             away_team_elos.att_elo,
             away_team_elos.away_att_elo,
             home_team_elos.def_elo,
@@ -151,16 +274,16 @@ def calculate_elo_score(match_data, parameters):
             "team": row.team,
             "season": row.season,
             "date": row.date,
-            "att_elo": _get_next_elo(
+            "att_elo": get_next_elo(
                 home_team_elos.att_elo, row.xg, expected_xg, learning_rate
             ),
-            "def_elo": _get_next_elo(
+            "def_elo": get_next_elo(
                 home_team_elos.def_elo, row.xga, expected_xga, learning_rate
             ),
-            "home_att_elo": _get_next_elo(
+            "home_att_elo": get_next_elo(
                 home_team_elos.home_att_elo, row.xg, expected_xg, learning_rate
             ),
-            "home_def_elo": _get_next_elo(
+            "home_def_elo": get_next_elo(
                 home_team_elos.home_def_elo, row.xga, expected_xga, learning_rate
             ),
             "away_att_elo": home_team_elos.away_att_elo,
@@ -173,18 +296,18 @@ def calculate_elo_score(match_data, parameters):
             "team": row.opponent,
             "season": row.season,
             "date": row.date,
-            "att_elo": _get_next_elo(
+            "att_elo": get_next_elo(
                 away_team_elos.att_elo, row.xga, expected_xga, learning_rate
             ),
-            "def_elo": _get_next_elo(
+            "def_elo": get_next_elo(
                 away_team_elos.def_elo, row.xg, expected_xg, learning_rate
             ),
             "home_att_elo": away_team_elos.home_att_elo,
             "home_def_elo": away_team_elos.home_def_elo,
-            "away_att_elo": _get_next_elo(
+            "away_att_elo": get_next_elo(
                 away_team_elos.away_att_elo, row.xga, expected_xga, learning_rate
             ),
-            "away_def_elo": _get_next_elo(
+            "away_def_elo": get_next_elo(
                 away_team_elos.away_def_elo, row.xg, expected_xg, learning_rate
             ),
         }

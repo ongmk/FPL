@@ -28,11 +28,11 @@ from src.fpl.pipelines.model_pipeline.experiment_helpers import (
 def create_preprocess_pipeline() -> Pipeline:
     return pipeline(
         [
-            node(
-                func=calculate_elo_score,
-                inputs=["TEAM_MATCH_LOG", "params:data"],
-                outputs="ELO_DATA",
-            ),
+            # node(
+            #     func=calculate_elo_score,
+            #     inputs=["TEAM_MATCH_LOG", "params:data"],
+            #     outputs="ELO_DATA",
+            # ),
             node(
                 func=clean_data,
                 inputs=["TEAM_MATCH_LOG", "ELO_DATA", "ODDS_DATA", "params:data"],

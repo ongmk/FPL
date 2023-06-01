@@ -46,17 +46,17 @@ def combine_data(
         suffixes=("", "_opp"),
     )
     combined_data["att_total"] = combined_data.att_elo + combined_data.def_elo_opp
-    combined_data.loc[combined_data.venue == "Home", "home_att_total"] = (
+    combined_data["home_att_total"] = (
         combined_data.home_att_elo + combined_data.away_def_elo_opp
     )
-    combined_data.loc[combined_data.venue == "Away", "away_att_total"] = (
+    combined_data["away_att_total"] = (
         combined_data.away_att_elo + combined_data.home_def_elo_opp
     )
     combined_data["def_total"] = combined_data.def_elo + combined_data.att_elo_opp
-    combined_data.loc[combined_data.venue == "Home", "home_def_total"] = (
+    combined_data["home_def_total"] = (
         combined_data.home_def_elo + combined_data.away_att_elo_opp
     )
-    combined_data.loc[combined_data.venue == "Away", "away_def_total"] = (
+    combined_data["away_def_total"] = (
         combined_data.away_def_elo + combined_data.home_att_elo_opp
     )
     combined_data = combined_data.drop(

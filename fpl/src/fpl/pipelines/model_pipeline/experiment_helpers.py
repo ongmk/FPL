@@ -1,6 +1,7 @@
 import sqlite3
 import os
 from datetime import datetime
+import subprocess
 from typing import Any
 from flatten_dict import flatten
 import pandas as pd
@@ -153,6 +154,19 @@ def camel_reducer(k1: str, k2: str) -> str:
         return f"{k1}_{k2}"
 
 
+def get_latest_git_commit_message():
+    try:
+        commit_message = (
+            subprocess.check_output(["git", "log", "-1", "--pretty=%B"])
+            .decode("utf-8")
+            .strip()
+        )
+        return commit_message
+    except subprocess.CalledProcessError as e:
+        print(f"Error: {e}")
+        return None
+
+
 def init_experiment(parameters: dict[str, Any]) -> tuple[int, str, pd.DataFrame]:
     conn = sqlite3.connect("./data/fpl.db")
     query = "select COALESCE(max(id)  + 1 , 0) from experiment;"
@@ -175,6 +189,7 @@ def init_experiment(parameters: dict[str, Any]) -> tuple[int, str, pd.DataFrame]
 
     record["id"] = id
     record["start_time"] = start_time
+    record["git_message"] = get_latest_git_commit_message()
     experiment_record = pd.DataFrame.from_records([record])
 
     return id, start_time, experiment_record

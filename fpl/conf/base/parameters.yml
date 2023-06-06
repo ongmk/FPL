@@ -8,6 +8,10 @@ model:
     - att_total
     - home_att_total
     - away_att_total
+    - pts_b4_match
+    - rank_b4_match
+    - pts_gap_above
+    - pts_gap_below
     # - def_total
     # - home_def_total
     # - away_def_total
@@ -58,29 +62,21 @@ model:
     max_features: 0.43
     bootstrap: True
 
-hyperopt:
-  target:
-    name: val_score
-    max_trials: 2
-    strategy: max
-    algo: tpe
-    early_termination: null
+# hyperopt:
+#   target:
+#     name: val_score
+#     max_trials: 5
+#     strategy: max
+#     algo: tpe
+#     early_termination: null
 #   groups:
 #     model:
 #       models:
 #         - [huber]
 #         - [ridge]
 #         - [lr]
-  0:
-    model:
-      pca_components:
-        method: choice
-        values: [7,6,5,4,3,2,1]
-      rf_params:
-        max_features:
-          method: uniform
-          low: 0
-          high: 1
+#   0:
+#     model:
 #       huber_params:
 #         epsilon:
 #           method: uniform
@@ -93,7 +89,7 @@ hyperopt:
 #         fit_intercept:
 #           method: choice
 #           values: [True, False]
-#   1:
+# #   1:
 #     model:
 #       ridge_params:
 #         alpha:

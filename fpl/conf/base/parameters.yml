@@ -26,7 +26,7 @@ model:
     - xg_ma
     - team_odds_2_score
     - att_total
-  pca_components: 2
+  pca_components: 7
   random_state: 42
   verbose: false
   n_jobs: null
@@ -65,7 +65,7 @@ model:
 # hyperopt:
 #   target:
 #     name: val_score
-#     max_trials: 5
+#     max_trials: 10
 #     strategy: max
 #     algo: tpe
 #     early_termination: null
@@ -75,9 +75,14 @@ model:
 #         - [huber]
 #         - [ridge]
 #         - [lr]
-#   0:
-#     model:
-#       huber_params:
+  # 0:
+  #   model:
+  #     pca_components:
+  #       method: uniform
+  #       scope: int
+  #       low: 2
+  #       high: 11
+      # huber_params:
 #         epsilon:
 #           method: uniform
 #           low: 1

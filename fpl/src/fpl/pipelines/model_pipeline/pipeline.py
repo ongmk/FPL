@@ -1,38 +1,35 @@
 from kedro.pipeline import Pipeline, node, pipeline
-
 from src.fpl.pipelines.model_pipeline.elo_calculation import (
     calculate_elo_score,
     xg_elo_correlation,
+)
+from src.fpl.pipelines.model_pipeline.ensemble import model_selection
+from src.fpl.pipelines.model_pipeline.evaluation import evaluate_model_holdout
+from src.fpl.pipelines.model_pipeline.experiment_helpers import (
+    init_experiment,
+    run_housekeeping,
 )
 from src.fpl.pipelines.model_pipeline.preprocessor import (
     clean_data,
     feature_engineering,
 )
-from src.fpl.pipelines.model_pipeline.ensemble import model_selection
 from src.fpl.pipelines.model_pipeline.training import (
-    split_data,
     create_sklearn_pipeline,
-    pycaret_compare_models,
     cross_validation,
+    pycaret_compare_models,
+    split_data,
     train_model,
-)
-from src.fpl.pipelines.model_pipeline.evaluation import (
-    evaluate_model_holdout,
-)
-from src.fpl.pipelines.model_pipeline.experiment_helpers import (
-    run_housekeeping,
-    init_experiment,
 )
 
 
 def create_preprocess_pipeline() -> Pipeline:
     return pipeline(
         [
-            # node(
-            #     func=calculate_elo_score,
-            #     inputs=["TEAM_MATCH_LOG", "params:data"],
-            #     outputs="ELO_DATA",
-            # ),
+            node(
+                func=calculate_elo_score,
+                inputs=["TEAM_MATCH_LOG", "params:data"],
+                outputs="ELO_DATA",
+            ),
             node(
                 func=clean_data,
                 inputs=["TEAM_MATCH_LOG", "ELO_DATA", "ODDS_DATA", "params:data"],

@@ -79,7 +79,7 @@ class OddsPortalDriver(BaseDriver):
                 return match_links
 
     def get_row_data(self, row):
-        h_score, a_score = row.xpath("./div[2]/p[1]")[0].text.split(":")
+        h_score, a_score = row.xpath("./div/p[1]")[0].text.split(":")
         odds = row.xpath("./div[3]/div/div/div/p")[0].text
         return int(h_score), int(a_score), float(odds)
 
@@ -88,12 +88,12 @@ class OddsPortalDriver(BaseDriver):
         logger.info(f"Crawling Match Odds:\t{season} {h_team}-{a_team}\t{link}")
         self.get(link)
         self.get_tree_by_xpath(
-            '//*[@id="app"]/div/div[1]/div/main/div[2]/div[4]/div[1]/div/div[2]'
+            '//*[@id="app"]/div/div[1]/div/main/div[2]/div[4]/div/div/div[3]/div/div/div[contains(@class, "font-bold")]'
         )
         table = self.get_tree_by_xpath(
             '//*[@id="app"]/div/div[1]/div/main/div[2]/div[4]'
         )
-        rows = table.xpath("./body/div/div[./*]")
+        rows = table.xpath("./body/div/div[./* and text() != '-']")
         rows = [(self.get_row_data(r)) for r in rows]
         match_odds_df = pd.DataFrame(rows, columns=["h_score", "a_score", "odds"])
         match_odds_df = match_odds_df.sort_values("odds").head(10)

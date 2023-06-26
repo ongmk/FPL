@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS experiment (
     keep INTEGER,
     model_best INTEGER,
     start_time TEXT NOT NULL,
+    git_message TEXT,
     models TEXT,
     numericalFeatures TEXT,
     categoricalFeatures TEXT
@@ -89,6 +90,5 @@ CREATE TABLE IF NOT EXISTS evaluation_result (
     id INTEGER,
     experiment_id INTEGER,
     start_time TEXT NOT NULL,
-    git_message TEXT,
     PRIMARY KEY (experiment_id, id)
 );

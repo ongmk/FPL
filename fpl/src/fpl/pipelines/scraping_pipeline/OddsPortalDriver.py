@@ -79,8 +79,8 @@ class OddsPortalDriver(BaseDriver):
                 return match_links
 
     def get_row_data(self, row):
-        h_score, a_score = row.xpath("//div[2]/p[1]")[0].text.split(":")
-        odds = row.xpath("//div[3]/div/div/div/p")[0].text
+        h_score, a_score = row.xpath("./div[2]/p[1]")[0].text.split(":")
+        odds = row.xpath("./div[3]/div/div/div/p")[0].text
         return int(h_score), int(a_score), float(odds)
 
     def get_match_odds_df(self, season, h_team, a_team, link):
@@ -93,7 +93,7 @@ class OddsPortalDriver(BaseDriver):
         table = self.get_tree_by_xpath(
             '//*[@id="app"]/div/div[1]/div/main/div[2]/div[4]'
         )
-        rows = table.xpath("//div")
+        rows = table.xpath("./body/div/div[./*]")
         rows = [(self.get_row_data(r)) for r in rows]
         match_odds_df = pd.DataFrame(rows, columns=["h_score", "a_score", "odds"])
         match_odds_df = match_odds_df.sort_values("odds").head(10)

@@ -17,6 +17,6 @@ pyyaml~=6.0
 pycaret~=3.0.2
 selenium~=4.9.1
 lxml~=4.9.2
-sqlalchemy~=2.0.16
+sqlalchemy~=1.4.48
 tenacity~=8.2.2
 black~=23.3.0

@@ -117,7 +117,7 @@ data:
   elo_learning_rate: 0.1
   home_away_weight: 0.5
   start_year: 2017-2018
-  holdout_year: 2021-2022
+  holdout_year: 2022-2023
 
 ######################################
 

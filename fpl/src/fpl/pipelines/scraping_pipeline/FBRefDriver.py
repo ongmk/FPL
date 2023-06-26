@@ -1,9 +1,9 @@
-import warnings
+import logging
 
-warnings.simplefilter(action="ignore", category=FutureWarning)
 import pandas as pd
-from logger import logger
-from BaseDriver import BaseDriver
+from src.fpl.pipelines.scraping_pipeline.BaseDriver import BaseDriver
+
+logger = logging.getLogger(__name__)
 
 
 class FBRefDriver(BaseDriver):
@@ -111,6 +111,8 @@ class FBRefDriver(BaseDriver):
                 "OG",
                 "PKwon",
                 "PKcon",
+                "PrgP",
+                "PrgC",
             ]
         ]
         match_log_df = match_log_df.drop(useless_cols, axis=1)

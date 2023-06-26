@@ -1,15 +1,19 @@
-import sqlite3
-import pandas as pd
-from tqdm import tqdm
-from FBRefDriver import FBRefDriver
-from OddsPortalDriver import OddsPortalDriver
 import logging
+import sqlite3
+from typing import Any
+
+import pandas as pd
+from src.fpl.pipelines.scraping_pipeline.FBRefDriver import FBRefDriver
+from src.fpl.pipelines.scraping_pipeline.OddsPortalDriver import OddsPortalDriver
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
 
-def crawl_team_match_logs():
-    seasons = [2021 - i for i in range(10)]
+def crawl_team_match_logs(parameters: dict[str, Any]):
+    latest_season = parameters["latest_season"]
+    n_seasons = parameters["n_seasons"]
+    seasons = [latest_season - i for i in range(n_seasons)]
     seasons = [f"{s}-{s+1}" for s in seasons]
 
     conn = sqlite3.connect("./data/fpl.db")
@@ -42,8 +46,10 @@ def crawl_team_match_logs():
     return True
 
 
-def crawl_player_match_logs():
-    seasons = [2021 - i for i in range(10)]
+def crawl_player_match_logs(parameters: dict[str, Any]):
+    latest_season = parameters["latest_season"]
+    n_seasons = parameters["n_seasons"]
+    seasons = [latest_season - i for i in range(n_seasons)]
     seasons = [f"{s}-{s+1}" for s in seasons]
 
     conn = sqlite3.connect("./data/fpl.db")
@@ -77,8 +83,10 @@ def crawl_player_match_logs():
     conn.close()
 
 
-def crawl_match_odds():
-    seasons = [2021 - i for i in range(10)]
+def crawl_match_odds(parameters: dict[str, Any]):
+    latest_season = parameters["latest_season"]
+    n_seasons = parameters["n_seasons"]
+    seasons = [latest_season - i for i in range(n_seasons)]
     seasons = [f"{s}-{s+1}" for s in seasons]
 
     conn = sqlite3.connect("./data/fpl.db")
@@ -99,8 +107,9 @@ def crawl_match_odds():
                 ].empty:
                     logger.warning(f"{s} {match}\tMatch odds already crawled.\t{link}")
                     continue
-
-                match_odds_df = d.get_match_odds_df(s, h_team, a_team, link)
+                match_odds_df = d.get_match_odds_df(
+                    s, h_team, a_team, d.absolute_url(link)
+                )
 
                 logger.info(f"Saving Match Odds:\t{s} {match}")
                 match_odds_df.to_sql(
@@ -111,7 +120,7 @@ def crawl_match_odds():
     conn.close()
 
 
-if __name__ == "__main__":
-    # crawl_team_match_logs()
-    # crawl_player_match_logs()
-    crawl_match_odds()
+# if __name__ == "__main__":
+# crawl_team_match_logs()
+# crawl_player_match_logs()
+# crawl_match_odds()

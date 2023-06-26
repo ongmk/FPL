@@ -75,14 +75,14 @@ model:
 #         - [huber]
 #         - [ridge]
 #         - [lr]
-  # 0:
-  #   model:
-  #     pca_components:
-  #       method: uniform
-  #       scope: int
-  #       low: 2
-  #       high: 11
-      # huber_params:
+# 0:
+#   model:
+#     pca_components:
+#       method: uniform
+#       scope: int
+#       low: 2
+#       high: 11
+# huber_params:
 #         epsilon:
 #           method: uniform
 #           low: 1
@@ -107,11 +107,9 @@ model:
 #   2:
 #     model:
 #       lr_params:
-#         fit_intercept: 
+#         fit_intercept:
 #           method: choice
 #           values: [True, False]
-
-
 
 ######################################
 
@@ -144,7 +142,7 @@ optimization:
   decay: 0.5
   ft_bonus: 1.5
   itb_bonus: 0.08
-  bench_weights: {0: 0.03, 1: 0.21, 2: 0.06, 3: 0.002}
+  bench_weights: { 0: 0.03, 1: 0.21, 2: 0.06, 3: 0.002 }
   solver: cplex
   backtest_player_history: true
   backtest_players:
@@ -152,3 +150,9 @@ optimization:
     Hazard: 1195527
     FPL Raptor: 5431
     Donald: 307190
+
+######################################
+
+scraper:
+  latest_season: 2022
+  n_seasons: 10

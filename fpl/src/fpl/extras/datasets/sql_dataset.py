@@ -1,4 +1,4 @@
-from kedro_datasets.pandas import SQLTableDataSet
+from kedro.extras.datasets.pandas.sql_dataset import SQLTableDataSet
 import pandas as pd
 import logging
 
@@ -50,3 +50,9 @@ class ExperimentMetrics(FlexibleSQLTableDataSet):
         new_table.loc[new_table["id"] == id, metrics] = values
         self._save_args["if_exists"] = "replace"
         super()._save(new_table)
+
+
+if __name__ == "__main__":
+    print(SQLTableDataSet)
+    print(ExperimentMetrics)
+    print(FlexibleSQLTableDataSet)

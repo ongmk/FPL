@@ -42,6 +42,11 @@ FPL_DATA:
   save_args:
     if_exists: replace
 
+PLAYER_MATCH_LOG:
+  type: pandas.SQLTableDataSet
+  table_name: raw_player_match_log
+  credentials: db_credentials
+
 TEAM_MATCH_LOG:
   type: pandas.SQLTableDataSet
   table_name: raw_team_match_log

@@ -25,14 +25,20 @@ from src.fpl.pipelines.model_pipeline.training import (
 def create_preprocess_pipeline() -> Pipeline:
     return pipeline(
         [
-            node(
-                func=calculate_elo_score,
-                inputs=["TEAM_MATCH_LOG", "params:data"],
-                outputs="ELO_DATA",
-            ),
+            # node(
+            #     func=calculate_elo_score,
+            #     inputs=["TEAM_MATCH_LOG", "params:data"],
+            #     outputs="ELO_DATA",
+            # ),
             node(
                 func=clean_data,
-                inputs=["TEAM_MATCH_LOG", "ELO_DATA", "ODDS_DATA", "params:data"],
+                inputs=[
+                    "PLAYER_MATCH_LOG",
+                    "TEAM_MATCH_LOG",
+                    "ELO_DATA",
+                    "ODDS_DATA",
+                    "params:data",
+                ],
                 outputs="cleaned_data",
             ),
             node(

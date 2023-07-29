@@ -39,7 +39,7 @@ class BaseDriver:
         chrome_options = webdriver.ChromeOptions()
         chrome_options.add_argument("--blink-settings=imagesEnabled=false")
 
-        self.driver = webdriver.Chrome(options=chrome_options)
+        self.driver: webdriver.Chrome = webdriver.Chrome(options=chrome_options)
         self.base_url = ""
         self.last_visit = 0
 

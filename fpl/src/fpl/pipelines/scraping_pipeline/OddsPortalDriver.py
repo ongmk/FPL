@@ -16,65 +16,50 @@ class OddsPortalDriver(BaseDriver):
         self.base_url = "https://www.oddsportal.com/"
         self.requests = DelayedRequests()
 
-    def get_page_1_url(self):
-        container = self.get_tree_by_xpath(
-            '//div[@class="max-sx:!hidden"]/div/div[@id="pagination"]'
+    def get_next_page(self):
+        pagination = self.get_tree_by_xpath(
+            '//*[@id="app"]/div/div[1]/div/main/div[2]/div[5]/div[5]/div'
         )
-        pagination_links = container.xpath("//a")
-        hrefs = [element.get(":href") for element in pagination_links]
+        next_page_button = pagination.xpath('./body/a[text()="Next"]')
+        if len(next_page_button) == 1:
+            self.click_elements_by_xpath(
+                '//*[@id="app"]/div/div[1]/div/main/div[2]/div[5]/div[5]/div/a[text()="Next"]'
+            )
+            return True
+        else:
+            return False
+        # pagination_links = container.xpath("//a")
+        # hrefs = [element.get(":href") for element in pagination_links]
 
-        page_1_urls = set()
-        for url in hrefs:
-            match = re.search(r"/page/(\d+)/", url)
-            if match:
-                page_1_url = re.sub(r"/page/\d+/", "/page/1/", url)
-                page_1_urls.add(page_1_url)
-        if len(page_1_urls) > 1:
-            raise ValueError("More than one possible page 1 url.")
-        return next(iter(page_1_urls))
+        # page_1_urls = set()
+        # for url in hrefs:
+        #     match = re.search(r"/page/(\d+)/", url)
+        #     if match:
+        #         page_1_url = re.sub(r"/page/\d+/", "/page/1/", url)
+        #         page_1_urls.add(page_1_url)
+        # if len(page_1_urls) > 1:
+        #     raise ValueError("More than one possible page 1 url.")
+        # return next(iter(page_1_urls))
 
     def get_match_links(self, season):
         relative_url = f"/football/england/premier-league-{season}/results/"
         url = self.absolute_url(relative_url)
         self.get(url)
 
-        next_page = self.get_page_1_url()
         match_links = []
         while True:
-            cookies: dict[str, str] = self.get_cookies()
-            headers = {
-                "authority": "www.oddsportal.com",
-                "accept": "application/json, text/plain, */*",
-                "accept-language": "en-GB,en;q=0.9,zh-HK;q=0.8,zh;q=0.7,en-US;q=0.6,zh-TW;q=0.5,zh-CN;q=0.4,ja;q=0.3",
-                "cache-control": "no-cache",
-                "content-type": "application/json",
-                "dnt": "1",
-                "pragma": "no-cache",
-                "referer": "https://www.oddsportal.com/football/england/premier-league-2021-2022/results/",
-                "sec-ch-ua": '"Not.A/Brand";v="8", "Chromium";v="114", "Google Chrome";v="114"',
-                "sec-ch-ua-mobile": "?0",
-                "sec-ch-ua-platform": '"Windows"',
-                "sec-fetch-dest": "empty",
-                "sec-fetch-mode": "cors",
-                "sec-fetch-site": "same-origin",
-                "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36",
-                "x-requested-with": "XMLHttpRequest",
-            }
-            # headers["x-xsrf-token"] = cookies.pop("XSRF-TOKEN")
-            headers["cookie"] = "; ".join(
-                [f"{key}={value}" for key, value in cookies.items()]
+            table = self.get_tree_by_xpath(
+                '//*[@id="app"]/div/div[1]/div/main/div[2]/div[5]/div[1]'
             )
-
-            response = self.requests.request("GET", next_page, headers=headers)
-            response = response.json()
-            rows = response["d"]["rows"]
-            match_links += [(r["name"], r["url"]) for r in rows]
-            pagination_html = response["d"]["paginationView"]
-            pagination = etree.fromstring(pagination_html, parser=etree.HTMLParser())
-            next_page = pagination.xpath("//div/div[3]/a[.//p[.='next']]")
-            if len(next_page) == 1:
-                next_page = next_page[0].get(":href")
-                return match_links
+            rows = table.xpath("./body/div/div/div/a")
+            for r in rows:
+                url = r.get("href")
+                home, away = r.xpath("./div[2]/div/div/a/div[1]")
+                name = f"{home.text} - {away.text}"
+                print(name)
+                match_links.append((name, url))
+            if self.get_next_page():
+                continue
             else:
                 return match_links
 
@@ -112,10 +97,5 @@ class OddsPortalDriver(BaseDriver):
 
 if __name__ == "__main__":
     with OddsPortalDriver() as d:
-        match_odds_df = d.get_match_odds_df(
-            "season",
-            "team",
-            "opponent",
-            "https://www.oddsportal.com/football/england/premier-league-2022-2023/arsenal-wolves-M1w8YmqE/",
-        )
-        print(match_odds_df)
+        links = d.get_match_links("2022-2023")
+        print(links)

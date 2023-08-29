@@ -1,7 +1,6 @@
 from kedro.pipeline import Pipeline, node, pipeline
 from src.fpl.pipelines.model_pipeline.elo_calculation import (
     calculate_elo_score,
-    xg_elo_correlation,
 )
 from src.fpl.pipelines.model_pipeline.ensemble import model_selection
 from src.fpl.pipelines.model_pipeline.evaluation import evaluate_model_holdout
@@ -36,7 +35,7 @@ def create_preprocess_pipeline() -> Pipeline:
                     "PLAYER_MATCH_LOG",
                     "TEAM_MATCH_LOG",
                     "ELO_DATA",
-                    "ODDS_DATA",
+                    "FPL_DATA",
                     "params:data",
                 ],
                 outputs="cleaned_data",
@@ -45,11 +44,6 @@ def create_preprocess_pipeline() -> Pipeline:
                 func=feature_engineering,
                 inputs="cleaned_data",
                 outputs="PROCESSED_DATA",
-            ),
-            node(
-                func=xg_elo_correlation,
-                inputs="PROCESSED_DATA",
-                outputs="correlation",
             ),
             node(
                 func=split_data,

@@ -3,6 +3,7 @@ import sqlite3
 from typing import Any
 
 import pandas as pd
+from src.fpl.pipelines.scraping_pipeline.backtest_mergers import *
 from src.fpl.pipelines.scraping_pipeline.FBRefDriver import FBRefDriver
 from src.fpl.pipelines.scraping_pipeline.OddsPortalDriver import OddsPortalDriver
 from tqdm import tqdm
@@ -81,6 +82,114 @@ def crawl_player_match_logs(parameters: dict[str, Any]):
                 crawled_df.loc[len(crawled_df)] = [player, s]
 
     conn.close()
+
+
+def merge_fpl_data():
+    encodings = [
+        ("2016-17", "latin-1"),
+        ("2017-18", "latin-1"),
+        ("2018-19", "latin-1"),
+        ("2019-20", "utf-8"),
+        ("2020-21", "utf-8"),
+        ("2021-22", "utf-8"),
+        ("2022-23", "utf-8"),
+    ]
+
+    dfs = []
+    path = os.getcwd()
+    for season, enc in encodings:
+        filename = join(path, "data\\raw\\backtest_data", f"{season}_merged_gw.csv")
+        data = pd.read_csv(filename, encoding=enc)
+        data["season"] = season
+        dfs.append(data)
+
+    df = pd.concat(dfs, ignore_index=True, sort=False)
+    df = df[
+        [
+            "season",
+            "name",
+            "position",
+            "team",
+            "assists",
+            "bonus",
+            "bps",
+            "clean_sheets",
+            "creativity",
+            "element",
+            "fixture",
+            "goals_conceded",
+            "goals_scored",
+            "ict_index",
+            "influence",
+            "kickoff_time",
+            "minutes",
+            "opponent_team",
+            "own_goals",
+            "penalties_missed",
+            "penalties_saved",
+            "red_cards",
+            "round",
+            "saves",
+            "selected",
+            "team_a_score",
+            "team_h_score",
+            "threat",
+            "total_points",
+            "transfers_balance",
+            "transfers_in",
+            "transfers_out",
+            "value",
+            "was_home",
+            "yellow_cards",
+            "GW",
+        ]
+    ]
+
+    df = clean_players_name_string(df, col="name")
+    df = filter_players_exist_latest(df, col="position")
+    df = get_opponent_team_name(df)
+
+    return df[
+        [
+            "season",
+            "name",
+            "position",
+            "team",
+            "assists",
+            "bonus",
+            "bps",
+            "clean_sheets",
+            "creativity",
+            "element",
+            "fixture",
+            "goals_conceded",
+            "goals_scored",
+            "ict_index",
+            "influence",
+            "kickoff_time",
+            "minutes",
+            "opponent_team",
+            "opp_team_name",
+            "own_goals",
+            "penalties_missed",
+            "penalties_saved",
+            "red_cards",
+            "round",
+            "saves",
+            "selected",
+            "team_a_score",
+            "team_h_score",
+            "threat",
+            "total_points",
+            "transfers_balance",
+            "transfers_in",
+            "transfers_out",
+            "value",
+            "was_home",
+            "yellow_cards",
+            "GW",
+        ]
+    ]
 
 
 def crawl_match_odds(parameters: dict[str, Any]):

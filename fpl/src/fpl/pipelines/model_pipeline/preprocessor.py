@@ -1,8 +1,9 @@
-from typing import Any
-import pandas as pd
-import re
 import itertools
+import re
 from datetime import timedelta
+from typing import Any
+
+import pandas as pd
 
 
 def filter_data(
@@ -75,7 +76,7 @@ def combine_data(
     player_match_log: pd.DataFrame,
     team_match_log: pd.DataFrame,
     elo_data: pd.DataFrame,
-    odds_data: pd.DataFrame,
+    fpl_data: pd.DataFrame,
     parameters: dict[str, Any],
 ) -> pd.DataFrame:
     combined_data = pd.merge(
@@ -99,10 +100,14 @@ def combine_data(
         how="left",
         suffixes=("", "_opp"),
     )
+    combined_data = pd.merge(
+        combined_data,
+        fpl_data,
+        left_on=["date", "player"],
+        right_on=["date", "name"],
+        how="left",
+    )
     combined_data = combined_data.drop("next_match", axis=1)
-
-    combined_data = pd.merge(combined_data, odds_data, on=["season", "team", "opponent", "venue"])\
-    .reset_index(drop=True)
 
     return combined_data
 
@@ -188,9 +193,9 @@ def align_data_structure(
     player_match_log: pd.DataFrame,
     team_match_log: pd.DataFrame,
     elo_data: pd.DataFrame,
-    odds_data: pd.DataFrame,
+    fpl_data: pd.DataFrame,
     parameters: dict[str, Any],
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     player_match_log = add_unplayed_matches(player_match_log)
     player_match_log = player_match_log.sort_values(
         ["date", "squad", "player"]
@@ -216,9 +221,9 @@ def align_data_structure(
     elo_data["next_match"] = elo_data.groupby("team")["date"].shift(-1)
     elo_data = elo_data.drop(["date", "season"], axis=1)
 
-    odds_data = aggregate_odds_data(odds_data, parameters)
+    fpl_data = fpl_data[["date", "name", "fpl_points", "value"]]
 
-    return player_match_log, team_match_log, elo_data, odds_data
+    return player_match_log, team_match_log, elo_data, fpl_data
 
 
 def get_week_number(round_str: str) -> int:
@@ -229,34 +234,42 @@ def get_week_number(round_str: str) -> int:
 
 
 def ensure_proper_dtypes(
-    player_match_log: pd.DataFrame, team_match_log: pd.DataFrame, elo_data: pd.DataFrame
-) -> list[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    player_match_log: pd.DataFrame,
+    team_match_log: pd.DataFrame,
+    elo_data: pd.DataFrame,
+    fpl_data: pd.DataFrame,
+) -> list[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     player_match_log["date"] = pd.to_datetime(player_match_log["date"])
-    team_match_log["date"] = pd.to_datetime(team_match_log["date"])
-    elo_data["date"] = pd.to_datetime(elo_data["date"])
-
     player_match_log["round"] = player_match_log["round"].apply(get_week_number)
+    player_match_log["start"] = player_match_log["start"].replace({"Y": 1, "N": 0})
+
+    team_match_log["date"] = pd.to_datetime(team_match_log["date"])
     team_match_log["round"] = team_match_log["round"].apply(get_week_number)
 
-    return player_match_log, team_match_log, elo_data
+    elo_data["date"] = pd.to_datetime(elo_data["date"])
+
+    fpl_data["date"] = pd.to_datetime(fpl_data["kickoff_time"].str[:10])
+    fpl_data["fpl_points"] = fpl_data["total_points"]
+
+    return player_match_log, team_match_log, elo_data, fpl_data
 
 
 def impute_missing_values():
     pass
 
 
-def clean_data(player_match_log, team_match_log, elo_data, odds_data, parameters):
-    player_match_log, team_match_log, elo_data = ensure_proper_dtypes(
-        player_match_log, team_match_log, elo_data
+def clean_data(player_match_log, team_match_log, elo_data, fpl_data, parameters):
+    player_match_log, team_match_log, elo_data, fpl_data = ensure_proper_dtypes(
+        player_match_log, team_match_log, elo_data, fpl_data
     )
     player_match_log, team_match_log = filter_data(
         player_match_log, team_match_log, parameters
     )
-    player_match_log, team_match_log, elo_data, odds_data = align_data_structure(
-        player_match_log, team_match_log, elo_data, odds_data, parameters
+    player_match_log, team_match_log, elo_data, fpl_data = align_data_structure(
+        player_match_log, team_match_log, elo_data, fpl_data, parameters
     )
     combined_data = combine_data(
-        player_match_log, team_match_log, elo_data, odds_data, parameters
+        player_match_log, team_match_log, elo_data, fpl_data, parameters
     )
     return combined_data
 
@@ -349,14 +362,16 @@ def features_from_pts(points_data: pd.DataFrame) -> pd.DataFrame:
 
 def calculate_pts_data(data: pd.DataFrame) -> pd.DataFrame:
     pts_data = data.copy().drop_duplicates(["season", "team", "date"])
-    
+
     pts_data = pts_data[["season", "team", "date", "team_gf", "team_ga"]]
 
-    pts_data["points"] = pts_data.apply(calculate_points, axis=1)
+    pts_data["match_points"] = pts_data.apply(calculate_points, axis=1)
     pts_data = pts_data.drop(columns=["team_gf", "team_ga"])
-    pts_data["total_points"] = (pts_data.groupby(["season", "team"])["points"]).shift(1)
+    pts_data["league_points"] = (
+        pts_data.groupby(["season", "team"])["match_points"]
+    ).shift(1)
     pts_data["pts_b4_match"] = (
-        pts_data.groupby(["season", "team"])["total_points"].cumsum().fillna(0)
+        pts_data.groupby(["season", "team"])["league_points"].cumsum().fillna(0)
     )
 
     pts_data = features_from_pts(pts_data)
@@ -364,7 +379,7 @@ def calculate_pts_data(data: pd.DataFrame) -> pd.DataFrame:
     return pts_data
 
 
-def create_lag_features(df: pd.DataFrame, match_stat_col: str, lag: int):
+def create_lag_features(df: pd.DataFrame, match_stat_col: str, lag: int, drop=True):
     df = df.sort_values(by=["player", "date"])
 
     # Create lag features
@@ -375,8 +390,40 @@ def create_lag_features(df: pd.DataFrame, match_stat_col: str, lag: int):
         df[match_stat_col + "_" + str(i)] = shifted.where(within_one_year, None)
 
     # Drop the original column
-    df = df.drop(columns=[match_stat_col])
+    if drop:
+        df = df.drop(columns=[match_stat_col])
     return df
+
+def create_weighted_moving_average(df: pd.DataFrame, match_stat_col: str, opp_strength_col: str, lag: int, drop=True):
+    df = df.sort_values(by=["player", "date"])
+
+    # Create a new column which is the product of the stat and the opponent strength
+    df[match_stat_col + "_weighted"] = df[match_stat_col] * df[opp_strength_col]
+
+    # Create weighted moving average
+    df[match_stat_col + "_wma"] = df.groupby("player") \
+        .apply(lambda x: calculate_wma(x, match_stat_col, opp_strength_col, lag)) \
+        .reset_index(level=0, drop=True)
+
+    # Drop the original column and the intermediate weighted column
+    df = df.drop(columns=[match_stat_col + "_weighted"])
+    if drop:
+        df = df.drop(columns=[match_stat_col])
+    return df
+
+def calculate_wma(group, match_stat_col, opp_strength_col, lag):
+    wma = []
+    for i in range(len(group)):
+        if i >= lag:
+            date_diff = group["date"].iloc[i] - group["date"].iloc[i-lag]
+            if date_diff <= timedelta(days=365):
+                wma_val = group[match_stat_col + "_weighted"].iloc[i-lag:i].sum() / group[opp_strength_col].iloc[i-lag:i].sum()
+            else:
+                wma_val = None
+        else:
+            wma_val = None
+        wma.append(wma_val)
+    return pd.Series(wma, index=group.index)
 
 
 def feature_engineering(data: pd.DataFrame) -> pd.DataFrame:
@@ -385,11 +432,9 @@ def feature_engineering(data: pd.DataFrame) -> pd.DataFrame:
     pts_data = calculate_pts_data(data)
     data = data.merge(pts_data, on=["season", "team", "date"])
 
-    data = create_lag_features(data, "touches", 2)
-    # data["xg_ma"] = data.groupby("team")["team_xg"].apply(
-    #     lambda x: x.shift(1).rolling(window=5).mean()
-    # )
-    # data["xga_ma"] = data.groupby("team")["team_xga"].apply(
-    #     lambda x: x.shift(1).rolling(window=5).mean()
-    # )
+    data = create_weighted_moving_average(data, "touches", "att_total", 2)
+    data = create_lag_features(data, "value", 2)
+    data = create_lag_features(data, "xg", 2)
+    data = create_lag_features(data, "xag", 2)
+    data = create_lag_features(data, "fpl_points", 2, drop=False)
     return data

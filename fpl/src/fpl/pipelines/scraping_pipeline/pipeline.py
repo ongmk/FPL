@@ -1,8 +1,8 @@
 from kedro.pipeline import Pipeline, node, pipeline
 from src.fpl.pipelines.scraping_pipeline.scraper import (
-    crawl_match_odds,
     crawl_player_match_logs,
     crawl_team_match_logs,
+    merge_fpl_data,
 )
 
 
@@ -19,11 +19,11 @@ def create_pipeline() -> Pipeline:
                 inputs="params:scraper",
                 outputs=None,
             ),
-            # node(
-            #     func=crawl_match_odds,
-            #     inputs="params:scraper",
-            #     outputs=None,
-            # ),
+            node(
+                func=merge_fpl_data,
+                inputs=None,
+                outputs="FPL_DATA",
+            ),
         ]
     )
 
@@ -31,4 +31,3 @@ def create_pipeline() -> Pipeline:
 if __name__ == "__main__":
     # crawl_team_match_logs()
     crawl_player_match_logs()
-    crawl_match_odds()

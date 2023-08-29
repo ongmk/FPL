@@ -29,12 +29,6 @@ EXPERIMENT_RECORD:
   save_args:
     if_exists: append
 
-FPL_DATA_CSV:
-  type: pandas.CSVDataSet
-  filepath: data/raw/backtest_data/merged_seasons.csv
-  load_args:
-    index_col: [0]
-
 FPL_DATA:
   type: pandas.SQLTableDataSet
   table_name: raw_fpl_data

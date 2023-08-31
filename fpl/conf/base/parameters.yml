@@ -118,6 +118,32 @@ data:
   home_away_weight: 0.5
   start_year: 2017-2018
   holdout_year: 2022-2023
+  ma_lag: 5
+  ma_features:
+    - start
+    - min
+    - gls
+    - ast
+    - pk
+    - pkatt
+    - sh
+    - sot
+    - touches
+    - xg
+    - npxg
+    - xag
+    - sca
+    - gca
+    - sota
+    - ga
+    - saves
+    - savepct
+    - cs
+    - psxg
+    - team_poss
+    - team_xg
+    - team_xga
+    - value
 
 ######################################
 

@@ -2,8 +2,8 @@ import itertools
 import re
 from datetime import timedelta
 from typing import Any
-
 import pandas as pd
+from tqdm import tqdm
 
 
 def filter_data(
@@ -394,47 +394,43 @@ def create_lag_features(df: pd.DataFrame, match_stat_col: str, lag: int, drop=Tr
         df = df.drop(columns=[match_stat_col])
     return df
 
-def create_weighted_moving_average(df: pd.DataFrame, match_stat_col: str, opp_strength_col: str, lag: int, drop=True):
+def create_moving_average(df: pd.DataFrame, match_stat_col: str, lag: int, drop=True):
     df = df.sort_values(by=["player", "date"])
 
-    # Create a new column which is the product of the stat and the opponent strength
-    df[match_stat_col + "_weighted"] = df[match_stat_col] * df[opp_strength_col]
-
-    # Create weighted moving average
-    df[match_stat_col + "_wma"] = df.groupby("player") \
-        .apply(lambda x: calculate_wma(x, match_stat_col, opp_strength_col, lag)) \
+    # Create moving average
+    df[match_stat_col + "_ma"] = df.groupby("player") \
+        .apply(lambda x: calculate_ma(x, match_stat_col, lag)) \
         .reset_index(level=0, drop=True)
 
-    # Drop the original column and the intermediate weighted column
-    df = df.drop(columns=[match_stat_col + "_weighted"])
+    # Drop the original column
     if drop:
         df = df.drop(columns=[match_stat_col])
     return df
 
-def calculate_wma(group, match_stat_col, opp_strength_col, lag):
-    wma = []
+def calculate_ma(group, match_stat_col, lag):
+    ma = []
     for i in range(len(group)):
         if i >= lag:
             date_diff = group["date"].iloc[i] - group["date"].iloc[i-lag]
             if date_diff <= timedelta(days=365):
-                wma_val = group[match_stat_col + "_weighted"].iloc[i-lag:i].sum() / group[opp_strength_col].iloc[i-lag:i].sum()
+                ma_val = group[match_stat_col].iloc[i-lag:i].mean()
             else:
-                wma_val = None
+                ma_val = None
         else:
-            wma_val = None
-        wma.append(wma_val)
-    return pd.Series(wma, index=group.index)
+            ma_val = None
+        ma.append(ma_val)
+    return pd.Series(ma, index=group.index)
 
 
-def feature_engineering(data: pd.DataFrame) -> pd.DataFrame:
+def feature_engineering(data: pd.DataFrame, parameters) -> pd.DataFrame:
     data = agg_home_away_elo(data)
 
     pts_data = calculate_pts_data(data)
     data = data.merge(pts_data, on=["season", "team", "date"])
-
-    data = create_weighted_moving_average(data, "touches", "att_total", 2)
-    data = create_lag_features(data, "value", 2)
-    data = create_lag_features(data, "xg", 2)
-    data = create_lag_features(data, "xag", 2)
-    data = create_lag_features(data, "fpl_points", 2, drop=False)
+    
+    ma_lag = parameters["ma_lag"]
+    for feature in tqdm(parameters["ma_features"], desc="Creating MA features"):
+        data = create_moving_average(data, feature, ma_lag)
+    data = create_moving_average(data, "fpl_points", ma_lag, drop=False)
+    
     return data

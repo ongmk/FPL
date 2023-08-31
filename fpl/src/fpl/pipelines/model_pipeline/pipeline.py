@@ -42,7 +42,7 @@ def create_preprocess_pipeline() -> Pipeline:
             ),
             node(
                 func=feature_engineering,
-                inputs="cleaned_data",
+                inputs=["cleaned_data", "params:data"],
                 outputs="PROCESSED_DATA",
             ),
             node(

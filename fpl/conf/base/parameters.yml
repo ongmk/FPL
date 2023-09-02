@@ -120,7 +120,8 @@ data:
   holdout_year: 2022-2023
   ma_lag: 5
   ma_features:
-    - start
+    - team_ga
+    - team_gf
     - min
     - gls
     - ast
@@ -144,6 +145,13 @@ data:
     - team_xg
     - team_xga
     - value
+    - att_total
+    - home_att_total
+    - away_att_total
+    - def_total
+    - home_def_total
+    - away_def_total
+    - fpl_points
 
 ######################################
 

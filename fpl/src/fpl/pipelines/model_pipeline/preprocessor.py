@@ -2,6 +2,8 @@ import itertools
 import re
 from datetime import timedelta
 from typing import Any
+
+import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
@@ -394,26 +396,26 @@ def create_lag_features(df: pd.DataFrame, match_stat_col: str, lag: int, drop=Tr
         df = df.drop(columns=[match_stat_col])
     return df
 
-def create_moving_average(df: pd.DataFrame, match_stat_col: str, lag: int, drop=True):
+
+def create_moving_average(df: pd.DataFrame, match_stat_col: str, lag: int):
     df = df.sort_values(by=["player", "date"])
 
     # Create moving average
-    df[match_stat_col + "_ma"] = df.groupby("player") \
-        .apply(lambda x: calculate_ma(x, match_stat_col, lag)) \
+    df[match_stat_col + "_ma"] = (
+        df.groupby("player")
+        .apply(lambda x: calculate_ma(x, match_stat_col, lag))
         .reset_index(level=0, drop=True)
-
-    # Drop the original column
-    if drop:
-        df = df.drop(columns=[match_stat_col])
+    )
     return df
+
 
 def calculate_ma(group, match_stat_col, lag):
     ma = []
     for i in range(len(group)):
         if i >= lag:
-            date_diff = group["date"].iloc[i] - group["date"].iloc[i-lag]
+            date_diff = group["date"].iloc[i] - group["date"].iloc[i - lag]
             if date_diff <= timedelta(days=365):
-                ma_val = group[match_stat_col].iloc[i-lag:i].mean()
+                ma_val = group[match_stat_col].iloc[i - lag : i].mean()
             else:
                 ma_val = None
         else:
@@ -422,15 +424,60 @@ def calculate_ma(group, match_stat_col, lag):
     return pd.Series(ma, index=group.index)
 
 
+# Define a function to select the position with the highest count
+def select_most_common(row, df_counts):
+    positions = row["pos"].split(",")
+    counts = [
+        df_counts.loc[
+            (df_counts["player"] == row["player"]) & (df_counts["pos"] == pos),
+            "counts",
+        ].values[0]
+        for pos in positions
+    ]
+    return positions[np.argmax(counts)]
+
+
+def extract_mode_pos(df: pd.DataFrame) -> pd.DataFrame:
+    # Step 1: Split 'pos' column into separate rows
+    df_new = df.assign(pos=df["pos"].str.split(",")).explode("pos")
+
+    # Step 2: Group by 'player' and 'pos' and count the number of each position for each player
+    df_counts = df_new.groupby(["player", "pos"]).size().reset_index(name="counts")
+
+    # # Step 3: Apply the function to each row
+    df["pos"] = df.apply(lambda row: select_most_common(row, df_counts), axis=1)
+    return df
+
+
 def feature_engineering(data: pd.DataFrame, parameters) -> pd.DataFrame:
     data = agg_home_away_elo(data)
 
     pts_data = calculate_pts_data(data)
     data = data.merge(pts_data, on=["season", "team", "date"])
-    
+    data = extract_mode_pos(data)
+
     ma_lag = parameters["ma_lag"]
-    for feature in tqdm(parameters["ma_features"], desc="Creating MA features"):
+    ma_features = parameters["ma_features"]
+    for feature in tqdm(ma_features, desc="Creating MA features"):
         data = create_moving_average(data, feature, ma_lag)
-    data = create_moving_average(data, "fpl_points", ma_lag, drop=False)
-    
+
+    data = data.drop(
+        [
+            col
+            for col in ma_features
+            if col
+            not in [
+                "value",
+                "att_total",
+                "home_att_total",
+                "away_att_total",
+                "def_total",
+                "home_def_total",
+                "away_def_total",
+                "fpl_points",
+            ]
+        ],
+        axis=1,
+    )
+
     return data

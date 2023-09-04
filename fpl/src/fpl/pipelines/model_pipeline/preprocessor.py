@@ -367,7 +367,8 @@ def calculate_pts_data(data: pd.DataFrame) -> pd.DataFrame:
 
     pts_data = pts_data[["season", "team", "date", "team_gf", "team_ga"]]
 
-    pts_data["match_points"] = pts_data.apply(calculate_points, axis=1)
+    tqdm.pandas(desc="Calculating league points")
+    pts_data["match_points"] = pts_data.progress_apply(calculate_points, axis=1)
     pts_data = pts_data.drop(columns=["team_gf", "team_ga"])
     pts_data["league_points"] = (
         pts_data.groupby(["season", "team"])["match_points"]
@@ -397,31 +398,27 @@ def create_lag_features(df: pd.DataFrame, match_stat_col: str, lag: int, drop=Tr
     return df
 
 
-def create_moving_average(df: pd.DataFrame, match_stat_col: str, lag: int):
+def create_ma_feature(df: pd.DataFrame, match_stat_col: str, lag: int):
     df = df.sort_values(by=["player", "date"])
 
     # Create moving average
-    df[match_stat_col + "_ma"] = (
+    ma_df = (
         df.groupby("player")
-        .apply(lambda x: calculate_ma(x, match_stat_col, lag))
-        .reset_index(level=0, drop=True)
+        .apply(lambda x: calculate_multi_lag_ma(x, match_stat_col, lag))
     )
-    return df
+    return pd.merge(df, ma_df, left_index=True, right_index=True)
 
 
-def calculate_ma(group, match_stat_col, lag):
-    ma = []
+from pandas.core.groupby.generic import DataFrameGroupBy
+def calculate_multi_lag_ma(group: DataFrameGroupBy, match_stat_col: str, max_lag: int):
+    ma_df = pd.DataFrame(index=group.index)
+    
     for i in range(len(group)):
-        if i >= lag:
-            date_diff = group["date"].iloc[i] - group["date"].iloc[i - lag]
-            if date_diff <= timedelta(days=365):
-                ma_val = group[match_stat_col].iloc[i - lag : i].mean()
-            else:
-                ma_val = None
-        else:
-            ma_val = None
-        ma.append(ma_val)
-    return pd.Series(ma, index=group.index)
+        for lag in range(1, max_lag+1):            
+            if i >= lag and group["date"].iloc[i] - group["date"].iloc[i - lag] <= timedelta(days=365):
+                ma_df.loc[group.index[i], f"{match_stat_col}_ma{lag}"] = group[match_stat_col].iloc[i - lag : i].mean()
+            
+    return ma_df
 
 
 # Define a function to select the position with the highest count
@@ -445,21 +442,22 @@ def extract_mode_pos(df: pd.DataFrame) -> pd.DataFrame:
     df_counts = df_new.groupby(["player", "pos"]).size().reset_index(name="counts")
 
     # # Step 3: Apply the function to each row
-    df["pos"] = df.apply(lambda row: select_most_common(row, df_counts), axis=1)
+    tqdm.pandas(desc="Processing positions")
+    df["pos"] = df.progress_apply(lambda row: select_most_common(row, df_counts), axis=1)
     return df
 
 
 def feature_engineering(data: pd.DataFrame, parameters) -> pd.DataFrame:
     data = agg_home_away_elo(data)
 
-    pts_data = calculate_pts_data(data)
-    data = data.merge(pts_data, on=["season", "team", "date"])
-    data = extract_mode_pos(data)
+    # pts_data = calculate_pts_data(data)
+    # data = data.merge(pts_data, on=["season", "team", "date"])
+    # data = extract_mode_pos(data)
 
     ma_lag = parameters["ma_lag"]
     ma_features = parameters["ma_features"]
     for feature in tqdm(ma_features, desc="Creating MA features"):
-        data = create_moving_average(data, feature, ma_lag)
+        data = create_ma_feature(data, feature, ma_lag)
 
     data = data.drop(
         [

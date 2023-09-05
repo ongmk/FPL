@@ -11,12 +11,12 @@ import requests
 from lxml import etree
 from selenium import webdriver
 from selenium.common.exceptions import StaleElementReferenceException, TimeoutException
+from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
 from tenacity import retry, stop_after_attempt
+from webdriver_manager.chrome import ChromeDriverManager
 
 
 class DelayedRequests:
@@ -41,9 +41,13 @@ class BaseDriver:
         service = Service(ChromeDriverManager().install())
         chrome_options = webdriver.ChromeOptions()
         chrome_options.add_argument("--blink-settings=imagesEnabled=false")
-        chrome_options.binary_location = ".//src//fpl//pipelines//scraping_pipeline//chrome-win64//chrome.exe"
+        chrome_options.binary_location = (
+            ".//src//fpl//pipelines//scraping_pipeline//chrome-win64//chrome.exe"
+        )
 
-        self.driver: webdriver.Chrome = webdriver.Chrome(service=service, options=chrome_options)
+        self.driver: webdriver.Chrome = webdriver.Chrome(
+            service=service, options=chrome_options
+        )
         self.base_url = ""
         self.last_visit = 0
 

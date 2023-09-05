@@ -1,13 +1,14 @@
 import logging
+import re
 import sqlite3
 from typing import Any
-import re
 
 import pandas as pd
-from src.fpl.pipelines.scraping_pipeline.backtest_mergers import *
-from src.fpl.pipelines.scraping_pipeline.FBRefDriver import FBRefDriver
+
 # from src.fpl.pipelines.scraping_pipeline.OddsPortalDriver import OddsPortalDriver
 from src.fpl.pipelines.optimization_pipeline.fpl_api import get_current_season_fpl_data
+from src.fpl.pipelines.scraping_pipeline.backtest_mergers import *
+from src.fpl.pipelines.scraping_pipeline.FBRefDriver import FBRefDriver
 from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
@@ -15,15 +16,20 @@ logger = logging.getLogger(__name__)
 
 def crawl_team_match_logs(parameters: dict[str, Any]):
     current_season = parameters["current_season"]
-    current_year = int(re.findall(r'\d+', current_season)[0])
+    current_year = int(re.findall(r"\d+", current_season)[0])
     if parameters["fresh_start"]:
-        seasons = [i for i in range(2016, current_year+1)]
+        seasons = [i for i in range(2016, current_year + 1)]
     else:
         seasons = [current_year]
     seasons = [f"{s}-{s+1}" for s in seasons]
 
     conn = sqlite3.connect("./data/fpl.db")
     logger.info(f"Initializing FBRefDriver...")
+
+    cur = conn.cursor()
+    cur.execute(f"DELETE FROM raw_team_match_log WHERE season = '{current_season}'")
+    conn.commit()
+    logger.info(f"Deleting team logs from previous weeks.")
 
     with FBRefDriver() as d:
         crawled_df = pd.read_sql(
@@ -54,15 +60,21 @@ def crawl_team_match_logs(parameters: dict[str, Any]):
 
 def crawl_player_match_logs(parameters: dict[str, Any]):
     current_season = parameters["current_season"]
-    current_year = int(re.findall(r'\d+', current_season)[0])
+    current_year = int(re.findall(r"\d+", current_season)[0])
     if parameters["fresh_start"]:
-        seasons = [i for i in range(2016, current_year+1)]
+        seasons = [i for i in range(2016, current_year + 1)]
     else:
         seasons = [current_year]
+    seasons = [f"{s}-{s+1}" for s in seasons]
 
     conn = sqlite3.connect("./data/fpl.db")
-
     logger.info(f"Initializing FBRefDriver...")
+
+    cur = conn.cursor()
+    cur.execute(f"DELETE FROM raw_player_match_log WHERE season = '{current_season}'")
+    conn.commit()
+    logger.info(f"Deleting player logs from previous weeks.")
+
     with FBRefDriver() as d:
         crawled_df = pd.read_sql(
             "select distinct player, season from raw_player_match_log", conn
@@ -89,8 +101,8 @@ def crawl_player_match_logs(parameters: dict[str, Any]):
                 crawled_df.loc[len(crawled_df)] = [player, s]
 
     conn.close()
-    
-    
+
+
 def get_backtest_data():
     encodings = [
         ("2016-2017", "latin-1"),
@@ -200,7 +212,9 @@ def get_backtest_data():
 
 def merge_fpl_data(parameters: dict[str, Any]) -> pd.DataFrame:
     backtest_data = get_backtest_data()
-    current_season_data = get_current_season_fpl_data(current_season = parameters["current_season"])
+    current_season_data = get_current_season_fpl_data(
+        current_season=parameters["current_season"]
+    )
     return pd.concat([backtest_data, current_season_data])
 
 

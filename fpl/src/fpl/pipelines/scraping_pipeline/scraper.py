@@ -1,6 +1,7 @@
 import logging
 import sqlite3
 from typing import Any
+import re
 
 import pandas as pd
 from src.fpl.pipelines.scraping_pipeline.backtest_mergers import *
@@ -13,9 +14,12 @@ logger = logging.getLogger(__name__)
 
 
 def crawl_team_match_logs(parameters: dict[str, Any]):
-    latest_season = parameters["latest_season"]
-    n_seasons = parameters["n_seasons"]
-    seasons = [latest_season - i for i in range(n_seasons)]
+    current_season = parameters["current_season"]
+    current_year = int(re.findall(r'\d+', current_season)[0])
+    if parameters["fresh_start"]:
+        seasons = [i for i in range(2016, current_year+1)]
+    else:
+        seasons = [current_year]
     seasons = [f"{s}-{s+1}" for s in seasons]
 
     conn = sqlite3.connect("./data/fpl.db")
@@ -49,10 +53,12 @@ def crawl_team_match_logs(parameters: dict[str, Any]):
 
 
 def crawl_player_match_logs(parameters: dict[str, Any]):
-    latest_season = parameters["latest_season"]
-    n_seasons = parameters["n_seasons"]
-    seasons = [latest_season - i for i in range(n_seasons)]
-    seasons = [f"{s}-{s+1}" for s in seasons]
+    current_season = parameters["current_season"]
+    current_year = int(re.findall(r'\d+', current_season)[0])
+    if parameters["fresh_start"]:
+        seasons = [i for i in range(2016, current_year+1)]
+    else:
+        seasons = [current_year]
 
     conn = sqlite3.connect("./data/fpl.db")
 

@@ -162,3 +162,4 @@ chromedriver.exe
 *.pyc
 __pycache__/
 env_config.ini
+chrome-win64/

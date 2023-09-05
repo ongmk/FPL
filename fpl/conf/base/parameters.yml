@@ -189,4 +189,4 @@ optimization:
 
 scraper:
   current_season: 2023-2024
-  n_seasons: 10
+  fresh_start: False

@@ -14,6 +14,8 @@ from selenium.common.exceptions import StaleElementReferenceException, TimeoutEx
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 from tenacity import retry, stop_after_attempt
 
 
@@ -36,10 +38,12 @@ class BaseDriver:
     """Base Web Driver for handling timeouts"""
 
     def __init__(self):
+        service = Service(ChromeDriverManager().install())
         chrome_options = webdriver.ChromeOptions()
         chrome_options.add_argument("--blink-settings=imagesEnabled=false")
+        chrome_options.binary_location = ".//src//fpl//pipelines//scraping_pipeline//chrome-win64//chrome.exe"
 
-        self.driver: webdriver.Chrome = webdriver.Chrome(options=chrome_options)
+        self.driver: webdriver.Chrome = webdriver.Chrome(service=service, options=chrome_options)
         self.base_url = ""
         self.last_visit = 0
 

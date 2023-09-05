@@ -188,5 +188,5 @@ optimization:
 ######################################
 
 scraper:
-  latest_season: 2022
+  current_season: 2023-2024
   n_seasons: 10

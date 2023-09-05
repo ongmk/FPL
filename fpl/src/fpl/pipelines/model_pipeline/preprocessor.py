@@ -450,14 +450,14 @@ def extract_mode_pos(df: pd.DataFrame) -> pd.DataFrame:
 def feature_engineering(data: pd.DataFrame, parameters) -> pd.DataFrame:
     data = agg_home_away_elo(data)
 
-    # pts_data = calculate_pts_data(data)
-    # data = data.merge(pts_data, on=["season", "team", "date"])
-    # data = extract_mode_pos(data)
+    pts_data = calculate_pts_data(data)
+    data = data.merge(pts_data, on=["season", "team", "date"])
+    data = extract_mode_pos(data)
 
     ma_lag = parameters["ma_lag"]
     ma_features = parameters["ma_features"]
-    for feature in tqdm(ma_features, desc="Creating MA features"):
-        data = create_ma_feature(data, feature, ma_lag)
+    # for feature in tqdm(ma_features, desc="Creating MA features"):
+    #     data = create_ma_feature(data, feature, ma_lag)
 
     data = data.drop(
         [

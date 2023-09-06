@@ -37,13 +37,14 @@ class DelayedRequests:
 class BaseDriver:
     """Base Web Driver for handling timeouts"""
 
-    def __init__(self):
+    def __init__(self, headless=True):
         service = Service(ChromeDriverManager().install())
         chrome_options = webdriver.ChromeOptions()
         chrome_options.add_argument("--blink-settings=imagesEnabled=false")
         chrome_options.binary_location = (
             ".//src//fpl//pipelines//scraping_pipeline//chrome-win64//chrome.exe"
         )
+        chrome_options.headless = headless
 
         self.driver: webdriver.Chrome = webdriver.Chrome(
             service=service, options=chrome_options

@@ -5,7 +5,50 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+from thefuzz import process
 from tqdm import tqdm
+
+
+def fuzzy_match_player_names(
+    player_match_log: pd.DataFrame, fpl_data: pd.DataFrame
+) -> None:
+    player_match_log = (
+        player_match_log[["season", "player"]]
+        .drop_duplicates()
+        .rename({"player": "fbref_name"}, axis=1)
+    )
+    fpl_data = (
+        fpl_data[["season", "full_name"]]
+        .drop_duplicates()
+        .rename({"full_name": "fpl_name"}, axis=1)
+    )
+    matched_df = []
+    for season in player_match_log["season"].unique():
+        player_match_log_season = player_match_log[
+            player_match_log["season"] == season
+        ].copy()
+        fpl_data_season = fpl_data[fpl_data["season"] == season].copy()
+
+        tqdm.pandas(desc=f"Fuzzy matching {season}")
+        player_match_log_season["fpl_name"] = player_match_log_season[
+            "fbref_name"
+        ].progress_apply(
+            lambda fbref_name: process.extract(
+                fbref_name, fpl_data_season["fpl_name"].tolist(), limit=3
+            )
+        )
+        player_match_log_season = player_match_log_season.explode("fpl_name")
+        player_match_log_season["fuzzy_score"] = player_match_log_season[
+            "fpl_name"
+        ].str[1]
+        player_match_log_season["fpl_name"] = player_match_log_season["fpl_name"].str[0]
+        player_match_log_season = player_match_log_season[
+            player_match_log_season["fuzzy_score"] > 80
+        ]
+        matched_df.append(player_match_log_season)
+    matched_df = pd.concat(matched_df, ignore_index=True)
+    matched_df = pd.merge(matched_df, fpl_data, on=["season", "fpl_name"], how="right")
+    return matched_df
 
 
 def filter_data(
@@ -79,6 +122,7 @@ def combine_data(
     team_match_log: pd.DataFrame,
     elo_data: pd.DataFrame,
     fpl_data: pd.DataFrame,
+    player_name_mapping: pd.DataFrame,
     parameters: dict[str, Any],
 ) -> pd.DataFrame:
     combined_data = pd.merge(
@@ -102,11 +146,24 @@ def combine_data(
         how="left",
         suffixes=("", "_opp"),
     )
+
+    player_name_mapping = player_name_mapping.set_index(["fbref_name", "season"])[
+        "fpl_name"
+    ].to_dict()
+    combined_data["player_season"] = list(
+        zip(combined_data["player"], combined_data["season"])
+    )
+    combined_data["player"] = (
+        combined_data["player_season"]
+        .map(player_name_mapping)
+        .fillna(combined_data["player_season"].str[0])
+    )
+    combined_data = combined_data.drop(columns=["player_season"])
     combined_data = pd.merge(
         combined_data,
         fpl_data,
         left_on=["date", "player"],
-        right_on=["date", "name"],
+        right_on=["date", "full_name"],
         how="left",
     )
     combined_data = combined_data.drop("next_match", axis=1)
@@ -223,7 +280,7 @@ def align_data_structure(
     elo_data["next_match"] = elo_data.groupby("team")["date"].shift(-1)
     elo_data = elo_data.drop(["date", "season"], axis=1)
 
-    fpl_data = fpl_data[["date", "name", "fpl_points", "value"]]
+    fpl_data = fpl_data[["date", "full_name", "fpl_points", "value"]]
 
     return player_match_log, team_match_log, elo_data, fpl_data
 
@@ -260,7 +317,14 @@ def impute_missing_values():
     pass
 
 
-def clean_data(player_match_log, team_match_log, elo_data, fpl_data, parameters):
+def clean_data(
+    player_match_log,
+    team_match_log,
+    elo_data,
+    fpl_data,
+    player_name_mapping,
+    parameters,
+):
     player_match_log, team_match_log, elo_data, fpl_data = ensure_proper_dtypes(
         player_match_log, team_match_log, elo_data, fpl_data
     )
@@ -271,7 +335,12 @@ def clean_data(player_match_log, team_match_log, elo_data, fpl_data, parameters)
         player_match_log, team_match_log, elo_data, fpl_data, parameters
     )
     combined_data = combine_data(
-        player_match_log, team_match_log, elo_data, fpl_data, parameters
+        player_match_log,
+        team_match_log,
+        elo_data,
+        fpl_data,
+        player_name_mapping,
+        parameters,
     )
     return combined_data
 
@@ -402,22 +471,27 @@ def create_ma_feature(df: pd.DataFrame, match_stat_col: str, lag: int):
     df = df.sort_values(by=["player", "date"])
 
     # Create moving average
-    ma_df = (
-        df.groupby("player")
-        .apply(lambda x: calculate_multi_lag_ma(x, match_stat_col, lag))
+    ma_df = df.groupby("player").apply(
+        lambda x: calculate_multi_lag_ma(x, match_stat_col, lag)
     )
     return pd.merge(df, ma_df, left_index=True, right_index=True)
 
 
 from pandas.core.groupby.generic import DataFrameGroupBy
+
+
 def calculate_multi_lag_ma(group: DataFrameGroupBy, match_stat_col: str, max_lag: int):
     ma_df = pd.DataFrame(index=group.index)
-    
+
     for i in range(len(group)):
-        for lag in range(1, max_lag+1):            
-            if i >= lag and group["date"].iloc[i] - group["date"].iloc[i - lag] <= timedelta(days=365):
-                ma_df.loc[group.index[i], f"{match_stat_col}_ma{lag}"] = group[match_stat_col].iloc[i - lag : i].mean()
-            
+        for lag in range(1, max_lag + 1):
+            if i >= lag and group["date"].iloc[i] - group["date"].iloc[
+                i - lag
+            ] <= timedelta(days=365):
+                ma_df.loc[group.index[i], f"{match_stat_col}_ma{lag}"] = (
+                    group[match_stat_col].iloc[i - lag : i].mean()
+                )
+
     return ma_df
 
 
@@ -443,7 +517,9 @@ def extract_mode_pos(df: pd.DataFrame) -> pd.DataFrame:
 
     # # Step 3: Apply the function to each row
     tqdm.pandas(desc="Processing positions")
-    df["pos"] = df.progress_apply(lambda row: select_most_common(row, df_counts), axis=1)
+    df["pos"] = df.progress_apply(
+        lambda row: select_most_common(row, df_counts), axis=1
+    )
     return df
 
 

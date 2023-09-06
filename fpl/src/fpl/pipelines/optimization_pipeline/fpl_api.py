@@ -1,14 +1,15 @@
-import logging
-import requests
-import pandas as pd
 import itertools
+import logging
+import re
+from dataclasses import dataclass
+
+import numpy as np
+import pandas as pd
+import requests
 from src.fpl.pipelines.optimization_pipeline.fetch_predictions import (
     get_pred_pts_data,
     resolve_fpl_names,
 )
-import numpy as np
-import re
-from dataclasses import dataclass
 from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
@@ -31,10 +32,12 @@ def get_fpl_base_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]
 
     team_data = pd.DataFrame(fpl_data["teams"]).set_index("id")
     element_data["team"] = element_data["team"].map(team_data["name"].to_dict())
-    
+
     type_data = pd.DataFrame(fpl_data["element_types"]).set_index(["id"])
-    element_data["position"] = element_data["element_type"].map(type_data["singular_name_short"].to_dict())
-    
+    element_data["position"] = element_data["element_type"].map(
+        type_data["singular_name_short"].to_dict()
+    )
+
     element_data["full_name"] = element_data["first_name"].str.cat(
         element_data["second_name"], sep=" "
     )
@@ -50,18 +53,28 @@ def get_fpl_base_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]
         ]
     ]
 
-
     return element_data, team_data, type_data, all_gws
 
-def fetch_player_fixtures(player_id: int, current_season: str) -> [pd.DataFrame, pd.DataFrame]:
-    r = requests.get(f"https://fantasy.premierleague.com/api/element-summary/{player_id}/")
+
+def fetch_player_fixtures(
+    player_id: int, current_season: str
+) -> [pd.DataFrame, pd.DataFrame]:
+    r = requests.get(
+        f"https://fantasy.premierleague.com/api/element-summary/{player_id}/"
+    )
     data = r.json()
     history = pd.DataFrame(data["history"])
     fixtures = pd.DataFrame(data["fixtures"])
     fixtures["element"] = player_id
-    fixtures['opponent_team'] = fixtures.apply(lambda row: row['team_a'] if row['is_home'] else row['team_h'], axis=1)
-    fixtures = fixtures[["element", "kickoff_time", "opponent_team", "is_home", "id", "event"]]
-    fixtures = fixtures.rename({"is_home": "was_home", "id": "fixture", "event": "round"}, axis=1)
+    fixtures["opponent_team"] = fixtures.apply(
+        lambda row: row["team_a"] if row["is_home"] else row["team_h"], axis=1
+    )
+    fixtures = fixtures[
+        ["element", "kickoff_time", "opponent_team", "is_home", "id", "event"]
+    ]
+    fixtures = fixtures.rename(
+        {"is_home": "was_home", "id": "fixture", "event": "round"}, axis=1
+    )
     fixtures = pd.concat([history, fixtures])
     fixtures["season"] = current_season
     return fixtures
@@ -70,54 +83,61 @@ def fetch_player_fixtures(player_id: int, current_season: str) -> [pd.DataFrame,
 def get_current_season_fpl_data(current_season: str) -> pd.DataFrame:
     element_data, team_data, _, _ = get_fpl_base_data()
 
-    tqdm.pandas(desc="Fetching player history")
-    all_fixtures = element_data["id"].progress_apply(fetch_player_fixtures, current_season=current_season)
-
-    current_season_data = pd.concat(all_fixtures.values.tolist(), ignore_index=True)
-    current_season_data = pd.merge(element_data, current_season_data, left_on="id", right_on="element")
-    current_season_data["opponent_team_name"] = current_season_data["opponent_team"].map(team_data["name"].to_dict())
-    current_season_data = current_season_data[[
-        "season",
-        "round",
-        "element",
-        "full_name",
-        "team",
-        "position",
-        "fixture",
-        "opponent_team",
-        "opponent_team_name",
-        "total_points",
-        "was_home",
-        "kickoff_time",
-        "team_h_score",
-        "team_a_score",
-        "minutes",
-        "goals_scored",
-        "assists",
-        "clean_sheets",
-        "goals_conceded",
-        "own_goals",
-        "penalties_saved",
-        "penalties_missed",
-        "yellow_cards",
-        "red_cards",
-        "saves",
-        "bonus",
-        "bps",
-        "influence",
-        "creativity",
-        "threat",
-        "ict_index",
-        "value",
-        "transfers_balance",
-        "selected",
-        "transfers_in",
-        "transfers_out",
-        'expected_goals',
-        'expected_goal_involvements', 
-        'expected_assists',
-        'expected_goals_conceded'
-    ]]
+    current_season_data = []
+    for id in tqdm(element_data["id"], desc="Fetching player history"):
+        player_fixtures = fetch_player_fixtures(id, current_season)
+        current_season_data.append(player_fixtures)
+    current_season_data = pd.concat(current_season_data, ignore_index=True)
+    current_season_data = pd.merge(
+        element_data, current_season_data, left_on="id", right_on="element"
+    )
+    current_season_data["opponent_team_name"] = current_season_data[
+        "opponent_team"
+    ].map(team_data["name"].to_dict())
+    current_season_data = current_season_data[
+        [
+            "season",
+            "round",
+            "element",
+            "full_name",
+            "team",
+            "position",
+            "fixture",
+            "opponent_team",
+            "opponent_team_name",
+            "total_points",
+            "was_home",
+            "kickoff_time",
+            "team_h_score",
+            "team_a_score",
+            "minutes",
+            "goals_scored",
+            "assists",
+            "clean_sheets",
+            "goals_conceded",
+            "own_goals",
+            "penalties_saved",
+            "penalties_missed",
+            "yellow_cards",
+            "red_cards",
+            "saves",
+            "bonus",
+            "bps",
+            "influence",
+            "creativity",
+            "threat",
+            "ict_index",
+            "value",
+            "transfers_balance",
+            "selected",
+            "transfers_in",
+            "transfers_out",
+            "expected_goals",
+            "expected_goal_involvements",
+            "expected_assists",
+            "expected_goals_conceded",
+        ]
+    ]
     return current_season_data
 
 

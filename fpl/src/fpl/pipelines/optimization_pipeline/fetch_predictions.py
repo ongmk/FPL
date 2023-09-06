@@ -1,7 +1,8 @@
+import difflib
 import os
+
 import numpy as np
 import pandas as pd
-import difflib
 from tqdm import tqdm
 
 

@@ -41,6 +41,10 @@ PLAYER_MATCH_LOG:
   table_name: raw_player_match_log
   credentials: db_credentials
 
+PLAYER_NAME_MAPPING:
+  type: pandas.CSVDataSet
+  filepath: models/player_name_mapping.csv
+
 TEAM_MATCH_LOG:
   type: pandas.SQLTableDataSet
   table_name: raw_team_match_log

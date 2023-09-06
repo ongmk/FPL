@@ -1,7 +1,5 @@
 from kedro.pipeline import Pipeline, node, pipeline
-from src.fpl.pipelines.model_pipeline.elo_calculation import (
-    calculate_elo_score,
-)
+from src.fpl.pipelines.model_pipeline.elo_calculation import calculate_elo_score
 from src.fpl.pipelines.model_pipeline.ensemble import model_selection
 from src.fpl.pipelines.model_pipeline.evaluation import evaluate_model_holdout
 from src.fpl.pipelines.model_pipeline.experiment_helpers import (
@@ -11,6 +9,7 @@ from src.fpl.pipelines.model_pipeline.experiment_helpers import (
 from src.fpl.pipelines.model_pipeline.preprocessor import (
     clean_data,
     feature_engineering,
+    fuzzy_match_player_names,
 )
 from src.fpl.pipelines.model_pipeline.training import (
     create_sklearn_pipeline,
@@ -29,6 +28,11 @@ def create_preprocess_pipeline() -> Pipeline:
             #     inputs=["TEAM_MATCH_LOG", "params:data"],
             #     outputs="ELO_DATA",
             # ),
+            # node(
+            #     func=fuzzy_match_player_names,
+            #     inputs=["PLAYER_MATCH_LOG", "FPL_DATA"],
+            #     outputs="PLAYER_NAME_MAPPING",
+            # ),
             node(
                 func=clean_data,
                 inputs=[
@@ -36,6 +40,7 @@ def create_preprocess_pipeline() -> Pipeline:
                     "TEAM_MATCH_LOG",
                     "ELO_DATA",
                     "FPL_DATA",
+                    "PLAYER_NAME_MAPPING",
                     "params:data",
                 ],
                 outputs="cleaned_data",

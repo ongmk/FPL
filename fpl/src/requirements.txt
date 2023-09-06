@@ -21,3 +21,4 @@ sqlalchemy~=1.4.48
 tenacity~=8.2.2
 black~=23.3.0
 webdriver-manager~=4.0.0
+thefuzz~=0.20.0

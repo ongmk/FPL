@@ -28,11 +28,11 @@ def create_preprocess_pipeline() -> Pipeline:
             #     inputs=["TEAM_MATCH_LOG", "params:data"],
             #     outputs="ELO_DATA",
             # ),
-            # node(
-            #     func=fuzzy_match_player_names,
-            #     inputs=["PLAYER_MATCH_LOG", "FPL_DATA"],
-            #     outputs="PLAYER_NAME_MAPPING",
-            # ),
+            node(
+                func=fuzzy_match_player_names,
+                inputs=["PLAYER_MATCH_LOG", "FPL_DATA"],
+                outputs="PLAYER_NAME_MAPPING",
+            ),
             node(
                 func=clean_data,
                 inputs=[

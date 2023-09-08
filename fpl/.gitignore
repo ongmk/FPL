@@ -9,18 +9,12 @@ conf/local/**
 conf/**/*credentials*
 
 # ignore everything in the following folders
-data/**
-logs/**
-
 # except their sub-folders
-!data/**/
+logs/**
 !logs/**/
 
 # also keep all .gitkeep files
 !.gitkeep
-
-# keep also the example dataset
-!data/raw/**
 
 
 ##########################
@@ -163,3 +157,4 @@ chromedriver.exe
 __pycache__/
 env_config.ini
 chrome-win64/
+*.pkl

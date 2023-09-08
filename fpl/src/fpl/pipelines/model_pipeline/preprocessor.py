@@ -18,9 +18,10 @@ def fuzzy_match_player_names(
         .rename({"player": "fbref_name"}, axis=1)
     )
     fpl_data = (
-        fpl_data[["season", "full_name"]]
-        .drop_duplicates()
-        .rename({"full_name": "fpl_name"}, axis=1)
+        fpl_data[["season", "full_name", "total_points"]]
+        .groupby(["season", "full_name"], as_index=False)
+        .sum()
+        .rename(columns={"full_name": "fpl_name"})
     )
     matched_df = []
     for season in player_match_log["season"].unique():
@@ -34,7 +35,7 @@ def fuzzy_match_player_names(
             "fbref_name"
         ].progress_apply(
             lambda fbref_name: process.extract(
-                fbref_name, fpl_data_season["fpl_name"].tolist(), limit=3
+                fbref_name, fpl_data_season["fpl_name"].tolist(), limit=1
             )
         )
         player_match_log_season = player_match_log_season.explode("fpl_name")

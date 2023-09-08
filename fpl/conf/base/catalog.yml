@@ -1,10 +1,3 @@
-# 01 Raw Data
-# 02 Intermediate Data
-# 03 Model Inputs (Train/Test)
-# 04 Models
-# 05 Model Outputs
-# 06 Serving
-
 PICKS_SUMMARY:
   type: text.TextDataSet
   filepath: data/optimization/summary.txt
@@ -43,7 +36,7 @@ PLAYER_MATCH_LOG:
 
 PLAYER_NAME_MAPPING:
   type: pandas.CSVDataSet
-  filepath: models/player_name_mapping.csv
+  filepath: data/player_name_mapping.csv
 
 TEAM_MATCH_LOG:
   type: pandas.SQLTableDataSet
@@ -92,11 +85,11 @@ PYCARET_RESULT:
 
 FITTED_MODEL:
   type: pickle.PickleDataSet
-  filepath: data/fitted_model.pkl
+  filepath: models/fitted_model.pkl
 
 FITTED_SKLEARN_PIPELINE:
   type: pickle.PickleDataSet
-  filepath: data/fitted_sklearn_pipeline.pkl
+  filepath: models/fitted_sklearn_pipeline.pkl
 
 HOLDOUT_EVALUATION_RESULT:
   type: fpl.extras.datasets.FlexibleSQLTableDataSet

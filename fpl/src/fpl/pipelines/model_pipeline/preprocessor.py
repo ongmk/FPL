@@ -1,4 +1,5 @@
 import itertools
+import logging
 import re
 from datetime import timedelta
 from typing import Any
@@ -7,6 +8,8 @@ import numpy as np
 import pandas as pd
 from thefuzz import process
 from tqdm import tqdm
+
+logger = logging.getLogger(__name__)
 
 
 def fuzzy_match_player_names(
@@ -43,12 +46,29 @@ def fuzzy_match_player_names(
             "fpl_name"
         ].str[1]
         player_match_log_season["fpl_name"] = player_match_log_season["fpl_name"].str[0]
-        player_match_log_season = player_match_log_season[
-            player_match_log_season["fuzzy_score"] > 80
-        ]
         matched_df.append(player_match_log_season)
     matched_df = pd.concat(matched_df, ignore_index=True)
+    override_dict = {
+        "2016-2017": {
+            "Ben Chilwell": "Benjamin Chilwell",
+            "Danny Drinkwater": "Daniel Drinkwater",
+            "Fábio": "Fabio Pereira da Silva",
+        }
+    }
+    for season, mappings in override_dict.items():
+        for fbref_name, fpl_name in mappings.items():
+            matched_df.loc[
+                (matched_df["season"] == season)
+                & (matched_df["fbref_name"] == fbref_name),
+                ["fpl_name", "fuzzy_score"],
+            ] = (fpl_name, 100)
     matched_df = pd.merge(matched_df, fpl_data, on=["season", "fpl_name"], how="right")
+    matched_df.loc[
+        (matched_df["fuzzy_score"] < 90) & (matched_df["total_points"] > 0), "review"
+    ] = True
+    logger.warning(
+        f"{matched_df['review'].sum()}/{len(matched_df)} records in player name mapping needs review"
+    )
     return matched_df
 
 

@@ -145,7 +145,6 @@ venv.bak/
 
 # mypy
 .mypy_cache/
-*.xlsx
 *.lp
 solution.txt
 *.log

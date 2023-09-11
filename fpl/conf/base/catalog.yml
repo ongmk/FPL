@@ -37,6 +37,8 @@ PLAYER_MATCH_LOG:
 PLAYER_NAME_MAPPING:
   type: pandas.CSVDataSet
   filepath: data/player_name_mapping.csv
+  save_args:
+    encoding: utf-8-sig
 
 TEAM_MATCH_LOG:
   type: pandas.SQLTableDataSet

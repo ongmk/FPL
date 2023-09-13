@@ -49,25 +49,64 @@ def fuzzy_match_player_names(
         matched_df.append(player_match_log_season)
     matched_df = pd.concat(matched_df, ignore_index=True)
     override_dict = {
-        "2016-2017": {
-            "Ben Chilwell": "Benjamin Chilwell",
-            "Danny Drinkwater": "Daniel Drinkwater",
-            "Fábio": "Fabio Pereira da Silva",
-        }
+        "Angeliño": "José Ángel Esmorís Tasende",
+        "Ben Chilwell": "Benjamin Chilwell",
+        "Bernardo Silva": "Bernardo Mota Veiga de Carvalho e Silva",
+        "Bruno Fernandes": "Bruno Miguel Borges Fernandes",
+        "Bruno": "Bruno Saltor Grau",
+        "Danny Drinkwater": "Daniel Drinkwater",
+        "Fabinho": "Fabio Henrique Tavares",
+        "Fábio": "Fabio Pereira da Silva",
+        "Fernandinho": "Fernando Luiz Rosa",
+        "Fred": "Frederico Rodrigues de Paula Santos",
+        "Gabriel Jesus": "Gabriel Fernando de Jesus",
+        "Gedson Fernandes": "Gedson Carvalho Fernandes",
+        "Jorginho": "Jorge Luiz Frello Filho",
+        "José Izquierdo": "José Heriberto Izquierdo Mena",
+        "Jota": "José Ignacio Peleteiro Romallo",
+        "Nolito": "Manuel Agudo Durán",
+        "Pedro": "Pedro Rodríguez Ledesma",
+        "Pepe Reina": "José Reina",
+        "Ricardo Pereira": "Ricardo Domingos Barbosa Pereira",
+        "Rodri": "Rodrigo Hernandez",
+        "Rodrigo": "Rodrigo Moreno",
+        "Rúben Vinagre": "Rúben Gonçalo Silva Nascimento Vinagre",
+        "Rui Patrício": "Rui Pedro dos Santos Patrício",
+        "Trézéguet": "Mahmoud Ahmed Ibrahim Hassan",
+        "Valery": None,
+        "Xande Silva": "Alexandre Nascimento Costa Silva",
+        "João Cancelo": "João Pedro Cavaco Cancelo",
+        "João Pedro": "João Pedro Junqueira de Jesus",
+        "Pedro Neto": "Pedro Lomba Neto",
+        "Roberto": "Roberto Jimenez Gago",
+        "Rúben Neves": "Rúben Diogo da Silva Neves",
+        "Thomas Doyle": None,
+        "Allan": "Allan Marques Loureiro",
+        "Adrián": "Adrián San Miguel del Castillo",
+        "Gabriel Dos Santos": "Gabriel Magalhães",
+        "Rúben Dias": "Rúben Santos Gato Alves Dias",
+        "Robert Sanchez": None,
+        "Vitinha": "Vitor Ferreira",
+        "Thiago Silva": "Thiago Alcántara do Nascimento",
+        "William Thomas Fish": "William Fish",
+        "Toti Gomes": "Toti António Gomes",
+        "Nuno Tavares": "Nuno Varela Tavares",
+        "Lucas Moura": "Lucas Rodrigues Moura da Silva",
+        "Bryan": None,
+        "Samir Santos": "Samir Caetano de Souza Santos"
     }
-    for season, mappings in override_dict.items():
-        for fbref_name, fpl_name in mappings.items():
-            matched_df.loc[
-                (matched_df["season"] == season)
-                & (matched_df["fbref_name"] == fbref_name),
-                ["fpl_name", "fuzzy_score"],
-            ] = (fpl_name, 100)
+    for fbref_name, fpl_name in override_dict.items():
+        matched_df.loc[matched_df["fbref_name"] == fbref_name, ["fpl_name", "fuzzy_score"]] = (fpl_name, 100)
     matched_df = pd.merge(matched_df, fpl_data, on=["season", "fpl_name"], how="right")
     matched_df.loc[
-        (matched_df["fuzzy_score"] < 90) & (matched_df["total_points"] > 0), "review"
+        ((matched_df["fuzzy_score"] < 90) | (matched_df["fuzzy_score"].isna())) & (matched_df["total_points"] > 0), "review"
     ] = True
+    matched_df['duplicates'] = matched_df.duplicated(subset=['season', 'fpl_name'], keep=False).replace(False, np.nan)
     logger.warning(
-        f"{matched_df['review'].sum()}/{len(matched_df)} records in player name mapping needs review"
+        f"{matched_df['review'].sum()}/{len(matched_df)} records in player name mapping needs review."
+    )
+    logger.warning(
+        f"{matched_df['duplicates'].sum()}/{len(matched_df)} duplicated mappings."
     )
     return matched_df
 

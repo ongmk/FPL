@@ -14,6 +14,14 @@ def clean_players_name_string(df):
     df["full_name"] = df["full_name"].str.replace("\d+", "")
     # trim name column
     df["full_name"] = df["full_name"].str.strip()
+    # fix duplicate names
+    overrides = {
+        "Caglar Söyüncü": "Çaglar Söyüncü",
+        "Bamidele Alli": "Dele Alli",
+        "Matthew James": "Matty James",
+        "José Heriberto Izquierdo Mena": "José Izquierdo"
+    }
+    df["full_name"] = df["full_name"].map(overrides).fillna(df["full_name"])
     return df
 
 

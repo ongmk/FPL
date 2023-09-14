@@ -7,7 +7,6 @@ import pandas as pd
 
 # from src.fpl.pipelines.scraping_pipeline.OddsPortalDriver import OddsPortalDriver
 from src.fpl.pipelines.optimization_pipeline.fpl_api import get_current_season_fpl_data
-from src.fpl.pipelines.scraping_pipeline.backtest_mergers import *
 from src.fpl.pipelines.scraping_pipeline.FBRefDriver import FBRefDriver
 from tqdm import tqdm
 
@@ -103,119 +102,18 @@ def crawl_player_match_logs(parameters: dict[str, Any]):
     conn.close()
 
 
-def get_backtest_data():
-    encodings = [
-        ("2016-2017", "latin-1"),
-        ("2017-2018", "latin-1"),
-        ("2018-2019", "latin-1"),
-        ("2019-2020", "utf-8"),
-        ("2020-2021", "utf-8"),
-        ("2021-2022", "utf-8"),
-        ("2022-2023", "utf-8"),
-    ]
-
-    dfs = []
-    path = os.getcwd()
-    for season, enc in encodings:
-        filename = join(path, "data\\raw\\backtest_data", f"{season}_merged_gw.csv")
-        data = pd.read_csv(filename, encoding=enc)
-        data["season"] = season
-        dfs.append(data)
-
-    df = pd.concat(dfs, ignore_index=True, sort=False)
-    df = df[
-        [
-            "season",
-            "name",
-            "position",
-            "team",
-            "assists",
-            "bonus",
-            "bps",
-            "clean_sheets",
-            "creativity",
-            "element",
-            "fixture",
-            "goals_conceded",
-            "goals_scored",
-            "ict_index",
-            "influence",
-            "kickoff_time",
-            "minutes",
-            "opponent_team",
-            "own_goals",
-            "penalties_missed",
-            "penalties_saved",
-            "red_cards",
-            "round",
-            "saves",
-            "selected",
-            "team_a_score",
-            "team_h_score",
-            "threat",
-            "total_points",
-            "transfers_balance",
-            "transfers_in",
-            "transfers_out",
-            "value",
-            "was_home",
-            "yellow_cards",
-            "GW",
-        ]
-    ]
-
-    df = clean_players_name_string(df)
-    df = filter_players_exist_latest(df, col="position")
-    df = get_team_name(df, "opponent_team")
-
-    return df[
-        [
-            "season",
-            "round",
-            "element",
-            "full_name",
-            "team",
-            "position",
-            "fixture",
-            "opponent_team",
-            "opponent_team_name",
-            "total_points",
-            "was_home",
-            "kickoff_time",
-            "team_h_score",
-            "team_a_score",
-            "minutes",
-            "goals_scored",
-            "assists",
-            "clean_sheets",
-            "goals_conceded",
-            "own_goals",
-            "penalties_saved",
-            "penalties_missed",
-            "yellow_cards",
-            "red_cards",
-            "saves",
-            "bonus",
-            "bps",
-            "influence",
-            "creativity",
-            "threat",
-            "ict_index",
-            "value",
-            "transfers_balance",
-            "selected",
-            "transfers_in",
-            "transfers_out",
-        ]
-    ]
-
-
-def merge_fpl_data(parameters: dict[str, Any]) -> pd.DataFrame:
-    backtest_data = get_backtest_data()
+def merge_fpl_data(
+    old_data: pd.DataFrame, parameters: dict[str, Any]
+) -> [pd.DataFrame, pd.DataFrame]:
+    fpl_history = old_data[~old_data["total_points"].isna()].sort_values(
+        by=["season", "round", "element"], ascending=[False, False, True]
+    )
     current_season_data = get_current_season_fpl_data(
         current_season=parameters["current_season"]
     )
-    return pd.concat([backtest_data, current_season_data])
+    past_season_data = old_data[old_data["season"] != parameters["current_season"]]
+    new_data = pd.concat([past_season_data, current_season_data])
+    return fpl_history, new_data
 
 
 # def crawl_match_odds(parameters: dict[str, Any]):

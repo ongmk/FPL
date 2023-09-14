@@ -9,20 +9,20 @@ from src.fpl.pipelines.scraping_pipeline.scraper import (
 def create_pipeline() -> Pipeline:
     return pipeline(
         [
-            # node(
-            #     func=crawl_team_match_logs,
-            #     inputs="params:scraper",
-            #     outputs=None,
-            # ),
-            # node(
-            #     func=crawl_player_match_logs,
-            #     inputs="params:scraper",
-            #     outputs=None,
-            # ),
+            node(
+                func=crawl_team_match_logs,
+                inputs="params:scraper",
+                outputs=None,
+            ),
+            node(
+                func=crawl_player_match_logs,
+                inputs="params:scraper",
+                outputs=None,
+            ),
             node(
                 func=merge_fpl_data,
-                inputs="params:scraper",
-                outputs="FPL_DATA",
+                inputs=["OLD_FPL_DATA", "params:scraper"],
+                outputs=["FPL_HISTORY_BACKUP", "FPL_DATA"],
             ),
         ]
     )

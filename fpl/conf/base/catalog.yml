@@ -22,6 +22,19 @@ EXPERIMENT_RECORD:
   save_args:
     if_exists: append
 
+FPL_HISTORY_BACKUP:
+  type: pandas.CSVDataSet
+  filepath: data/fpl_history_backup.csv
+  save_args:
+    encoding: utf-8-sig
+
+OLD_FPL_DATA:
+  type: pandas.SQLTableDataSet
+  table_name: raw_fpl_data
+  credentials: db_credentials
+  save_args:
+    if_exists: replace
+
 FPL_DATA:
   type: pandas.SQLTableDataSet
   table_name: raw_fpl_data

@@ -10,19 +10,19 @@ def create_pipeline() -> Pipeline:
     return pipeline(
         [
             node(
+                func=merge_fpl_data,
+                inputs=["OLD_FPL_DATA", "params:scraper"],
+                outputs=["FPL_HISTORY_BACKUP", "FPL_DATA"],
+            ),
+            node(
                 func=crawl_team_match_logs,
-                inputs="params:scraper",
+                inputs=["FPL_HISTORY_BACKUP", "params:scraper"],
                 outputs=None,
             ),
             node(
                 func=crawl_player_match_logs,
-                inputs="params:scraper",
+                inputs=["FPL_HISTORY_BACKUP", "params:scraper"],
                 outputs=None,
-            ),
-            node(
-                func=merge_fpl_data,
-                inputs=["OLD_FPL_DATA", "params:scraper"],
-                outputs=["FPL_HISTORY_BACKUP", "FPL_DATA"],
             ),
         ]
     )

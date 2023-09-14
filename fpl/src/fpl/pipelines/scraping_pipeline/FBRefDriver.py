@@ -22,8 +22,13 @@ class FBRefDriver(BaseDriver):
         links = tree.xpath("*/tbody/tr/td[1]/a")
         return [(l.text, self.absolute_url(l.get("href"))) for l in links]
 
-    def get_player_season_links(self, season):
-        relative_url = f"/en/comps/9/{season}/stats/{season}-Premier-League-Stats"
+    def get_player_season_links(
+        self, season: str, current_season: str
+    ) -> [str, str, str]:
+        if season == current_season:
+            relative_url = f"/en/comps/9/stats/Premier-League-Stats"
+        else:
+            relative_url = f"/en/comps/9/{season}/stats/{season}-Premier-League-Stats"
         url = self.absolute_url(relative_url)
         logger.info(f"Crawling Season Result:\t{season}\t{url}")
         self.get(url)

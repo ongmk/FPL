@@ -13,7 +13,7 @@ from tqdm import tqdm
 logger = logging.getLogger(__name__)
 
 
-def crawl_team_match_logs(parameters: dict[str, Any]):
+def crawl_team_match_logs(_: pd.DataFrame, parameters: dict[str, Any]):
     current_season = parameters["current_season"]
     current_year = int(re.findall(r"\d+", current_season)[0])
     if parameters["fresh_start"]:
@@ -57,7 +57,7 @@ def crawl_team_match_logs(parameters: dict[str, Any]):
     return True
 
 
-def crawl_player_match_logs(parameters: dict[str, Any]):
+def crawl_player_match_logs(_: pd.DataFrame, parameters: dict[str, Any]):
     current_season = parameters["current_season"]
     current_year = int(re.findall(r"\d+", current_season)[0])
     if parameters["fresh_start"]:
@@ -80,7 +80,7 @@ def crawl_player_match_logs(parameters: dict[str, Any]):
         )
 
         for s in tqdm(seasons, desc="Seasons crawled"):
-            player_season_links = d.get_player_season_links(s)
+            player_season_links = d.get_player_season_links(s, current_season)
 
             for player, pos, link in tqdm(
                 player_season_links, leave=False, desc="Players crawled"
@@ -105,12 +105,20 @@ def crawl_player_match_logs(parameters: dict[str, Any]):
 def merge_fpl_data(
     old_data: pd.DataFrame, parameters: dict[str, Any]
 ) -> [pd.DataFrame, pd.DataFrame]:
+    override_mapping = {
+        "Benjamin Chilwell": "Ben Chilwell"
+    }  # Fix unaligned names between seasons
+    old_data["full_name"] = (
+        old_data["full_name"].map(override_mapping).fillna(old_data["full_name"])
+    )
+
     fpl_history = old_data[~old_data["total_points"].isna()].sort_values(
         by=["season", "round", "element"], ascending=[False, False, True]
     )
-    current_season_data = get_current_season_fpl_data(
-        current_season=parameters["current_season"]
-    )
+    # current_season_data = get_current_season_fpl_data(
+    #     current_season=parameters["current_season"]
+    # )
+    current_season_data = old_data[old_data["season"] == parameters["current_season"]]
     past_season_data = old_data[old_data["season"] != parameters["current_season"]]
     new_data = pd.concat([past_season_data, current_season_data])
     return fpl_history, new_data

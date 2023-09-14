@@ -49,12 +49,13 @@ def fuzzy_match_player_names(
         matched_df.append(player_match_log_season)
     matched_df = pd.concat(matched_df, ignore_index=True)
     override_dict = {
-        'Diogo Jota': 'Diogo Teixeira da Silva',
+        "Diogo Jota": "Diogo Teixeira da Silva",
         "Adrián": "Adrián San Miguel del Castillo",
         "Allan": "Allan Marques Loureiro",
         "Angeliño": "José Ángel Esmorís Tasende",
+        "Bernardo": "Bernardo Fernandes da Silva Junior",
         "Bernardo Silva": "Bernardo Veiga de Carvalho e Silva",
-        "Bruno Fernandes": "Bruno Borges Fernandes", 
+        "Bruno Fernandes": "Bruno Borges Fernandes",
         "Bruno": "Bruno Saltor Grau",
         "Bryan": None,
         "Cafú": "Carlos Ribeiro Dias",
@@ -74,7 +75,6 @@ def fuzzy_match_player_names(
         "João Gomes": "João Victor Gomes da Silva",
         "João Pedro": "João Pedro Junqueira de Jesus",
         "Jorginho": "Jorge Luiz Frello Filho",
-        "José Izquierdo": "José Heriberto Izquierdo Mena",
         "Jota": "José Ignacio Peleteiro Romallo",
         "Lucas Moura": "Lucas Rodrigues Moura da Silva",
         "Lucas Paquetá": "Lucas Tolentino Coelho de Lima",
@@ -86,6 +86,7 @@ def fuzzy_match_player_names(
         "Pedro Neto": "Pedro Lomba Neto",
         "Pedro": "Pedro Rodríguez Ledesma",
         "Pepe Reina": "José Reina",
+        "Raphinha": "Raphael Dias Belloli",
         "Ricardo Pereira": "Ricardo Barbosa Pereira",
         "Robert Sanchez": None,
         "Roberto": "Roberto Jimenez Gago",
@@ -107,14 +108,27 @@ def fuzzy_match_player_names(
         "Vitinha": "Vitor Ferreira",
         "William Thomas Fish": "William Fish",
         "Xande Silva": "Alexandre Nascimento Costa Silva",
-    } # as of 2023-09-14
+        "Gabriel Paulista": "Gabriel Armando de Abreu",
+        "Jon Rowe": "Jonathan Rowe",
+        "Jonny Castro": "Jonathan Castro Otto",
+        "Francisco Trincão": "Francisco Machado Mota de Castro Trincão",
+        "Chiquinho": "Francisco Jorge Tomás Oliveira",
+        "Cucho": "Juan Camilo Hernández Suárez",
+        "José Sá": "José Malheiro de Sá",
+    }  # as of 2023-09-14
     for fbref_name, fpl_name in override_dict.items():
-        matched_df.loc[matched_df["fbref_name"] == fbref_name, ["fpl_name", "fuzzy_score"]] = (fpl_name, 100)
+        matched_df.loc[
+            matched_df["fbref_name"] == fbref_name, ["fpl_name", "fuzzy_score"]
+        ] = (fpl_name, 100)
     matched_df = pd.merge(matched_df, fpl_data, on=["season", "fpl_name"], how="right")
     matched_df.loc[
-        ((matched_df["fuzzy_score"] < 90) | (matched_df["fuzzy_score"].isna())) & (matched_df["total_points"] > 0), "review"
+        ((matched_df["fuzzy_score"] < 90) | (matched_df["fuzzy_score"].isna()))
+        & (matched_df["total_points"] > 0),
+        "review",
     ] = True
-    matched_df['duplicates'] = matched_df.duplicated(subset=['season', 'fpl_name'], keep=False).replace(False, np.nan)
+    matched_df["duplicates"] = matched_df.duplicated(
+        subset=["season", "fpl_name"], keep=False
+    ).replace(False, np.nan)
     logger.warning(
         f"{matched_df['review'].sum()}/{len(matched_df)} records in player name mapping needs review."
     )
@@ -226,7 +240,7 @@ def combine_data(
     combined_data["player_season"] = list(
         zip(combined_data["player"], combined_data["season"])
     )
-    combined_data["player"] = (
+    combined_data["fpl_name"] = (
         combined_data["player_season"]
         .map(player_name_mapping)
         .fillna(combined_data["player_season"].str[0])
@@ -235,7 +249,7 @@ def combine_data(
     combined_data = pd.merge(
         combined_data,
         fpl_data,
-        left_on=["date", "player"],
+        left_on=["date", "fpl_name"],
         right_on=["date", "full_name"],
         how="left",
     )
@@ -605,8 +619,8 @@ def feature_engineering(data: pd.DataFrame, parameters) -> pd.DataFrame:
 
     ma_lag = parameters["ma_lag"]
     ma_features = parameters["ma_features"]
-    # for feature in tqdm(ma_features, desc="Creating MA features"):
-    #     data = create_ma_feature(data, feature, ma_lag)
+    for feature in tqdm(ma_features, desc="Creating MA features"):
+        data = create_ma_feature(data, feature, ma_lag)
 
     data = data.drop(
         [

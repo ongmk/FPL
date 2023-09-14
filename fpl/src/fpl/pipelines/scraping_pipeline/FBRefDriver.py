@@ -9,8 +9,8 @@ logger = logging.getLogger(__name__)
 class FBRefDriver(BaseDriver):
     """Custom web driver for FBRef.com"""
 
-    def __init__(self):
-        BaseDriver.__init__(self)
+    def __init__(self, **kwargs):
+        BaseDriver.__init__(self, **kwargs)
         self.base_url = "https://fbref.com"
 
     def get_team_season_links(self, season):

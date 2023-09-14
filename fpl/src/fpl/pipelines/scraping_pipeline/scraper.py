@@ -30,7 +30,7 @@ def crawl_team_match_logs(_: pd.DataFrame, parameters: dict[str, Any]):
     conn.commit()
     logger.info(f"Deleting team logs from previous weeks.")
 
-    with FBRefDriver() as d:
+    with FBRefDriver(headless=parameters["headless"]) as d:
         crawled_df = pd.read_sql(
             "select distinct team, season from raw_team_match_log", conn
         )
@@ -74,7 +74,7 @@ def crawl_player_match_logs(_: pd.DataFrame, parameters: dict[str, Any]):
     conn.commit()
     logger.info(f"Deleting player logs from previous weeks.")
 
-    with FBRefDriver() as d:
+    with FBRefDriver(headless=parameters["headless"]) as d:
         crawled_df = pd.read_sql(
             "select distinct player, season from raw_player_match_log", conn
         )

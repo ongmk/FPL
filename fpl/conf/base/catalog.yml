@@ -47,6 +47,10 @@ PLAYER_MATCH_LOG:
   table_name: raw_player_match_log
   credentials: db_credentials
 
+FUZZY_MATCH_OVERRIDES:
+  type: yaml.YAMLDataSet
+  filepath: data/fuzzy_match_overrides.yml
+
 PLAYER_NAME_MAPPING:
   type: pandas.CSVDataSet
   filepath: data/player_name_mapping.csv

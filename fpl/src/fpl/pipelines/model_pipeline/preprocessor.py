@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 
 def fuzzy_match_player_names(
-    player_match_log: pd.DataFrame, fpl_data: pd.DataFrame
+    player_match_log: pd.DataFrame, fpl_data: pd.DataFrame, overrides: dict[str, str]
 ) -> None:
     player_match_log = (
         player_match_log[["season", "player"]]
@@ -48,75 +48,7 @@ def fuzzy_match_player_names(
         player_match_log_season["fpl_name"] = player_match_log_season["fpl_name"].str[0]
         matched_df.append(player_match_log_season)
     matched_df = pd.concat(matched_df, ignore_index=True)
-    override_dict = {
-        "Diogo Jota": "Diogo Teixeira da Silva",
-        "Adrián": "Adrián San Miguel del Castillo",
-        "Allan": "Allan Marques Loureiro",
-        "Angeliño": "José Ángel Esmorís Tasende",
-        "Bernardo": "Bernardo Fernandes da Silva Junior",
-        "Bernardo Silva": "Bernardo Veiga de Carvalho e Silva",
-        "Bruno Fernandes": "Bruno Borges Fernandes",
-        "Bruno": "Bruno Saltor Grau",
-        "Bryan": None,
-        "Cafú": "Carlos Ribeiro Dias",
-        "Danny Drinkwater": "Daniel Drinkwater",
-        "Datro Fofana": None,
-        "Diego Costa": "Diego Da Silva Costa",
-        "Fabinho": "Fabio Henrique Tavares",
-        "Fabio Carvalho": "Fábio Freitas Gouveia Carvalho",
-        "Fabio Vieira": "Fábio Ferreira Vieira",
-        "Fábio": "Fabio Pereira da Silva",
-        "Fernandinho": "Fernando Luiz Rosa",
-        "Fred": "Frederico Rodrigues de Paula Santos",
-        "Gabriel Dos Santos": "Gabriel dos Santos Magalhães",
-        "Gabriel Jesus": "Gabriel Fernando de Jesus",
-        "Gedson Fernandes": "Gedson Carvalho Fernandes",
-        "Hamed Junior Traorè": "Hamed Traorè",
-        "João Gomes": "João Victor Gomes da Silva",
-        "João Pedro": "João Pedro Junqueira de Jesus",
-        "Jorginho": "Jorge Luiz Frello Filho",
-        "Jota": "José Ignacio Peleteiro Romallo",
-        "Lucas Moura": "Lucas Rodrigues Moura da Silva",
-        "Lucas Paquetá": "Lucas Tolentino Coelho de Lima",
-        "Marquinhos": "Marcus Oliveira Alencar",
-        "Mateo Kovačić": "Mateo Kovacic",
-        "Matheus Cunha": "Matheus Santos Carneiro Da Cunha",
-        "Nolito": "Manuel Agudo Durán",
-        "Nuno Tavares": "Nuno Varela Tavares",
-        "Pedro Neto": "Pedro Lomba Neto",
-        "Pedro": "Pedro Rodríguez Ledesma",
-        "Pepe Reina": "José Reina",
-        "Raphinha": "Raphael Dias Belloli",
-        "Ricardo Pereira": "Ricardo Barbosa Pereira",
-        "Robert Sanchez": None,
-        "Roberto": "Roberto Jimenez Gago",
-        "Rodri": "Rodrigo Hernandez",
-        "Rodrigo": "Rodrigo Moreno",
-        "Rúben Dias": "Rúben Gato Alves Dias",
-        "Rúben Neves": "Rúben da Silva Neves",
-        "Rúben Vinagre": "Rúben Nascimento Vinagre",
-        "Rui Patrício": "Rui Pedro dos Santos Patrício",
-        "Samir Santos": "Samir Caetano de Souza Santos",
-        "Tetê": "Mateus Cardoso Lemos Martins",
-        "Thiago Alcántara": "Thiago Alcántara do Nascimento",
-        "Thiago Silva": "Thiago Emiliano da Silva",
-        "Thomas Doyle": None,
-        "Tomáš Souček": "Tomas Soucek",
-        "Toti Gomes": "Toti António Gomes",
-        "Trézéguet": "Mahmoud Ahmed Ibrahim Hassan",
-        "Valery": None,
-        "Vitinha": "Vitor Ferreira",
-        "William Thomas Fish": "William Fish",
-        "Xande Silva": "Alexandre Nascimento Costa Silva",
-        "Gabriel Paulista": "Gabriel Armando de Abreu",
-        "Jon Rowe": "Jonathan Rowe",
-        "Jonny Castro": "Jonathan Castro Otto",
-        "Francisco Trincão": "Francisco Machado Mota de Castro Trincão",
-        "Chiquinho": "Francisco Jorge Tomás Oliveira",
-        "Cucho": "Juan Camilo Hernández Suárez",
-        "José Sá": "José Malheiro de Sá",
-    }  # as of 2023-09-14
-    for fbref_name, fpl_name in override_dict.items():
+    for fbref_name, fpl_name in overrides.items():
         matched_df.loc[
             matched_df["fbref_name"] == fbref_name, ["fpl_name", "fuzzy_score"]
         ] = (fpl_name, 100)

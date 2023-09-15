@@ -106,7 +106,9 @@ def merge_fpl_data(
     old_data: pd.DataFrame, parameters: dict[str, Any]
 ) -> [pd.DataFrame, pd.DataFrame]:
     override_mapping = {
-        "Benjamin Chilwell": "Ben Chilwell"
+        "Benjamin Chilwell": "Ben Chilwell",
+        "Mateo Kovacic": "Mateo Kovačić",
+        "Tomas Soucek": "Tomáš Souček",
     }  # Fix unaligned names between seasons
     old_data["full_name"] = (
         old_data["full_name"].map(override_mapping).fillna(old_data["full_name"])
@@ -115,10 +117,10 @@ def merge_fpl_data(
     fpl_history = old_data[~old_data["total_points"].isna()].sort_values(
         by=["season", "round", "element"], ascending=[False, False, True]
     )
-    # current_season_data = get_current_season_fpl_data(
-    #     current_season=parameters["current_season"]
-    # )
-    current_season_data = old_data[old_data["season"] == parameters["current_season"]]
+    current_season_data = get_current_season_fpl_data(
+        current_season=parameters["current_season"]
+    )
+    # current_season_data = old_data[old_data["season"] == parameters["current_season"]]
     past_season_data = old_data[old_data["season"] != parameters["current_season"]]
     new_data = pd.concat([past_season_data, current_season_data])
     return fpl_history, new_data

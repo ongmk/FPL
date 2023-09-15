@@ -52,20 +52,22 @@ def fuzzy_match_player_names(
         matched_df.loc[
             matched_df["fbref_name"] == fbref_name, ["fpl_name", "fuzzy_score"]
         ] = (fpl_name, 100)
-    matched_df = pd.merge(matched_df, fpl_data, on=["season", "fpl_name"], how="right")
+    matched_df = pd.merge(matched_df, fpl_data, on=["season", "fpl_name"], how="outer")
     matched_df.loc[
         ((matched_df["fuzzy_score"] < 90) | (matched_df["fuzzy_score"].isna()))
         & (matched_df["total_points"] > 0),
         "review",
     ] = True
-    matched_df["duplicates"] = matched_df.duplicated(
-        subset=["season", "fpl_name"], keep=False
-    ).replace(False, np.nan)
+    matched_df.loc[
+        matched_df["fpl_name"].notnull(), "duplicated"
+    ] = matched_df.duplicated(subset=["season", "fpl_name"], keep=False).replace(
+        False, np.nan
+    )
     logger.warning(
         f"{matched_df['review'].sum()}/{len(matched_df)} records in player name mapping needs review."
     )
     logger.warning(
-        f"{matched_df['duplicates'].sum()}/{len(matched_df)} duplicated mappings."
+        f"{matched_df['duplicated'].sum()}/{len(matched_df)} duplicated mappings."
     )
     return matched_df
 
@@ -551,26 +553,26 @@ def feature_engineering(data: pd.DataFrame, parameters) -> pd.DataFrame:
 
     ma_lag = parameters["ma_lag"]
     ma_features = parameters["ma_features"]
-    for feature in tqdm(ma_features, desc="Creating MA features"):
-        data = create_ma_feature(data, feature, ma_lag)
+    # for feature in tqdm(ma_features, desc="Creating MA features"):
+    #     data = create_ma_feature(data, feature, ma_lag)
 
-    data = data.drop(
-        [
-            col
-            for col in ma_features
-            if col
-            not in [
-                "value",
-                "att_total",
-                "home_att_total",
-                "away_att_total",
-                "def_total",
-                "home_def_total",
-                "away_def_total",
-                "fpl_points",
-            ]
-        ],
-        axis=1,
-    )
+    # data = data.drop(
+    #     [
+    #         col
+    #         for col in ma_features
+    #         if col
+    #         not in [
+    #             "value",
+    #             "att_total",
+    #             "home_att_total",
+    #             "away_att_total",
+    #             "def_total",
+    #             "home_def_total",
+    #             "away_def_total",
+    #             "fpl_points",
+    #         ]
+    #     ],
+    #     axis=1,
+    # )
 
     return data

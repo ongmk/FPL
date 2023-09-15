@@ -17,8 +17,8 @@ logger = logging.getLogger(__name__)
 
 def split_data(processed_data, parameters):
     holdout_year = parameters["holdout_year"]
-    train_val_data = processed_data[processed_data["season"] != holdout_year]
-    holdout_data = processed_data[processed_data["season"] == holdout_year]
+    train_val_data = processed_data[processed_data["season"] < holdout_year]
+    holdout_data = processed_data[processed_data["season"] >= holdout_year]
 
     return train_val_data, holdout_data
 

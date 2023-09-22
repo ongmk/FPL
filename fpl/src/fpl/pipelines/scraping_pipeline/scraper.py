@@ -120,47 +120,9 @@ def merge_fpl_data(
     current_season_data = get_current_season_fpl_data(
         current_season=parameters["current_season"]
     )
-    # current_season_data = old_data[old_data["season"] == parameters["current_season"]]
     past_season_data = old_data[old_data["season"] != parameters["current_season"]]
     new_data = pd.concat([past_season_data, current_season_data])
     return fpl_history, new_data
-
-
-# def crawl_match_odds(parameters: dict[str, Any]):
-#     latest_season = parameters["latest_season"]
-#     n_seasons = parameters["n_seasons"]
-#     seasons = [latest_season - i for i in range(n_seasons)]
-#     seasons = [f"{s}-{s+1}" for s in seasons]
-
-#     conn = sqlite3.connect("./data/fpl.db")
-
-#     logger.info(f"Initializing OddsPortalDriver...")
-#     with OddsPortalDriver() as d:
-#         crawled_df = pd.read_sql(
-#             "select distinct h_team, a_team, season from raw_match_odds", conn
-#         )
-#         for s in tqdm(seasons, desc="Seasons crawled"):
-#             match_links = d.get_match_links(s)
-#             for match, link in tqdm(match_links, leave=False, desc="Matches crawled"):
-#                 h_team, a_team = match.split(" - ")
-#                 if not crawled_df.loc[
-#                     (crawled_df["season"] == s)
-#                     & (crawled_df["h_team"] == h_team)
-#                     & (crawled_df["a_team"] == a_team)
-#                 ].empty:
-#                     logger.warning(f"{s} {match}\tMatch odds already crawled.\t{link}")
-#                     continue
-#                 match_odds_df = d.get_match_odds_df(
-#                     s, h_team, a_team, d.absolute_url(link)
-#                 )
-
-#                 logger.info(f"Saving Match Odds:\t{s} {match}")
-#                 match_odds_df.to_sql(
-#                     "raw_match_odds", conn, if_exists="append", index=False
-#                 )
-#                 crawled_df.loc[len(crawled_df)] = [h_team, a_team, s]
-
-#     conn.close()
 
 
 # if __name__ == "__main__":

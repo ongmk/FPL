@@ -1,31 +1,28 @@
 model:
-  target: xg
+  target: fpl_points
   numerical_features:
     - round
-    - poss
-    - days_till_next
-    - days_since_last
+    - value
     - att_total
     - home_att_total
     - away_att_total
+    - def_total
+    - home_def_total
+    - away_def_total
     - pts_b4_match
     - rank_b4_match
     - pts_gap_above
     - pts_gap_below
-    # - def_total
-    # - home_def_total
-    # - away_def_total
-    # - date
-    # - xga
   categorical_features:
     - venue
     - team
     - opponent
+    - pos
   group_by: season
-  baseline_columns:
-    - xg_ma
-    - team_odds_2_score
-    - att_total
+  # baseline_columns:
+  #   - xg_ma
+  #   - team_odds_2_score
+  #   - att_total
   pca_components: 7
   random_state: 42
   verbose: false

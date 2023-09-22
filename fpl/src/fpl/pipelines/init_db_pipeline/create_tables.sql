@@ -58,19 +58,6 @@ CREATE TABLE IF NOT EXISTS raw_player_match_log(
 CREATE UNIQUE INDEX IF NOT EXISTS season_player_date_opponent_pk ON raw_player_match_log(season, player, date, opponent);
 
 ----------------------------
-CREATE TABLE IF NOT EXISTS raw_match_odds(
-    season TEXT,
-    h_team TEXT,
-    a_team TEXT,
-    h_score INTEGER,
-    a_score INTEGER,
-    odds REAL,
-    link TEXT
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS SEASON_MATCH_SCORE_PK ON raw_match_odds(season, h_team, a_team, h_score, a_score);
-
-----------------------------
 -- Enable foreign key support in SQLite
 PRAGMA foreign_keys = ON;
 

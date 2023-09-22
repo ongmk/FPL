@@ -10,12 +10,12 @@ from src.fpl.pipelines.model_pipeline.preprocessor import (
     clean_data,
     feature_engineering,
     fuzzy_match_player_names,
+    split_data,
 )
 from src.fpl.pipelines.model_pipeline.training import (
     create_sklearn_pipeline,
     cross_validation,
     pycaret_compare_models,
-    split_data,
     train_model,
 )
 
@@ -28,11 +28,11 @@ def create_preprocess_pipeline() -> Pipeline:
             #     inputs=["TEAM_MATCH_LOG", "params:data"],
             #     outputs="ELO_DATA",
             # ),
-            node(
-                func=fuzzy_match_player_names,
-                inputs=["PLAYER_MATCH_LOG", "FPL_DATA", "FUZZY_MATCH_OVERRIDES"],
-                outputs="PLAYER_NAME_MAPPING",
-            ),
+            # node(
+            #     func=fuzzy_match_player_names,
+            #     inputs=["PLAYER_MATCH_LOG", "FPL_DATA", "FUZZY_MATCH_OVERRIDES"],
+            #     outputs="PLAYER_NAME_MAPPING",
+            # ),
             node(
                 func=clean_data,
                 inputs=[

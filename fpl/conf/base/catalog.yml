@@ -62,11 +62,6 @@ TEAM_MATCH_LOG:
   table_name: raw_team_match_log
   credentials: db_credentials
 
-ODDS_DATA:
-  type: pandas.SQLTableDataSet
-  table_name: raw_match_odds
-  credentials: db_credentials
-
 ELO_DATA:
   type: pandas.SQLTableDataSet
   table_name: elo_data

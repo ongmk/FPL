@@ -57,6 +57,10 @@ PLAYER_NAME_MAPPING:
   save_args:
     encoding: utf-8-sig
 
+FPL_2_FBREF_TEAM_MAPPING:
+  type: yaml.YAMLDataSet
+  filepath: data/fpl_2_fbref_team_mapping.yml
+
 TEAM_MATCH_LOG:
   type: pandas.SQLTableDataSet
   table_name: raw_team_match_log

@@ -10,6 +10,7 @@ from src.fpl.pipelines.model_pipeline.preprocessor import (
     clean_data,
     feature_engineering,
     fuzzy_match_player_names,
+    impute_missing_values,
     split_data,
 )
 from src.fpl.pipelines.model_pipeline.training import (
@@ -41,6 +42,7 @@ def create_preprocess_pipeline() -> Pipeline:
                     "ELO_DATA",
                     "FPL_DATA",
                     "PLAYER_NAME_MAPPING",
+                    "FPL_2_FBREF_TEAM_MAPPING",
                     "params:data",
                 ],
                 outputs="cleaned_data",
@@ -48,6 +50,11 @@ def create_preprocess_pipeline() -> Pipeline:
             node(
                 func=feature_engineering,
                 inputs=["cleaned_data", "params:data"],
+                outputs="intermediate_data",
+            ),
+            node(
+                func=impute_missing_values,
+                inputs="intermediate_data",
                 outputs="PROCESSED_DATA",
             ),
             node(

@@ -6,6 +6,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+from pandas.core.groupby.generic import DataFrameGroupBy
 from thefuzz import process
 from tqdm import tqdm
 
@@ -94,8 +95,8 @@ def filter_data(
         [
             "season",
             "player",
-            "date",
             "round",
+            "date",
             "venue",
             "squad",
             "opponent",
@@ -136,7 +137,20 @@ def filter_data(
             "xga",
         ],
     ].reset_index(drop=True)
-    fpl_data = fpl_data[["season", "date", "full_name", "fpl_points", "value"]]
+    fpl_data = fpl_data[
+        [
+            "season",
+            "date",
+            "round",
+            "full_name",
+            "total_points",
+            "value",
+            "team",
+            "opponent_team_name",
+            "was_home",
+            "position",
+        ]
+    ]
 
     return player_match_log, team_match_log, fpl_data
 
@@ -156,6 +170,21 @@ def combine_data(
     )
     combined_data = pd.merge(
         combined_data,
+        fpl_data,
+        on=["season", "date", "fpl_name"],
+        how="right",
+        suffixes=("", "_fpl"),
+    )
+
+    combined_data["round"] = combined_data["round_fpl"].fillna(combined_data["round"])
+    combined_data["venue"] = combined_data["venue_fpl"].fillna(combined_data["venue"])
+    combined_data["team"] = combined_data["team_fpl"].fillna(combined_data["team"])
+    combined_data["opponent"] = combined_data["opponent_fpl"].fillna(
+        combined_data["opponent"]
+    )
+    combined_data["pos"] = combined_data["pos"].fillna(combined_data["pos_fpl"])
+    combined_data = pd.merge(
+        combined_data,
         elo_data,
         left_on=["team", "date"],
         right_on=["team", "next_match"],
@@ -169,13 +198,10 @@ def combine_data(
         how="left",
         suffixes=("", "_opp"),
     )
-    combined_data = pd.merge(
-        combined_data,
-        fpl_data,
-        on=["season", "date", "fpl_name"],
-        how="right",
+    combined_data = combined_data.drop(
+        ["next_match", "pos_fpl", "venue_fpl", "round_fpl", "team_fpl", "opponent_fpl"],
+        axis=1,
     )
-    combined_data = combined_data.drop(["next_match"], axis=1)
     return combined_data
 
 
@@ -184,9 +210,12 @@ def align_data_structure(
     team_match_log: pd.DataFrame,
     elo_data: pd.DataFrame,
     player_name_mapping: pd.DataFrame,
+    fpl_2_fbref_team_mapping: pd.DataFrame,
     fpl_data: pd.DataFrame,
     parameters: dict[str, Any],
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    player_match_log["round"] = player_match_log["round"].apply(get_week_number)
+    player_match_log["start"] = player_match_log["start"].replace({"Y": 1, "N": 0})
     player_name_mapping = player_name_mapping.set_index(["fbref_name", "season"])[
         "fpl_name"
     ].to_dict()
@@ -198,13 +227,9 @@ def align_data_structure(
         .map(player_name_mapping)
         .fillna(player_match_log["player_season"].str[0])
     )
-    player_match_log = player_match_log.sort_values(
-        ["date", "squad", "fpl_name"]
-    ).reset_index(drop=True)
     player_match_log = player_match_log.rename(columns={"squad": "team"})
     player_match_log = player_match_log.drop(["player_season"], axis=1)
 
-    team_match_log = team_match_log.sort_values(["date", "team"]).reset_index(drop=True)
     team_match_log = team_match_log.rename(
         columns={
             "poss": "team_poss",
@@ -221,7 +246,23 @@ def align_data_structure(
     elo_data["next_match"] = elo_data.groupby("team")["date"].shift(-1)
     elo_data = elo_data.drop(["date", "season"], axis=1)
 
-    fpl_data = fpl_data.rename(columns={"full_name": "fpl_name"})
+    fpl_data["team"] = fpl_data["team"].map(fpl_2_fbref_team_mapping)
+    fpl_data["opponent"] = fpl_data["opponent_team_name"].map(fpl_2_fbref_team_mapping)
+    fpl_data["venue"] = np.where(fpl_data["was_home"], "Home", "Away")
+    fpl_data["pos"] = fpl_data["position"].map(
+        {
+            "DEF": "CB,DF,WB,RB,LB",
+            "FWD": "LW,RW,FW",
+            "GK": "GK",
+            "GKP": "GK",
+            "MID": "DM,LM,CM,RM,MF,AM",
+        }
+    )
+    fpl_data = fpl_data.rename(
+        columns={"full_name": "fpl_name", "total_points": "fpl_points"}
+    )
+    fpl_data = fpl_data.drop(["opponent_team_name", "was_home", "position"], axis=1)
+    fpl_data = fpl_data.sort_values(["date", "fpl_name"]).reset_index(drop=True)
 
     return player_match_log, team_match_log, elo_data, fpl_data
 
@@ -233,30 +274,22 @@ def get_week_number(round_str: str) -> int:
         return None
 
 
-def ensure_proper_dtypes(
+def convert_to_datetime(
     player_match_log: pd.DataFrame,
     team_match_log: pd.DataFrame,
     elo_data: pd.DataFrame,
     fpl_data: pd.DataFrame,
 ) -> list[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     player_match_log["date"] = pd.to_datetime(player_match_log["date"])
-    player_match_log["round"] = player_match_log["round"].apply(get_week_number)
-    player_match_log["start"] = player_match_log["start"].replace({"Y": 1, "N": 0})
-
     team_match_log["date"] = pd.to_datetime(team_match_log["date"])
-    team_match_log["round"] = team_match_log["round"].apply(get_week_number)
-
     elo_data["date"] = pd.to_datetime(elo_data["date"])
-
     fpl_data["date"] = pd.to_datetime(fpl_data["kickoff_time"].str[:10])
-    fpl_data["fpl_points"] = fpl_data["total_points"]
-
     return player_match_log, team_match_log, elo_data, fpl_data
 
 
-def add_unplayed_matches(player_match_log: pd.DataFrame):
+def add_unplayed_matches(fpl_data: pd.DataFrame):
     output_data = pd.DataFrame()
-    for season, season_data in player_match_log.groupby("season"):
+    for season, season_data in fpl_data.groupby("season"):
         player_round = pd.DataFrame(
             list(
                 itertools.product(
@@ -276,9 +309,45 @@ def add_unplayed_matches(player_match_log: pd.DataFrame):
     return output_data
 
 
-def impute_missing_values(player_match_log: pd.DataFrame) -> pd.DataFrame:
-    player_match_log = add_unplayed_matches(player_match_log)
-    return player_match_log
+def sample_players(data: pd.DataFrame) -> pd.DataFrame:
+    seasons = data["season"].unique()
+    sampled_data = []
+
+    for season in seasons:
+        season_data = data[data["season"] == season]
+        teams = season_data["team"].unique()
+
+        for team in teams:
+            if pd.notna(team):
+                team_data = season_data[season_data["team"] == team]
+            else:
+                team_data = season_data[season_data["team"].isna()]
+            players = team_data["fpl_name"].unique()
+            sampled_player = pd.Series(players).sample(n=1, random_state=42)
+            sampled_season_data = season_data[
+                season_data["fpl_name"].isin(sampled_player)
+            ]
+            sampled_data.append(sampled_season_data)
+
+    sampled_data = pd.concat(sampled_data)
+
+    return sampled_data
+
+
+def impute_missing_values(combined_data: pd.DataFrame) -> pd.DataFrame:
+    # columns = [
+    #     col
+    #     for col in combined_data.columns
+    #     if col
+    #     not in ["season", "date", "round", "fpl_name", "fpl_points", "value", "player"]
+    # ]
+    # grouped = combined_data.groupby(["season", "value", "week"])
+    # average_values = grouped[columns].transform("mean")
+    # combined_data[columns] = np.where(
+    #     combined_data[columns].isnull(), average_values, combined_data[columns]
+    # )
+
+    return combined_data
 
 
 def clean_data(
@@ -287,9 +356,10 @@ def clean_data(
     elo_data,
     fpl_data,
     player_name_mapping,
+    fpl_2_fbref_team_mapping,
     parameters,
 ):
-    player_match_log, team_match_log, elo_data, fpl_data = ensure_proper_dtypes(
+    player_match_log, team_match_log, elo_data, fpl_data = convert_to_datetime(
         player_match_log, team_match_log, elo_data, fpl_data
     )
     player_match_log, team_match_log, fpl_data = filter_data(
@@ -300,10 +370,11 @@ def clean_data(
         team_match_log,
         elo_data,
         player_name_mapping,
+        fpl_2_fbref_team_mapping,
         fpl_data,
         parameters,
     )
-    player_match_log = impute_missing_values(player_match_log)
+    fpl_data = add_unplayed_matches(fpl_data)
     combined_data = combine_data(
         player_match_log,
         team_match_log,
@@ -311,6 +382,9 @@ def clean_data(
         fpl_data,
         parameters,
     )
+    if parameters["test_sampling"]:
+        combined_data = sample_players(combined_data)
+
     return combined_data
 
 
@@ -438,16 +512,13 @@ def create_lag_features(df: pd.DataFrame, match_stat_col: str, lag: int, drop=Tr
 
 
 def single_ma_feature(df: pd.DataFrame, match_stat_col: str, lag: int):
-    df = df.sort_values(by=["fpl_name", "date"])
+    df = df.sort_values(by=["date"])
 
     # Create moving average
     ma_df = df.groupby("fpl_name").apply(
         lambda x: calculate_multi_lag_ma(x, match_stat_col, lag)
     )
     return pd.merge(df, ma_df, left_index=True, right_index=True)
-
-
-from pandas.core.groupby.generic import DataFrameGroupBy
 
 
 def calculate_multi_lag_ma(group: DataFrameGroupBy, match_stat_col: str, max_lag: int):
@@ -465,9 +536,41 @@ def calculate_multi_lag_ma(group: DataFrameGroupBy, match_stat_col: str, max_lag
     return ma_df
 
 
-def create_ma_features(
-    data: pd.DataFrame, ma_features: [str], ma_lag: int
-) -> pd.DataFrame:
+def create_ma_features(data: pd.DataFrame, ma_lag: int) -> pd.DataFrame:
+    ma_features = [
+        "team_ga",
+        "team_gf",
+        "min",
+        "gls",
+        "ast",
+        "pk",
+        "pkatt",
+        "sh",
+        "sot",
+        "touches",
+        "xg",
+        "npxg",
+        "xag",
+        "sca",
+        "gca",
+        "sota",
+        "ga",
+        "saves",
+        "savepct",
+        "cs",
+        "psxg",
+        "team_poss",
+        "team_xg",
+        "team_xga",
+        "value",
+        "att_total",
+        "home_att_total",
+        "away_att_total",
+        "def_total",
+        "home_def_total",
+        "away_def_total",
+        "fpl_points",
+    ]
     for feature in tqdm(ma_features, desc="Creating MA features"):
         data = single_ma_feature(data, feature, ma_lag)
 
@@ -492,7 +595,6 @@ def create_ma_features(
     return data
 
 
-# Define a function to select the position with the highest count
 def select_most_common(row, df_counts):
     if pd.isna(row["pos"]):
         player_df = df_counts.loc[df_counts["fpl_name"] == row["fpl_name"]]
@@ -534,7 +636,7 @@ def feature_engineering(data: pd.DataFrame, parameters) -> pd.DataFrame:
     data = data.merge(pts_data, on=["season", "team", "date"])
     data = extract_mode_pos(data)
 
-    # data = create_ma_features(data, parameters["ma_features"], parameters["ma_lag"])
+    data = create_ma_features(data, parameters["ma_lag"])
 
     return data
 

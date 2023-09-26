@@ -28,7 +28,7 @@ FPL_HISTORY_BACKUP:
   save_args:
     encoding: utf-8-sig
 
-OLD_FPL_DATA:
+READ_FPL_DATA:
   type: pandas.SQLTableDataSet
   table_name: raw_fpl_data
   credentials: db_credentials
@@ -69,6 +69,13 @@ TEAM_MATCH_LOG:
 ELO_DATA:
   type: pandas.SQLTableDataSet
   table_name: elo_data
+  credentials: db_credentials
+  save_args:
+    if_exists: replace
+
+READ_PROCESSED_DATA:
+  type: pandas.SQLTableDataSet
+  table_name: processed_data
   credentials: db_credentials
   save_args:
     if_exists: replace

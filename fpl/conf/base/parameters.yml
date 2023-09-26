@@ -115,8 +115,9 @@ data:
   home_away_weight: 0.5
   start_year: 2016-2017
   holdout_year: 2022-2023
-  test_sampling: True
   ma_lag: 5
+  test_sampling: True
+  use_cache: False
 
 ######################################
 

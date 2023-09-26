@@ -1,18 +1,18 @@
+import logging
+import textwrap
 from datetime import datetime
 from functools import partial
-import pandas as pd
-import numpy as np
-import logging
-import matplotlib.pyplot as plt
-from matplotlib.figure import Figure
-from matplotlib.axes import Axes
-import seaborn as sns
-from sklearn.pipeline import Pipeline
 from typing import Any
-from src.fpl.pipelines.model_pipeline.ensemble import EnsembleModel, Model
-import textwrap
-from sklearn.metrics import r2_score
 
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
+from sklearn.metrics import r2_score
+from sklearn.pipeline import Pipeline
+from src.fpl.pipelines.model_pipeline.modelling.ensemble import EnsembleModel, Model
 
 logger = logging.getLogger(__name__)
 color_pal = sns.color_palette()
@@ -237,10 +237,11 @@ evaluate_model_holdout = partial(evaluate_model, evaluation_set="holdout")
 
 
 if __name__ == "__main__":
+    import pickle
     import sqlite3
+
     import pandas as pd
     import yaml
-    import pickle
 
     filename = "train_model_output.pkl"
     with open(filename, "rb") as file:

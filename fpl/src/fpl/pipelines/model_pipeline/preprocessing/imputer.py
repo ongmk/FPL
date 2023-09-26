@@ -1,9 +1,8 @@
-import datetime
 import sqlite3
+from datetime import timedelta
+from typing import Any
 
-import numpy as np
 import pandas as pd
-import pytz
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from tqdm import tqdm
 
@@ -39,7 +38,7 @@ def impute_past_data(data: pd.DataFrame) -> pd.DataFrame:
         if col not in excluded
     ]
 
-    for season in tqdm(data["season"].dropna().unique(), "Imputing Columns"):
+    for season in tqdm(data["season"].dropna().unique(), "Imputing Season"):
         season_filter = data["season"] == season
         for round in tqdm(
             data.loc[season_filter, "round"].dropna().unique(), "Round", leave=False
@@ -65,7 +64,11 @@ def impute_past_data(data: pd.DataFrame) -> pd.DataFrame:
     return data
 
 
-def impute_missing_values(data: pd.DataFrame) -> pd.DataFrame:
+def impute_missing_values(
+    data: pd.DataFrame, read_processed_data: pd.DataFrame, parameters: dict[str, Any]
+) -> pd.DataFrame:
+    if parameters["use_cache"]:
+        cached_data = read_processed_data.loc[read_processed_data["cached"] == True]
     data = data.sort_values(["date", "fpl_name"])
     data["value"] = data.groupby("fpl_name")["value"].fillna(method="ffill")
 
@@ -77,6 +80,8 @@ def impute_missing_values(data: pd.DataFrame) -> pd.DataFrame:
 
     # TODO: ffill data
     # TODO: check elo rating exist for next week's match
+    data.loc[data["date"] < player_log_max_date - timedelta(days=3), "cached"] = True
+
     return data
 
 

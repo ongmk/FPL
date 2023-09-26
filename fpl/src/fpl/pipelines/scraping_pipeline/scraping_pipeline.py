@@ -11,7 +11,7 @@ def create_pipeline() -> Pipeline:
         [
             node(
                 func=merge_fpl_data,
-                inputs=["OLD_FPL_DATA", "params:scraper"],
+                inputs=["READ_FPL_DATA", "params:scraper"],
                 outputs=["FPL_HISTORY_BACKUP", "FPL_DATA"],
             ),
             node(

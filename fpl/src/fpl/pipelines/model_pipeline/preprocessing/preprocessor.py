@@ -9,6 +9,9 @@ import pandas as pd
 from pandas.core.groupby.generic import DataFrameGroupBy
 from thefuzz import process
 from tqdm import tqdm
+from fpl.src.fpl.pipelines.model_pipeline.preprocessing.imputer import (
+    impute_missing_values,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -332,22 +335,6 @@ def sample_players(data: pd.DataFrame) -> pd.DataFrame:
     sampled_data = pd.concat(sampled_data)
 
     return sampled_data
-
-
-def impute_missing_values(combined_data: pd.DataFrame) -> pd.DataFrame:
-    # columns = [
-    #     col
-    #     for col in combined_data.columns
-    #     if col
-    #     not in ["season", "date", "round", "fpl_name", "fpl_points", "value", "player"]
-    # ]
-    # grouped = combined_data.groupby(["season", "value", "week"])
-    # average_values = grouped[columns].transform("mean")
-    # combined_data[columns] = np.where(
-    #     combined_data[columns].isnull(), average_values, combined_data[columns]
-    # )
-
-    return combined_data
 
 
 def clean_data(

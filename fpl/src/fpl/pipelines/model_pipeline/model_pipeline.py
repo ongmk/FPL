@@ -1,19 +1,21 @@
 from kedro.pipeline import Pipeline, node, pipeline
-from src.fpl.pipelines.model_pipeline.elo_calculation import calculate_elo_score
-from src.fpl.pipelines.model_pipeline.ensemble import model_selection
-from src.fpl.pipelines.model_pipeline.evaluation import evaluate_model_holdout
+from fpl.src.fpl.pipelines.model_pipeline.preprocessing.elo_calculation import (
+    calculate_elo_score,
+)
+from src.fpl.pipelines.model_pipeline.modelling.ensemble import model_selection
+from src.fpl.pipelines.model_pipeline.modelling.evaluation import evaluate_model_holdout
 from src.fpl.pipelines.model_pipeline.experiment_helpers import (
     init_experiment,
     run_housekeeping,
 )
-from src.fpl.pipelines.model_pipeline.preprocessor import (
+from fpl.src.fpl.pipelines.model_pipeline.preprocessing.preprocessor import (
     clean_data,
     feature_engineering,
     fuzzy_match_player_names,
     impute_missing_values,
     split_data,
 )
-from src.fpl.pipelines.model_pipeline.training import (
+from fpl.src.fpl.pipelines.model_pipeline.modelling.training import (
     create_sklearn_pipeline,
     cross_validation,
     pycaret_compare_models,
@@ -55,7 +57,7 @@ def create_preprocess_pipeline() -> Pipeline:
             node(
                 func=impute_missing_values,
                 inputs="intermediate_data",
-                outputs="PROCESSED_DATA",
+                outputs=["PROCESSED_DATA", "PROCESSED_DATA_CACHE"],
             ),
             node(
                 func=split_data,

@@ -8,11 +8,6 @@ from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from tqdm import tqdm
 
 
-def get_modes(row: np.ndarray) -> np.ndarray:
-    unique_values, counts = np.unique(row, return_counts=True)
-    return unique_values[np.argmax(counts)]
-
-
 def impute_with_knn(missing_data, existing_data, col, column_type):
     if len(missing_data) > 0 and len(existing_data) > 0:
         model = (
@@ -71,12 +66,14 @@ def impute_past_data(data: pd.DataFrame) -> pd.DataFrame:
 
 
 def impute_missing_values(data: pd.DataFrame) -> pd.DataFrame:
-    # TODO: ffill for same player same season only
-    # TODO: bfill
-    data["value"] = data["value"].ffill()
-    max_date = data.loc[data["player"].notnull(), "date"].max()
+    data = data.sort_values(["date", "fpl_name"])
+    data["value"] = data.groupby("fpl_name")["value"].fillna(method="ffill")
 
-    data = impute_past_data(data.loc[data["date"] < max_date])
+    player_log_max_date = data.loc[data["player"].notnull(), "date"].max()
+
+    data.loc[data["date"] < player_log_max_date] = impute_past_data(
+        data.loc[data["date"] < player_log_max_date]
+    )
 
     # TODO: ffill data
     # TODO: check elo rating exist for next week's match

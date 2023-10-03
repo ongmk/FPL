@@ -20,6 +20,8 @@ def agg_home_away_elo(data: pd.DataFrame) -> pd.DataFrame:
 
 
 def calculate_points(row):
+    if pd.isna(row["team_gf"]) and pd.isna(row["team_ga"]):
+        return None
     if row["team_gf"] > row["team_ga"]:
         return 3
     elif row["team_gf"] == row["team_ga"]:
@@ -93,10 +95,17 @@ def features_from_pts(points_data: pd.DataFrame) -> pd.DataFrame:
     return output_data
 
 
-def calculate_pts_data(data: pd.DataFrame) -> pd.DataFrame:
-    pts_data = data.copy().drop_duplicates(["season", "team", "date"])
+def calculate_pts_data(data: pd.DataFrame, cached_data: pd.DataFrame) -> pd.DataFrame:
+    pts_data = (
+        data.copy()
+        .dropna(subset=["season", "team", "date"])
+        .drop_duplicates(["season", "team", "date"])
+    )
 
     pts_data = pts_data[["season", "team", "date", "team_gf", "team_ga"]]
+    if cached_data:
+        pts_data = cached_data
+        raise Exception("TODO")
 
     tqdm.pandas(desc="Calculating league points")
     pts_data["match_points"] = pts_data.progress_apply(calculate_points, axis=1)
@@ -109,9 +118,8 @@ def calculate_pts_data(data: pd.DataFrame) -> pd.DataFrame:
     )
 
     pts_data = features_from_pts(pts_data)
-    pts_data = pts_data.drop(["match_points", "league_points"], axis=1)
 
-    return pts_data
+    return data.merge(pts_data, on=["season", "team", "date"])
 
 
 def create_lag_features(df: pd.DataFrame, match_stat_col: str, lag: int, drop=True):
@@ -155,7 +163,11 @@ def calculate_multi_lag_ma(group: DataFrameGroupBy, match_stat_col: str, max_lag
     return ma_df
 
 
-def create_ma_features(data: pd.DataFrame, ma_lag: int) -> (pd.DataFrame, [str]):
+def create_ma_features(
+    data: pd.DataFrame, cached_data: pd.DataFrame, ma_lag: int
+) -> (pd.DataFrame, [str]):
+    if cached_data:
+        raise Exception("TODO")
     excluded = ["pts_gap_above", "pts_gap_below", "pts_b4_match", "start", "round"]
     ma_features = [
         col
@@ -165,7 +177,7 @@ def create_ma_features(data: pd.DataFrame, ma_lag: int) -> (pd.DataFrame, [str])
     for feature in tqdm(ma_features, desc="Creating MA features"):
         data = single_ma_feature(data, feature, ma_lag)
 
-    return data, ma_features
+    return data
 
 
 def select_most_common(row, df_counts):
@@ -187,7 +199,9 @@ def select_most_common(row, df_counts):
         return positions[np.argmax(counts)]
 
 
-def extract_mode_pos(df: pd.DataFrame) -> pd.DataFrame:
+def extract_mode_pos(df: pd.DataFrame, cached_data: pd.DataFrame) -> pd.DataFrame:
+    if cached_data:
+        raise Exception("TODO")
     # Step 1: Split 'pos' column into separate rows
     df_new = df.assign(pos=df["pos"].str.split(",")).explode("pos")
 
@@ -205,12 +219,32 @@ def extract_mode_pos(df: pd.DataFrame) -> pd.DataFrame:
 def feature_engineering(
     data: pd.DataFrame, read_processed_data: pd.DataFrame, parameters
 ) -> pd.DataFrame:
+    use_cache = parameters["use_cache"]
+    ma_lag = parameters["ma_lag"]
+    cached_data = (
+        read_processed_data.loc[read_processed_data["cached"] == True]
+        if use_cache
+        else None
+    )
+
     data = agg_home_away_elo(data)
+    data = calculate_pts_data(data, cached_data)
+    data = extract_mode_pos(data, cached_data)
+    data = create_ma_features(data, cached_data, ma_lag)
 
-    pts_data = calculate_pts_data(data)
-    data = data.merge(pts_data, on=["season", "team", "date"])
-    data = extract_mode_pos(data)
+    if use_cache:
+        data = pd.concat([cached_data, data])
 
-    data = create_ma_features(data, parameters["ma_lag"])
+    most_recent_fpl_data = data.loc[data["fpl_points"].notnull(), "date"].max()
+    data.loc[data["date"] <= most_recent_fpl_data, "cached"] = True
+
+    start_cols = ["season", "fpl_name", "round", "date", "player"]
+    end_cols = ["fpl_points", "cached"]
+    new_columns = (
+        start_cols
+        + [col for col in data.columns if col not in start_cols + end_cols]
+        + end_cols
+    )
+    data = data[new_columns]
 
     return data

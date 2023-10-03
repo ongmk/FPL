@@ -80,7 +80,6 @@ def impute_missing_values(
 
     # TODO: ffill data
     # TODO: check elo rating exist for next week's match
-    data.loc[data["date"] < player_log_max_date - timedelta(days=3), "cached"] = True
 
     return data
 

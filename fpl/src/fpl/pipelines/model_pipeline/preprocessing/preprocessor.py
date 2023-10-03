@@ -152,6 +152,8 @@ def filter_data(
             "opponent_team_name",
             "was_home",
             "position",
+            "team_h_score",
+            "team_a_score",
         ]
     ]
 
@@ -181,6 +183,12 @@ def combine_data(
 
     combined_data["round"] = combined_data["round_fpl"].fillna(combined_data["round"])
     combined_data["venue"] = combined_data["venue_fpl"].fillna(combined_data["venue"])
+    combined_data["team_ga"] = combined_data["team_ga_fpl"].fillna(
+        combined_data["team_ga"]
+    )
+    combined_data["team_gf"] = combined_data["team_gf_fpl"].fillna(
+        combined_data["team_gf"]
+    )
     combined_data["team"] = combined_data["team_fpl"].fillna(combined_data["team"])
     combined_data["opponent"] = combined_data["opponent_fpl"].fillna(
         combined_data["opponent"]
@@ -202,7 +210,16 @@ def combine_data(
         suffixes=("", "_opp"),
     )
     combined_data = combined_data.drop(
-        ["next_match", "pos_fpl", "venue_fpl", "round_fpl", "team_fpl", "opponent_fpl"],
+        [
+            "next_match",
+            "pos_fpl",
+            "venue_fpl",
+            "round_fpl",
+            "team_fpl",
+            "opponent_fpl",
+            "team_ga_fpl",
+            "team_gf_fpl",
+        ],
         axis=1,
     )
     return combined_data
@@ -251,7 +268,13 @@ def align_data_structure(
 
     fpl_data["team"] = fpl_data["team"].map(fpl_2_fbref_team_mapping)
     fpl_data["opponent"] = fpl_data["opponent_team_name"].map(fpl_2_fbref_team_mapping)
-    fpl_data["venue"] = np.where(fpl_data["was_home"], "Home", "Away")
+    fpl_data["team_gf"] = np.where(
+        fpl_data["was_home"], fpl_data["team_h_score"], fpl_data["team_a_score"]
+    )
+    fpl_data["team_ga"] = np.where(
+        fpl_data["was_home"], fpl_data["team_a_score"], fpl_data["team_h_score"]
+    )
+    fpl_data["venue"] = fpl_data["was_home"].map({True: "Home", False: "Away"})
     fpl_data["pos"] = fpl_data["position"].map(
         {
             "DEF": "CB,DF,WB,RB,LB",
@@ -264,7 +287,10 @@ def align_data_structure(
     fpl_data = fpl_data.rename(
         columns={"full_name": "fpl_name", "total_points": "fpl_points"}
     )
-    fpl_data = fpl_data.drop(["opponent_team_name", "was_home", "position"], axis=1)
+    fpl_data = fpl_data.drop(
+        ["opponent_team_name", "was_home", "position", "team_a_score", "team_h_score"],
+        axis=1,
+    )
     fpl_data = fpl_data.sort_values(["date", "fpl_name"]).reset_index(drop=True)
 
     return player_match_log, team_match_log, elo_data, fpl_data
@@ -306,7 +332,7 @@ def add_unplayed_matches(fpl_data: pd.DataFrame):
         fill_dates = player_round.merge(
             season_data, on=["season", "fpl_name", "round"], how="left"
         )
-        fill_dates = fill_dates.sort_values("date")
+        fill_dates = fill_dates.sort_values(["date", "fpl_name"])
         output_data = pd.concat([output_data, fill_dates])
     output_data = output_data.reset_index(drop=True)
     return output_data
@@ -358,6 +384,7 @@ def clean_data(
         team_match_log = team_match_log[team_match_log["date"] > cached_date]
         elo_data = elo_data[elo_data["date"] > cached_date]
         fpl_data = fpl_data[fpl_data["date"] > cached_date]
+        raise Exception("TODO")
     player_match_log, team_match_log, fpl_data = filter_data(
         player_match_log, team_match_log, fpl_data, parameters
     )
@@ -400,18 +427,8 @@ def split_data(processed_data, parameters):
         "fpl_points",
     ]
     ma_cols = [col for col in ma_cols if col not in excluded]
-    processed_data = processed_data.drop(ma_cols + ["cached", "start"], axis=1)
-
-    start_cols = ["season", "fpl_name", "round", "date", "player"]
-    end_cols = ["fpl_points"]
-
-    # Rearrange the first few columns while keeping the remaining columns in their original order
-    new_columns = (
-        start_cols
-        + [col for col in processed_data.columns if col not in start_cols + end_cols]
-        + end_cols
-    )
-    processed_data = processed_data[new_columns]
+    non_features = ["cached", "start", "match_points", "league_points"]
+    processed_data = processed_data.drop(ma_cols + non_features, axis=1)
 
     train_val_data = processed_data[processed_data["season"] < holdout_year]
     holdout_data = processed_data[processed_data["season"] >= holdout_year]

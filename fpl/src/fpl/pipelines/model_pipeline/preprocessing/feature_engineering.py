@@ -153,8 +153,9 @@ def single_ma_feature(
 
     ma_data = ma_data.sort_values(by=["date"])
 
+    tqdm.pandas(leave=False, desc="Calculating row")
     ma_data = (
-        ma_data.groupby("fpl_name").apply(
+        ma_data.groupby("fpl_name").progress_apply(
             lambda player_df: calculate_multi_lag_ma(player_df, match_stat_col, lag)
         )
         # .reset_index(level="fpl_name", drop=True)

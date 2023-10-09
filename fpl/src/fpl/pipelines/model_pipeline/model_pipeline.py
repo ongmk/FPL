@@ -27,15 +27,15 @@ def create_preprocess_pipeline() -> Pipeline:
     return pipeline(
         [
             # node(
-            #     func=calculate_elo_score,
-            #     inputs=["TEAM_MATCH_LOG", "params:data"],
-            #     outputs="ELO_DATA",
-            # ),
-            # node(
             #     func=fuzzy_match_player_names,
             #     inputs=["PLAYER_MATCH_LOG", "FPL_DATA", "FUZZY_MATCH_OVERRIDES"],
             #     outputs="PLAYER_NAME_MAPPING",
             # ),
+            node(
+                func=calculate_elo_score,
+                inputs=["TEAM_MATCH_LOG", "READ_PROCESSED_DATA", "params:data"],
+                outputs="ELO_DATA",
+            ),
             node(
                 func=clean_data,
                 inputs=[
@@ -45,19 +45,22 @@ def create_preprocess_pipeline() -> Pipeline:
                     "FPL_DATA",
                     "PLAYER_NAME_MAPPING",
                     "FPL_2_FBREF_TEAM_MAPPING",
-                    "READ_PROCESSED_DATA",
                     "params:data",
                 ],
                 outputs="cleaned_data",
             ),
             node(
                 func=feature_engineering,
-                inputs=["cleaned_data", "READ_PROCESSED_DATA", "params:data"],
+                inputs=[
+                    "cleaned_data",
+                    "READ_PROCESSED_DATA",
+                    "params:data",
+                ],
                 outputs="intermediate_data",
             ),
             node(
                 func=impute_missing_values,
-                inputs=["intermediate_data", "READ_PROCESSED_DATA", "params:data"],
+                inputs=["intermediate_data", "params:data"],
                 outputs="PROCESSED_DATA",
             ),
             node(

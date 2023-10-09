@@ -370,21 +370,11 @@ def clean_data(
     fpl_data,
     player_name_mapping,
     fpl_2_fbref_team_mapping,
-    read_processed_data,
     parameters,
 ):
     player_match_log, team_match_log, elo_data, fpl_data = convert_to_datetime(
         player_match_log, team_match_log, elo_data, fpl_data
     )
-    if parameters["use_cache"]:
-        cached_date = read_processed_data.loc[
-            read_processed_data["cached"] == True, "date"
-        ].max()
-        player_match_log = player_match_log[player_match_log["date"] > cached_date]
-        team_match_log = team_match_log[team_match_log["date"] > cached_date]
-        elo_data = elo_data[elo_data["date"] > cached_date]
-        fpl_data = fpl_data[fpl_data["date"] > cached_date]
-        raise Exception("TODO")
     player_match_log, team_match_log, fpl_data = filter_data(
         player_match_log, team_match_log, fpl_data, parameters
     )
@@ -405,7 +395,7 @@ def clean_data(
         fpl_data,
         parameters,
     )
-    if parameters["test_sampling"]:
+    if parameters["debug_run"]:
         combined_data = sample_players(combined_data)
 
     return combined_data
@@ -428,6 +418,8 @@ def split_data(processed_data, parameters):
     ]
     ma_cols = [col for col in ma_cols if col not in excluded]
     non_features = ["cached", "start", "match_points", "league_points"]
+    non_features += processed_data.filter(regex="_elo$").columns.tolist()
+    non_features += processed_data.filter(regex="_opp$").columns.tolist()
     processed_data = processed_data.drop(ma_cols + non_features, axis=1)
 
     train_val_data = processed_data[processed_data["season"] < holdout_year]

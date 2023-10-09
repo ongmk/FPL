@@ -14,8 +14,6 @@ def agg_home_away_elo(data: pd.DataFrame) -> pd.DataFrame:
     data["def_total"] = data.def_elo + data.att_elo_opp
     data["home_def_total"] = data.home_def_elo + data.away_att_elo_opp
     data["away_def_total"] = data.away_def_elo + data.home_att_elo_opp
-    data = data.drop(data.filter(regex="_elo$").columns, axis=1)
-    data = data.drop(data.filter(regex="_opp$").columns, axis=1)
     return data
 
 
@@ -103,9 +101,11 @@ def calculate_pts_data(data: pd.DataFrame, cached_data: pd.DataFrame) -> pd.Data
     )
 
     pts_data = pts_data[["season", "team", "date", "team_gf", "team_ga"]]
-    if cached_data:
-        pts_data = cached_data
-        raise Exception("TODO")
+    if cached_data is not None:
+        cached_pts_data = cached_data[
+            ["season", "team", "date", "team_gf", "team_ga"]
+        ].drop_duplicates(subset=["season", "team", "date"])
+        pts_data = pd.concat([cached_pts_data, pts_data], ignore_index=True)
 
     tqdm.pandas(desc="Calculating league points")
     pts_data["match_points"] = pts_data.progress_apply(calculate_points, axis=1)
@@ -138,20 +138,37 @@ def create_lag_features(df: pd.DataFrame, match_stat_col: str, lag: int, drop=Tr
     return df
 
 
-def single_ma_feature(df: pd.DataFrame, match_stat_col: str, lag: int):
-    df = df.sort_values(by=["date"])
+def single_ma_feature(
+    data: pd.DataFrame, cached_data: pd.DataFrame, match_stat_col: str, lag: int
+):
+    ma_cols = [f"{match_stat_col}_ma{i+1}" for i in range(lag)]
+    if cached_data is not None:
+        columns = ["fpl_name", "date", "cached"] + ma_cols
+        cached_ma_data = cached_data[columns]
+        ma_data = pd.concat([cached_ma_data, data], ignore_index=True)
+    else:
+        ma_data = data
+        ma_data["cached"] = None
+        cached_ma_data = pd.DataFrame(columns=ma_cols)
 
-    # Create moving average
-    ma_df = df.groupby("fpl_name").apply(
-        lambda x: calculate_multi_lag_ma(x, match_stat_col, lag)
+    ma_data = ma_data.sort_values(by=["date"])
+
+    ma_data = (
+        ma_data.groupby("fpl_name").apply(
+            lambda player_df: calculate_multi_lag_ma(player_df, match_stat_col, lag)
+        )
+        # .reset_index(level="fpl_name", drop=True)
     )
-    return pd.merge(df, ma_df, left_index=True, right_index=True)
+    ma_data = pd.concat([cached_ma_data[ma_cols], ma_data])
+    data = data.drop(columns=ma_cols, errors="ignore")
+    return pd.merge(data, ma_data, left_index=True, right_index=True)
 
 
 def calculate_multi_lag_ma(group: DataFrameGroupBy, match_stat_col: str, max_lag: int):
-    ma_df = pd.DataFrame(index=group.index)
+    ma_df = pd.DataFrame(index=group[group["cached"] != True].index)
 
-    for i in range(len(group)):
+    for index in ma_df.index:
+        i = group.index.get_loc(index)
         for lag in range(1, max_lag + 1):
             if i >= lag and group["date"].iloc[i] - group["date"].iloc[
                 i - lag
@@ -164,18 +181,18 @@ def calculate_multi_lag_ma(group: DataFrameGroupBy, match_stat_col: str, max_lag
 
 
 def create_ma_features(
-    data: pd.DataFrame, cached_data: pd.DataFrame, ma_lag: int
+    data: pd.DataFrame, cached_data: pd.DataFrame, ma_lag: int, parameters: dict
 ) -> (pd.DataFrame, [str]):
-    if cached_data:
-        raise Exception("TODO")
     excluded = ["pts_gap_above", "pts_gap_below", "pts_b4_match", "start", "round"]
     ma_features = [
         col
         for col in data.select_dtypes(include=["int", "float"]).columns
         if col not in excluded
     ]
+    if parameters["debug_run"]:
+        ma_features = ma_features[:3]
     for feature in tqdm(ma_features, desc="Creating MA features"):
-        data = single_ma_feature(data, feature, ma_lag)
+        data = single_ma_feature(data, cached_data, feature, ma_lag)
 
     return data
 
@@ -199,21 +216,29 @@ def select_most_common(row, df_counts):
         return positions[np.argmax(counts)]
 
 
-def extract_mode_pos(df: pd.DataFrame, cached_data: pd.DataFrame) -> pd.DataFrame:
-    if cached_data:
-        raise Exception("TODO")
-    # Step 1: Split 'pos' column into separate rows
-    df_new = df.assign(pos=df["pos"].str.split(",")).explode("pos")
+def extract_mode_pos(data: pd.DataFrame, cached_data: pd.DataFrame) -> pd.DataFrame:
+    unpivot_pos = data.assign(pos=data["pos"].str.split(",")).explode("pos")
+    df_counts = (
+        unpivot_pos.groupby(["fpl_name", "pos"]).size().reset_index(name="counts")
+    )
 
-    # Step 2: Group by 'player' and 'pos' and count the number of each position for each player
-    df_counts = df_new.groupby(["fpl_name", "pos"]).size().reset_index(name="counts")
+    if cached_data is not None:
+        cached_data = (
+            cached_data.groupby(["fpl_name", "pos"]).size().reset_index(name="counts")
+        )
+        df_counts = pd.merge(
+            df_counts, cached_data, on=["fpl_name", "pos"], how="outer"
+        )
+        df_counts["counts"] = df_counts["counts_x"].fillna(0) + df_counts[
+            "counts_y"
+        ].fillna(0)
 
     # # Step 3: Apply the function to each row
     tqdm.pandas(desc="Processing positions")
-    df["pos"] = df.progress_apply(
+    data["pos"] = data.progress_apply(
         lambda row: select_most_common(row, df_counts), axis=1
     )
-    return df
+    return data
 
 
 def feature_engineering(
@@ -221,23 +246,31 @@ def feature_engineering(
 ) -> pd.DataFrame:
     use_cache = parameters["use_cache"]
     ma_lag = parameters["ma_lag"]
-    cached_data = (
-        read_processed_data.loc[read_processed_data["cached"] == True]
-        if use_cache
-        else None
-    )
+
+    if parameters["use_cache"]:
+        cached_data = read_processed_data.loc[read_processed_data["cached"] == True]
+        cached_date = cached_data["date"].max()
+        data = data[data["date"] > cached_date]
+    else:
+        cached_data = None
 
     data = agg_home_away_elo(data)
     data = calculate_pts_data(data, cached_data)
     data = extract_mode_pos(data, cached_data)
-    data = create_ma_features(data, cached_data, ma_lag)
+    data = create_ma_features(data, cached_data, ma_lag, parameters)
+    # TODO: calculate total points per team
+    # TODO: calculate % point of each player within the team
 
     if use_cache:
-        data = pd.concat([cached_data, data])
+        data = pd.concat([cached_data, data], ignore_index=True)
 
-    most_recent_fpl_data = data.loc[data["fpl_points"].notnull(), "date"].max()
-    data.loc[data["date"] <= most_recent_fpl_data, "cached"] = True
+    data = cache_rows(data)
+    data = reorder_columns(data)
 
+    return data
+
+
+def reorder_columns(data):
     start_cols = ["season", "fpl_name", "round", "date", "player"]
     end_cols = ["fpl_points", "cached"]
     new_columns = (
@@ -246,5 +279,11 @@ def feature_engineering(
         + end_cols
     )
     data = data[new_columns]
+    return data
 
+
+def cache_rows(data):
+    null_counts = data.groupby("date")["fpl_points"].apply(lambda x: x.isnull().sum())
+    most_recent_fpl_data = null_counts[null_counts == 0].index.max()
+    data.loc[data["date"] <= most_recent_fpl_data, "cached"] = True
     return data

@@ -1,5 +1,5 @@
+import re
 import sqlite3
-from datetime import timedelta
 from typing import Any
 
 import pandas as pd
@@ -64,21 +64,47 @@ def impute_past_data(data: pd.DataFrame) -> pd.DataFrame:
     return data
 
 
+def ffill_future_data(data: pd.DataFrame) -> pd.DataFrame:
+    data = data.sort_values("date")
+    ma_cols = data.filter(regex=r"\w+_ma\d+").columns.tolist()
+    ma_features = set([re.sub(r"_ma\d+", "", col) for col in ma_cols])
+    ma_lags = [int(re.findall(r"\d+", string)[0]) for string in ma_cols]
+    max_lag = max(ma_lags)
+    for feature in ma_features:
+        data[f"{feature}_ma{max_lag}"] = data[f"{feature}_ma{max_lag}"].ffill()
+        for lag in range(max_lag - 1, 0, -1):
+            data[f"{feature}_ma{lag}"] = data[f"{feature}_ma{lag}"].fillna(
+                data[f"{feature}_ma{lag+1}"]
+            )
+
+    excluded = [
+        "season",
+        "date",
+        "round",
+        "fpl_name",
+        "fpl_points",
+        "value",
+        "player",
+        "cached",
+    ]
+    columns = [col for col in data.columns if col not in excluded + ma_cols]
+    for col in columns:
+        data[col] = data[col].ffill()
+
+    return data
+
+
 def impute_missing_values(
-    data: pd.DataFrame, read_processed_data: pd.DataFrame, parameters: dict[str, Any]
+    data: pd.DataFrame, parameters: dict[str, Any]
 ) -> pd.DataFrame:
-    if parameters["use_cache"]:
-        cached_data = read_processed_data.loc[read_processed_data["cached"] == True]
     data = data.sort_values(["date", "fpl_name"])
     data["value"] = data.groupby("fpl_name")["value"].fillna(method="ffill")
 
-    player_log_max_date = data.loc[data["player"].notnull(), "date"].max()
-
-    data.loc[data["date"] < player_log_max_date] = impute_past_data(
-        data.loc[data["date"] < player_log_max_date]
+    data.loc[data["cached"] == True] = impute_past_data(
+        data.loc[data["cached"] == True]
     )
 
-    # TODO: ffill data
+    data = ffill_future_data(data)
     # TODO: check elo rating exist for next week's match
 
     return data

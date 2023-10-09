@@ -1,7 +1,8 @@
-from typing import Any
-import pandas as pd
 import logging
-import statistics
+from datetime import datetime
+from typing import Any
+
+import pandas as pd
 from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
@@ -176,17 +177,21 @@ def add_promoted_team_rows(
             mean_xg = last_matches["temp_xg"].mean()
             mean_xga = last_matches["temp_xga"].mean()
 
-            new_row = {
-                "season": season,
-                "team": team,
-                "round": 0,
-                "date": one_day_before.strftime("%Y-%m-%d"),
-                "opponent": relegated_teams[0],
-                "xg": mean_xg,
-                "xga": mean_xga,
-            }
+            new_row = pd.DataFrame(
+                [
+                    {
+                        "season": season,
+                        "team": team,
+                        "round": 0,
+                        "date": one_day_before.strftime("%Y-%m-%d"),
+                        "opponent": relegated_teams[0],
+                        "xg": mean_xg,
+                        "xga": mean_xga,
+                    }
+                ]
+            )
 
-            match_data = match_data.append(new_row, ignore_index=True)
+            match_data = pd.concat([match_data, new_row], ignore_index=True)
     return match_data
 
 
@@ -197,20 +202,46 @@ def is_first_match_after_promotion(
 
 
 def calculate_elo_score(
-    match_data: pd.DataFrame, parameters: dict[str, Any]
+    match_data: pd.DataFrame,
+    read_processed_data: pd.DataFrame,
+    parameters: dict[str, Any],
 ) -> pd.DataFrame:
     home_away_weight = parameters["home_away_weight"]
     learning_rate = parameters["elo_learning_rate"]
     logger.info(
         f"Calculating elo score with lr={learning_rate}; h/a_weight={home_away_weight}"
     )
+
+    match_data["xg"] = match_data["xg"].fillna(match_data["gf"])
+    match_data["xga"] = match_data["xga"].fillna(match_data["ga"])
     match_data = match_data.loc[
         (match_data["comp"] == "Premier League")
         & (match_data["season"] >= parameters["start_year"])
         & (match_data["venue"] == "Home"),
         ["season", "team", "round", "date", "opponent", "xg", "xga"],
     ]
-    elo_df = get_init_elo(match_data)
+
+    if parameters["use_cache"]:
+        cached_data = read_processed_data.loc[read_processed_data["cached"] == True]
+        cached_date = cached_data["date"].max().strftime("%Y-%m-%d")
+        match_data = match_data[match_data["date"] > cached_date]
+        elo_df = cached_data.loc[
+            cached_data["venue"] == "Home",
+            [
+                "team",
+                "season",
+                "date",
+                "att_elo",
+                "def_elo",
+                "home_att_elo",
+                "home_def_elo",
+                "away_att_elo",
+                "away_def_elo",
+            ],
+        ].drop_duplicates(subset=["team", "season", "date"])
+        elo_df["date"] = elo_df["date"].dt.date
+    else:
+        elo_df = get_init_elo(match_data)
     seasons, promotions, relegations = get_promotions_relegations(match_data)
     match_data = add_promoted_team_rows(
         match_data=match_data,
@@ -314,19 +345,31 @@ def calculate_elo_score(
         next_away_team_elos = pd.DataFrame(next_away_team_elos, index=[0])
         elo_df = pd.concat([elo_df, next_away_team_elos], ignore_index=True)
 
+    ffill_cols = [
+        "att_elo",
+        "def_elo",
+        "home_att_elo",
+        "home_def_elo",
+        "away_att_elo",
+        "away_def_elo",
+    ]
+    elo_df[ffill_cols] = elo_df.groupby("team")[ffill_cols].transform(
+        lambda x: x.ffill()
+    )
+
     return elo_df
 
 
-# def xg_elo_correlation(processed_data: pd.DataFrame) -> float:
-#     att_corr = processed_data["xg"].corr(processed_data["att_total"])
-#     home_att_corr = processed_data["xg"].corr(processed_data["home_att_total"])
-#     away_att_corr = processed_data["xg"].corr(processed_data["away_att_total"])
-#     def_corr = processed_data["xga"].corr(processed_data["def_total"])
-#     home_def_corr = processed_data["xga"].corr(processed_data["home_def_total"])
-#     away_def_corr = processed_data["xga"].corr(processed_data["away_def_total"])
+if __name__ == "__main__":
+    import sqlite3
 
-#     correlation = statistics.mean(
-#         [att_corr, home_att_corr, away_att_corr, def_corr, home_def_corr, away_def_corr]
-#     )
-#     logger.info(f"Mean Correlation = {correlation}")
-#     return correlation
+    conn = sqlite3.connect("data/fpl.db")
+    match_log = pd.read_sql(f"select * from raw_team_match_log", conn)
+    parameters = dict(
+        elo_learning_rate=0.1,
+        home_away_weight=0.5,
+        start_year="2016-2017",
+        use_cache=False,
+    )
+    elo_data = calculate_elo_score(match_log, None, parameters)
+    print(elo_data)

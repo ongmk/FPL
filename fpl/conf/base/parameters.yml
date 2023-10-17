@@ -1,5 +1,14 @@
 model:
   target: fpl_points
+  not_features:
+    - fpl_name
+    - date
+    - player
+  categorical_features:
+    - venue
+    - team
+    - opponent
+    - pos
   numerical_features:
     - round
     - value
@@ -13,16 +22,55 @@ model:
     - rank_b4_match
     - pts_gap_above
     - pts_gap_below
-  categorical_features:
-    - venue
-    - team
-    - opponent
-    - pos
+  ma_features:
+    - min
+    - gls
+    - ast
+    - pk
+    - pkatt
+    - sh
+    - sot
+    - touches
+    - xg
+    - npxg
+    - xag
+    - sca
+    - gca
+    - sota
+    - ga
+    - saves
+    - savepct
+    - cs
+    - psxg
+    - team_poss
+    - team_gf
+    - team_ga
+    - team_xg
+    - team_xga
+    - fpl_points
+    - value
+    - att_elo
+    - def_elo
+    - home_att_elo
+    - home_def_elo
+    - away_att_elo
+    - away_def_elo
+    - att_elo_opp
+    - def_elo_opp
+    - home_att_elo_opp
+    - home_def_elo_opp
+    - away_att_elo_opp
+    - away_def_elo_opp
+    - att_total
+    - home_att_total
+    - away_att_total
+    - def_total
+    - home_def_total
+    - away_def_total
+    - match_points
+    - league_points
   group_by: season
-  # baseline_columns:
-  #   - xg_ma
-  #   - team_odds_2_score
-  #   - att_total
+  ma_lag: 5
   pca_components: 7
   random_state: 42
   verbose: false

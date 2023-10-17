@@ -8,6 +8,7 @@ from src.fpl.pipelines.model_pipeline.modelling.evaluation import evaluate_model
 from src.fpl.pipelines.model_pipeline.modelling.training import (
     create_sklearn_pipeline,
     cross_validation,
+    filter_train_val_data,
     pycaret_compare_models,
     train_model,
 )
@@ -91,14 +92,20 @@ def create_model_pipeline() -> Pipeline:
                 name="init_experiment",
             ),
             node(
-                func=create_sklearn_pipeline,
+                func=filter_train_val_data,
                 inputs=["TRAIN_VAL_DATA", "params:model"],
+                outputs="filtered_train_val_data",
+                name="filter_train_val_data",
+            ),
+            node(
+                func=create_sklearn_pipeline,
+                inputs=["filtered_train_val_data", "params:model"],
                 outputs="sklearn_pipeline",
                 name="create_sklearn_pipeline",
             ),
             node(
                 func=pycaret_compare_models,
-                inputs=["TRAIN_VAL_DATA", "sklearn_pipeline", "params:model"],
+                inputs=["filtered_train_val_data", "sklearn_pipeline", "params:model"],
                 outputs="PYCARET_RESULT",
                 name="pycaret_compare_models",
             ),
@@ -111,7 +118,7 @@ def create_model_pipeline() -> Pipeline:
             # node(
             #     func=cross_validation,
             #     inputs=[
-            #         "TRAIN_VAL_DATA",
+            #         "filtered_train_val_data",
             #         "model",
             #         "sklearn_pipeline",
             #         "experiment_id",
@@ -127,14 +134,14 @@ def create_model_pipeline() -> Pipeline:
             # ),
             # node(
             #     func=train_model,
-            #     inputs=["TRAIN_VAL_DATA", "model", "sklearn_pipeline", "params:model"],
+            #     inputs=["filtered_train_val_data", "model", "sklearn_pipeline", "params:model"],
             #     outputs=["FITTED_MODEL", "FITTED_SKLEARN_PIPELINE"],
             #     name="train_model",
             # ),
             # node(
             #     func=evaluate_model_holdout,
             #     inputs=[
-            #         "TRAIN_VAL_DATA",
+            #         "filtered_train_val_data",
             #         "HOLDOUT_DATA",
             #         "FITTED_MODEL",
             #         "FITTED_SKLEARN_PIPELINE",

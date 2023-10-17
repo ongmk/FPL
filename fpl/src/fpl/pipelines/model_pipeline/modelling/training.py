@@ -16,14 +16,38 @@ from src.fpl.pipelines.model_pipeline.modelling.evaluation import evaluate_model
 logger = logging.getLogger(__name__)
 
 
+def get_all_numerical_features(parameters: dict[str, Any]) -> list[str]:
+    numerical_features = parameters["numerical_features"]
+    ma_lag = parameters["ma_lag"]
+    ma_features = parameters["ma_features"]
+    for i in range(ma_lag):
+        numerical_features += [f"{f}_ma{i+1}" for f in ma_features]
+    return numerical_features
+
+
+def filter_train_val_data(
+    train_val_data: pd.DataFrame, parameters: dict[str, Any]
+) -> pd.DataFrame:
+    group_by = parameters["group_by"]
+    target = parameters["target"]
+    categorical_features = parameters["categorical_features"]
+    numerical_features = get_all_numerical_features(parameters)
+
+    train_val_data = train_val_data[
+        [group_by] + categorical_features + numerical_features + [target]
+    ]
+    train_val_data = train_val_data.dropna(subset=numerical_features)
+    return train_val_data
+
+
 def create_sklearn_pipeline(
     train_val_data: pd.DataFrame, parameters: dict[str, Any]
 ) -> Pipeline:
     categorical_features = parameters["categorical_features"]
-    numerical_features = parameters["numerical_features"]
+    numerical_features = get_all_numerical_features(parameters)
+
     numerical_pipeline = Pipeline(
         [
-            ("num_imputer", SimpleImputer(strategy="constant", fill_value=-999)),
             ("scaler", StandardScaler()),
             ("pca", PCA(n_components=parameters["pca_components"])),
         ]
@@ -36,7 +60,6 @@ def create_sklearn_pipeline(
     ]
     categorical_pipeline = Pipeline(
         [
-            ("cat_imputer", SimpleImputer(strategy="constant", fill_value="missing")),
             (
                 "one_hot_encoder",
                 OneHotEncoder(

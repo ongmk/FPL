@@ -22,6 +22,40 @@
             "justMyCode": false,
         },
         {
+            "name": "Model comparison",
+            "type": "python",
+            "request": "launch",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}\\fpl"
+            },
+            "cwd": "${workspaceFolder}\\fpl",
+            "program": "src\\fpl\\custom_run\\kedro_cli.py",
+            "args": [
+                "run",
+                "--pipeline",
+                "compare_model_pipeline"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+        },
+        {
+            "name": "Feature Selection",
+            "type": "python",
+            "request": "launch",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}\\fpl"
+            },
+            "cwd": "${workspaceFolder}\\fpl",
+            "program": "src\\fpl\\custom_run\\kedro_cli.py",
+            "args": [
+                "run",
+                "--pipeline",
+                "feature_selection_pipeline"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+        },
+        {
             "name": "Data preprocessing",
             "type": "python",
             "request": "launch",

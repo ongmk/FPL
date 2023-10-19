@@ -8,6 +8,7 @@ from src.fpl.pipelines.model_pipeline.modelling.evaluation import evaluate_model
 from src.fpl.pipelines.model_pipeline.modelling.training import (
     create_sklearn_pipeline,
     cross_validation,
+    feature_selection,
     filter_train_val_data,
     pycaret_compare_models,
     train_model,
@@ -76,6 +77,56 @@ def create_preprocess_pipeline() -> Pipeline:
     )
 
 
+def create_feature_selection_pipeline() -> Pipeline:
+    return pipeline(
+        [
+            node(
+                func=filter_train_val_data,
+                inputs=["TRAIN_VAL_DATA", "params:model"],
+                outputs="filtered_train_val_data",
+                name="filter_train_val_data",
+            ),
+            node(
+                func=create_sklearn_pipeline,
+                inputs=["filtered_train_val_data", "params:model"],
+                outputs="sklearn_pipeline",
+                name="create_sklearn_pipeline",
+            ),
+            node(
+                func=feature_selection,
+                inputs=["filtered_train_val_data", "sklearn_pipeline", "params:model"],
+                outputs=["FEATURE_SELECTION_SUMMARY", "FEATURE_SELECTION_PLOTS"],
+                name="feature_selection",
+            ),
+        ]
+    )
+
+
+def create_compare_model_pipeline() -> Pipeline:
+    return pipeline(
+        [
+            node(
+                func=filter_train_val_data,
+                inputs=["TRAIN_VAL_DATA", "params:model"],
+                outputs="filtered_train_val_data",
+                name="filter_train_val_data",
+            ),
+            node(
+                func=create_sklearn_pipeline,
+                inputs=["filtered_train_val_data", "params:model"],
+                outputs="sklearn_pipeline",
+                name="create_sklearn_pipeline",
+            ),
+            node(
+                func=pycaret_compare_models,
+                inputs=["filtered_train_val_data", "sklearn_pipeline", "params:model"],
+                outputs="PYCARET_RESULT",
+                name="pycaret_compare_models",
+            ),
+        ]
+    )
+
+
 def create_model_pipeline() -> Pipeline:
     return pipeline(
         [
@@ -104,58 +155,57 @@ def create_model_pipeline() -> Pipeline:
                 name="create_sklearn_pipeline",
             ),
             node(
-                func=pycaret_compare_models,
-                inputs=["filtered_train_val_data", "sklearn_pipeline", "params:model"],
-                outputs="PYCARET_RESULT",
-                name="pycaret_compare_models",
+                func=model_selection,
+                inputs="params:model",
+                outputs="model",
+                name="model_selection",
             ),
-            # node(
-            #     func=model_selection,
-            #     inputs="params:model",
-            #     outputs="model",
-            #     name="model_selection",
-            # ),
-            # node(
-            #     func=cross_validation,
-            #     inputs=[
-            #         "filtered_train_val_data",
-            #         "model",
-            #         "sklearn_pipeline",
-            #         "experiment_id",
-            #         "start_time",
-            #         "params:model",
-            #     ],
-            #     outputs=[
-            #         "val_score",
-            #         "TRAIN_METRICS",
-            #         "LAST_FOLD_EVALUATION_PLOTS",
-            #     ],
-            #     name="cross_validation",
-            # ),
-            # node(
-            #     func=train_model,
-            #     inputs=["filtered_train_val_data", "model", "sklearn_pipeline", "params:model"],
-            #     outputs=["FITTED_MODEL", "FITTED_SKLEARN_PIPELINE"],
-            #     name="train_model",
-            # ),
-            # node(
-            #     func=evaluate_model_holdout,
-            #     inputs=[
-            #         "filtered_train_val_data",
-            #         "HOLDOUT_DATA",
-            #         "FITTED_MODEL",
-            #         "FITTED_SKLEARN_PIPELINE",
-            #         "experiment_id",
-            #         "start_time",
-            #         "params:model",
-            #     ],
-            #     outputs=[
-            #         "HOLDOUT_EVALUATION_RESULT",
-            #         "HOLDOUT_EVALUATION_PLOTS",
-            #         "HOLDOUT_METRICS",
-            #     ],
-            #     name="evaluate_model_holdout",
-            # ),
+            node(
+                func=cross_validation,
+                inputs=[
+                    "filtered_train_val_data",
+                    "model",
+                    "sklearn_pipeline",
+                    "experiment_id",
+                    "start_time",
+                    "params:model",
+                ],
+                outputs=[
+                    "val_score",
+                    "TRAIN_METRICS",
+                    "LAST_FOLD_EVALUATION_PLOTS",
+                ],
+                name="cross_validation",
+            ),
+            node(
+                func=train_model,
+                inputs=[
+                    "filtered_train_val_data",
+                    "model",
+                    "sklearn_pipeline",
+                    "params:model",
+                ],
+                outputs=["FITTED_MODEL", "FITTED_SKLEARN_PIPELINE"],
+                name="train_model",
+            ),
+            node(
+                func=evaluate_model_holdout,
+                inputs=[
+                    "filtered_train_val_data",
+                    "HOLDOUT_DATA",
+                    "FITTED_MODEL",
+                    "FITTED_SKLEARN_PIPELINE",
+                    "experiment_id",
+                    "start_time",
+                    "params:model",
+                ],
+                outputs=[
+                    "HOLDOUT_EVALUATION_RESULT",
+                    "HOLDOUT_EVALUATION_PLOTS",
+                    "HOLDOUT_METRICS",
+                ],
+                name="evaluate_model_holdout",
+            ),
         ]
     )
 

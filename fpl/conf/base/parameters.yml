@@ -1,4 +1,5 @@
 model:
+  variance_threshold: 0.02
   target: fpl_points
   not_features:
     - fpl_name

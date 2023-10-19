@@ -24,7 +24,7 @@ EXPERIMENT_RECORD:
 
 FPL_HISTORY_BACKUP:
   type: pandas.CSVDataSet
-  filepath: data/fpl_history_backup.csv
+  filepath: data/preprocess/fpl_history_backup.csv
   save_args:
     encoding: utf-8-sig
 
@@ -49,17 +49,17 @@ PLAYER_MATCH_LOG:
 
 FUZZY_MATCH_OVERRIDES:
   type: yaml.YAMLDataSet
-  filepath: data/fuzzy_match_overrides.yml
+  filepath: data/preprocess/fuzzy_match_overrides.yml
 
 PLAYER_NAME_MAPPING:
   type: pandas.CSVDataSet
-  filepath: data/player_name_mapping.csv
+  filepath: data/preprocess/player_name_mapping.csv
   save_args:
     encoding: utf-8-sig
 
 FPL_2_FBREF_TEAM_MAPPING:
   type: yaml.YAMLDataSet
-  filepath: data/fpl_2_fbref_team_mapping.yml
+  filepath: data/preprocess/fpl_2_fbref_team_mapping.yml
 
 TEAM_MATCH_LOG:
   type: pandas.SQLTableDataSet
@@ -100,6 +100,16 @@ HOLDOUT_DATA:
   credentials: db_credentials
   save_args:
     if_exists: replace
+
+FEATURE_SELECTION_SUMMARY:
+  type: pandas.CSVDataSet
+  filepath: data/preprocess/feature_selection_summary.csv
+  save_args:
+    encoding: utf-8-sig
+
+FEATURE_SELECTION_PLOTS:
+  type: matplotlib.MatplotlibWriter
+  filepath: data/preprocess
 
 PYCARET_RESULT:
   type: pandas.SQLTableDataSet

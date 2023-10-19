@@ -3,10 +3,10 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+from matplotlib.figure import Figure
 from pycaret.regression import compare_models, pull, setup
 from sklearn.compose import ColumnTransformer
 from sklearn.decomposition import PCA
-from sklearn.impute import SimpleImputer
 from sklearn.model_selection import GroupKFold
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
@@ -20,8 +20,9 @@ def get_all_numerical_features(parameters: dict[str, Any]) -> list[str]:
     numerical_features = parameters["numerical_features"]
     ma_lag = parameters["ma_lag"]
     ma_features = parameters["ma_features"]
-    for i in range(ma_lag):
-        numerical_features += [f"{f}_ma{i+1}" for f in ma_features]
+    for feature in ma_features:
+        for i in range(ma_lag):
+            numerical_features.append(f"{feature}_ma{i+1}")
     return numerical_features
 
 
@@ -83,6 +84,40 @@ def create_sklearn_pipeline(
         ]
     )
     return sklearn_pipeline
+
+
+def feature_selection(
+    train_val_data: pd.DataFrame, sklearn_pipeline: Pipeline, parameters: dict[str, Any]
+) -> list[pd.DataFrame, dict[str, Figure]]:
+    target = parameters["target"]
+    categorical_features = parameters["categorical_features"]
+    numerical_features = get_all_numerical_features(parameters)
+    variance_threshold = parameters["variance_threshold"]
+
+    X_train_val = train_val_data[numerical_features + categorical_features]
+    y_train_val = train_val_data[target]
+    height = max(4, int(len(numerical_features + categorical_features) / 4))
+    # X_train_val_preprocessed = sklearn_pipeline.fit_transform(X_train_val)
+    plots = {}
+
+    variance_values = X_train_val.var()
+    ax = variance_values.plot(
+        kind="barh",
+        title=f"Feature Variance",
+        figsize=(8, height),
+    )
+    plots["variances.png"] = ax.get_figure()
+
+    summary = pd.DataFrame(
+        {"column": variance_values.index, "variance": variance_values.values}
+    )
+    summary["variance_check"] = summary["variance"] > variance_threshold
+
+    # model.fit(
+    #     X=X_train_preprocessed,
+    #     y=y_train,
+    # )
+    return summary, plots
 
 
 def pycaret_compare_models(

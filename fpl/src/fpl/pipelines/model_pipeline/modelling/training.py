@@ -1,10 +1,12 @@
 import logging
 from typing import Any
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib.figure import Figure
 from pycaret.regression import compare_models, pull, setup
+from scipy.stats import f, pearsonr, spearmanr
 from sklearn.compose import ColumnTransformer
 from sklearn.decomposition import PCA
 from sklearn.model_selection import GroupKFold
@@ -86,6 +88,24 @@ def create_sklearn_pipeline(
     return sklearn_pipeline
 
 
+def f_test(X, y, mode):
+    # Do F-test using Pearson correlation
+    temp = []
+    for col in X.columns:
+        valid_indices = ~np.isnan(X[col].values)
+        valid_x = X[col].values[valid_indices]
+        valid_y = y[valid_indices]
+        if mode.lower() == "pearsonr":
+            corr, _ = pearsonr(valid_x, valid_y)
+        elif mode.lower() == "spearmanr":
+            corr, _ = spearmanr(valid_x, valid_y)
+        else:
+            raise Exception("Incorrect mode")
+        temp.append(corr)
+
+    return pd.Series(temp, index=X.columns)
+
+
 def feature_selection(
     train_val_data: pd.DataFrame, sklearn_pipeline: Pipeline, parameters: dict[str, Any]
 ) -> list[pd.DataFrame, dict[str, Figure]]:
@@ -93,31 +113,58 @@ def feature_selection(
     categorical_features = parameters["categorical_features"]
     numerical_features = get_all_numerical_features(parameters)
     variance_threshold = parameters["variance_threshold"]
+    f_test_method = parameters["f_test_method"]
+    f_test_threshold = parameters["f_test_threshold"]
 
     X_train_val = train_val_data[numerical_features + categorical_features]
     y_train_val = train_val_data[target]
-    height = max(4, int(len(numerical_features + categorical_features) / 4))
-    # X_train_val_preprocessed = sklearn_pipeline.fit_transform(X_train_val)
+    X_train_val_preprocessed = sklearn_pipeline.fit_transform(X_train_val)
     plots = {}
 
-    variance_values = X_train_val.var()
-    ax = variance_values.plot(
-        kind="barh",
-        title=f"Feature Variance",
+    variances = X_train_val_preprocessed.var()
+    variance_check = variances >= variance_threshold
+
+    f_test_correlation = f_test(
+        X_train_val_preprocessed[numerical_features], y_train_val, f_test_method
+    )
+    f_test_check = abs(f_test_correlation) >= variance_threshold
+
+    summary = pd.DataFrame({"column": variances.index, "variance": variances.values})
+    summary["variance_check"] = variance_check
+    summary[f"{f_test_method}_correlation"] = f_test_correlation
+    summary["f_test_check"] = f_test_check
+
+    plots["variances.png"] = plot_h_bars(
+        variance_threshold, variance_check, variances, mode="variance"
+    )
+    plots["f_test.png"] = plot_h_bars(
+        f_test_threshold, f_test_check, f_test_correlation, mode="f_test"
+    )
+
+    return summary, plots
+
+
+def plot_h_bars(threshold, checks, series, mode):
+    height = max(4, len(series) * 0.25)
+    fig, ax = plt.subplots(
         figsize=(8, height),
     )
-    plots["variances.png"] = ax.get_figure()
-
-    summary = pd.DataFrame(
-        {"column": variance_values.index, "variance": variance_values.values}
-    )
-    summary["variance_check"] = summary["variance"] > variance_threshold
-
-    # model.fit(
-    #     X=X_train_preprocessed,
-    #     y=y_train,
-    # )
-    return summary, plots
+    if mode == "variance":
+        colors = ["green" if value else "red" for value in checks.values]
+        ax.axvline(x=threshold, color="black", linestyle="--")
+        ax.set_title("Features Variances")
+    elif mode == "f_test":
+        colors = [
+            "green" if var >= threshold or var <= -threshold else "red"
+            for var in series.values
+        ]
+        ax.axvline(x=threshold, color="black", linestyle="--")
+        ax.axvline(x=-threshold, color="black", linestyle="--")
+        ax.set_title("Feature Target Correlation")
+    ax.barh(series.index, series.values, color=colors)
+    ax.margins(y=0)
+    fig.tight_layout()
+    return fig
 
 
 def pycaret_compare_models(

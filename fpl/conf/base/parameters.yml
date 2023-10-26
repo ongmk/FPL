@@ -1,5 +1,7 @@
 model:
   variance_threshold: 0.02
+  f_test_method: spearmanr
+  f_test_threshold: 0.15
   target: fpl_points
   not_features:
     - fpl_name

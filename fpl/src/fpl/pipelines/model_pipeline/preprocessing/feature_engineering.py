@@ -165,18 +165,18 @@ def single_ma_feature(
     return pd.merge(data, ma_data, left_index=True, right_index=True)
 
 
-def calculate_multi_lag_ma(group: DataFrameGroupBy, match_stat_col: str, max_lag: int):
+def calculate_multi_lag_ma(group: DataFrameGroupBy, match_stat_col: str, lag: int):
     ma_df = pd.DataFrame(index=group[group["cached"] != True].index)
 
     for index in ma_df.index:
         i = group.index.get_loc(index)
-        for lag in range(1, max_lag + 1):
-            if i >= lag and group["date"].iloc[i] - group["date"].iloc[
-                i - lag
-            ] <= timedelta(days=365):
-                ma_df.loc[group.index[i], f"{match_stat_col}_ma{lag}"] = (
-                    group[match_stat_col].iloc[i - lag : i].mean()
-                )
+        # for lag in range(1, max_lag + 1):
+        if i >= lag and group["date"].iloc[i] - group["date"].iloc[
+            i - lag
+        ] <= timedelta(days=365):
+            ma_df.loc[group.index[i], f"{match_stat_col}_ma{lag}"] = (
+                group[match_stat_col].iloc[i - lag : i].mean()
+            )
 
     return ma_df
 

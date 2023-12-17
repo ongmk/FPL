@@ -11,7 +11,7 @@ from sklearn.compose import ColumnTransformer
 from sklearn.decomposition import PCA
 from sklearn.model_selection import GroupKFold
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder, StandardScaler
+from sklearn.preprocessing import MinMaxScaler, OneHotEncoder, StandardScaler
 from src.fpl.pipelines.model_pipeline.modelling.ensemble import EnsembleModel
 from src.fpl.pipelines.model_pipeline.modelling.evaluation import evaluate_model
 
@@ -118,14 +118,20 @@ def feature_selection(
 
     X_train_val = train_val_data[numerical_features + categorical_features]
     y_train_val = train_val_data[target]
-    X_train_val_preprocessed = sklearn_pipeline.fit_transform(X_train_val)
+
+    scaler = MinMaxScaler(feature_range=(-1, 1))
+    X_train_val[numerical_features] = scaler.fit_transform(
+        X_train_val[numerical_features]
+    )
+    y_train_val = scaler.fit_transform(y_train_val.values.reshape(-1, 1)).flatten()
+
     plots = {}
 
-    variances = X_train_val_preprocessed.var()
+    variances = X_train_val.var()
     variance_check = variances >= variance_threshold
 
     f_test_correlation = f_test(
-        X_train_val_preprocessed[numerical_features], y_train_val, f_test_method
+        X_train_val[numerical_features], y_train_val, f_test_method
     )
     f_test_check = abs(f_test_correlation) >= variance_threshold
 

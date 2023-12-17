@@ -1,1 +1,5 @@
-from .sql_dataset import FlexibleSQLTableDataSet, ExperimentMetrics  # noqa
+from .sql_dataset import (  # noqa
+    ExperimentMetrics,
+    FlexibleSQLTableDataSet,
+    ReadOnlySQLTableDataSet,
+)

@@ -29,11 +29,9 @@ FPL_HISTORY_BACKUP:
     encoding: utf-8-sig
 
 READ_FPL_DATA:
-  type: pandas.SQLTableDataSet
+  type: fpl.extras.datasets.ReadOnlySQLTableDataSet
   table_name: raw_fpl_data
   credentials: db_credentials
-  save_args:
-    if_exists: replace
 
 FPL_DATA:
   type: pandas.SQLTableDataSet
@@ -74,11 +72,9 @@ ELO_DATA:
     if_exists: replace
 
 READ_PROCESSED_DATA:
-  type: pandas.SQLTableDataSet
+  type: fpl.extras.datasets.ReadOnlySQLTableDataSet
   table_name: processed_data
   credentials: db_credentials
-  save_args:
-    if_exists: replace
 
 PROCESSED_DATA:
   type: pandas.SQLTableDataSet

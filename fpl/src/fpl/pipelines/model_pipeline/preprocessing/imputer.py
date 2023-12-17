@@ -1,5 +1,6 @@
 import re
 import sqlite3
+import statistics
 from typing import Any
 
 import pandas as pd
@@ -69,13 +70,9 @@ def ffill_future_data(data: pd.DataFrame) -> pd.DataFrame:
     ma_cols = data.filter(regex=r"\w+_ma\d+").columns.tolist()
     ma_features = set([re.sub(r"_ma\d+", "", col) for col in ma_cols])
     ma_lags = [int(re.findall(r"\d+", string)[0]) for string in ma_cols]
-    max_lag = max(ma_lags)
+    lag = statistics.mode(ma_lags)
     for feature in ma_features:
-        data[f"{feature}_ma{max_lag}"] = data[f"{feature}_ma{max_lag}"].ffill()
-        for lag in range(max_lag - 1, 0, -1):
-            data[f"{feature}_ma{lag}"] = data[f"{feature}_ma{lag}"].fillna(
-                data[f"{feature}_ma{lag+1}"]
-            )
+        data[f"{feature}_ma{lag}"] = data[f"{feature}_ma{lag}"].ffill()
 
     excluded = [
         "season",

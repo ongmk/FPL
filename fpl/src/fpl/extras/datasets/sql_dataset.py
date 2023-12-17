@@ -1,6 +1,8 @@
-from kedro.extras.datasets.pandas.sql_dataset import SQLTableDataSet
-import pandas as pd
 import logging
+
+import pandas as pd
+from kedro.extras.datasets.pandas.sql_dataset import SQLTableDataSet
+from sqlalchemy import inspect
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +39,18 @@ class FlexibleSQLTableDataSet(SQLTableDataSet):
         expand_table(self._load_args["table_name"], data, engine)
 
         data.to_sql(con=engine, **self._save_args)
+
+
+class ReadOnlySQLTableDataSet(SQLTableDataSet):
+    def _load(self) -> pd.DataFrame:
+        engine = self.engines[self._connection_str]  # type:ignore
+        inspector = inspect(engine)
+        table_name = self._load_args["table_name"]
+        if inspector.has_table(table_name):
+            return pd.read_sql_table(con=engine, **self._load_args)
+        else:
+            logger.warning(f"Table {table_name} doesn't exist. Returning None.")
+            return None
 
 
 class ExperimentMetrics(FlexibleSQLTableDataSet):

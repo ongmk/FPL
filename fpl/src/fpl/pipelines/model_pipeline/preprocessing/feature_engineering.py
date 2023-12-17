@@ -141,7 +141,8 @@ def create_lag_features(df: pd.DataFrame, match_stat_col: str, lag: int, drop=Tr
 def single_ma_feature(
     data: pd.DataFrame, cached_data: pd.DataFrame, match_stat_col: str, lag: int
 ):
-    ma_cols = [f"{match_stat_col}_ma{i+1}" for i in range(lag)]
+    # ma_cols = [f"{match_stat_col}_ma{i+1}" for i in range(lag)]
+    ma_cols = [f"{match_stat_col}_ma{lag}"]
     if cached_data is not None:
         columns = ["fpl_name", "date", "cached"] + ma_cols
         cached_ma_data = cached_data[columns]
@@ -154,23 +155,35 @@ def single_ma_feature(
     ma_data = ma_data.sort_values(by=["date"])
 
     tqdm.pandas(leave=False, desc="Calculating row")
-    ma_data = (
-        ma_data.groupby("fpl_name").progress_apply(
-            lambda player_df: calculate_multi_lag_ma(player_df, match_stat_col, lag)
-        )
-        # .reset_index(level="fpl_name", drop=True)
+    ma_data = ma_data.groupby("fpl_name").progress_apply(
+        lambda player_df: calculate_single_lag_ma(player_df, match_stat_col, lag)
     )
     ma_data = pd.concat([cached_ma_data[ma_cols], ma_data])
     data = data.drop(columns=ma_cols, errors="ignore")
     return pd.merge(data, ma_data, left_index=True, right_index=True)
 
 
-def calculate_multi_lag_ma(group: DataFrameGroupBy, match_stat_col: str, lag: int):
+def calculate_multi_lag_ma(group: DataFrameGroupBy, match_stat_col: str, max_lag: int):
     ma_df = pd.DataFrame(index=group[group["cached"] != True].index)
 
     for index in ma_df.index:
         i = group.index.get_loc(index)
-        # for lag in range(1, max_lag + 1):
+        for lag in range(1, max_lag + 1):
+            if i >= lag and group["date"].iloc[i] - group["date"].iloc[
+                i - lag
+            ] <= timedelta(days=365):
+                ma_df.loc[group.index[i], f"{match_stat_col}_ma{lag}"] = (
+                    group[match_stat_col].iloc[i - lag : i].mean()
+                )
+
+    return ma_df
+
+
+def calculate_single_lag_ma(group: DataFrameGroupBy, match_stat_col: str, lag: int):
+    ma_df = pd.DataFrame(index=group[group["cached"] != True].index)
+
+    for index in ma_df.index:
+        i = group.index.get_loc(index)
         if i >= lag and group["date"].iloc[i] - group["date"].iloc[
             i - lag
         ] <= timedelta(days=365):
@@ -248,7 +261,7 @@ def feature_engineering(
     use_cache = parameters["use_cache"]
     ma_lag = parameters["ma_lag"]
 
-    if parameters["use_cache"]:
+    if parameters["use_cache"] and read_processed_data is not None:
         cached_data = read_processed_data.loc[read_processed_data["cached"] == True]
         cached_date = cached_data["date"].max()
         data = data[data["date"] > cached_date]

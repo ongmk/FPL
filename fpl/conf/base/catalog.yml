@@ -117,6 +117,7 @@ PYCARET_RESULT:
   credentials: db_credentials
   save_args:
     if_exists: replace
+    index: True
 
 FITTED_MODEL:
   type: pickle.PickleDataSet

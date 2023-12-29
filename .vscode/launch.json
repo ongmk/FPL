@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Model training",
+            "name": "Data preprocessing",
             "type": "python",
             "request": "launch",
             "env": {
@@ -16,24 +16,7 @@
             "args": [
                 "run",
                 "--pipeline",
-                "model_pipeline"
-            ],
-            "console": "integratedTerminal",
-            "justMyCode": false,
-        },
-        {
-            "name": "Model comparison",
-            "type": "python",
-            "request": "launch",
-            "env": {
-                "PYTHONPATH": "${workspaceFolder}\\fpl"
-            },
-            "cwd": "${workspaceFolder}\\fpl",
-            "program": "src\\fpl\\custom_run\\kedro_cli.py",
-            "args": [
-                "run",
-                "--pipeline",
-                "compare_model_pipeline"
+                "preprocess_pipeline"
             ],
             "console": "integratedTerminal",
             "justMyCode": false,
@@ -56,7 +39,7 @@
             "justMyCode": false,
         },
         {
-            "name": "Data preprocessing",
+            "name": "Model comparison",
             "type": "python",
             "request": "launch",
             "env": {
@@ -67,7 +50,24 @@
             "args": [
                 "run",
                 "--pipeline",
-                "preprocess_pipeline"
+                "compare_model_pipeline"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+        },
+        {
+            "name": "Model training",
+            "type": "python",
+            "request": "launch",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}\\fpl"
+            },
+            "cwd": "${workspaceFolder}\\fpl",
+            "program": "src\\fpl\\custom_run\\kedro_cli.py",
+            "args": [
+                "run",
+                "--pipeline",
+                "model_pipeline"
             ],
             "console": "integratedTerminal",
             "justMyCode": false,

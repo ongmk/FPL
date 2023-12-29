@@ -78,25 +78,25 @@ model:
   n_jobs: null
   sort_models: r2
   models:
-    # - huber
-    # - ridge
-    # - lr
-    # - gbr
-    # - rf
-    Light Gradient Boosting Machine
-    Gradient Boosting Regressor
-    Ridge Regression
-    Linear Regression
-    Extra Trees Regressor
+    - lightgbm
+    - gbr
+    - ridge
+    - lr
+    - et
   model_weights: [1, 1, 1, 1, 1]
-  huber_params:
-    alpha: 0.99
-    epsilon: 2.00
-    fit_intercept: True
-  ridge_params:
-    alpha: 9.99
-  lr_params:
-    fit_intercept: True
+
+  lightgbm_params:
+    num_leaves: 31
+    learning_rate: 0.1
+    n_estimators: 100
+    min_split_gain: 0.0
+    reg_alpha: 0.0
+    reg_lambda: 0.0
+    feature_fraction: 1.0
+    bagging_fraction: 1.0
+    bagging_freq: 0
+    min_child_samples: 20
+
   gbr_params:
     n_estimators: 233
     learning_rate: 0.068
@@ -106,12 +106,20 @@ model:
     max_features: 0.63
     min_impurity_decrease: 0.011
     n_iter_no_change: null
-  rf_params:
-    n_estimators: 158
-    max_depth: 8
-    min_impurity_decrease: 0.0024
-    max_features: 0.43
-    bootstrap: True
+
+  ridge_params:
+    alpha: 9.99
+
+  lr_params:
+    fit_intercept: True
+
+  et_params:
+    n_estimators: 100
+    max_depth: null
+    min_samples_split: 2
+    min_samples_leaf: 1
+    max_features: 1.0
+    min_impurity_decrease: 0.0
 
 # hyperopt:
 #   target:

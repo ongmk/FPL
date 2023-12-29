@@ -1,11 +1,13 @@
-from typing import Any
-import sklearn
-from sklearn import kernel_ridge, neighbors, tree, ensemble, neural_network
-import xgboost
-import lightgbm
-from .model_utils import get_model_instance
 from functools import partial
-from typing import Callable
+
+import lightgbm
+import sklearn
+import xgboost
+from sklearn import ensemble, kernel_ridge, neighbors, neural_network, tree
+from src.fpl.pipelines.model_pipeline.all_models.model_utils import (
+    get_model_default_parameters,
+    get_model_instance,
+)
 
 # References pycaret models()
 regression_models = {
@@ -39,3 +41,16 @@ regression_models = {
 get_regression_model_instance = partial(
     get_model_instance, available_models=regression_models
 )
+
+get_regression_default_parameters = partial(
+    get_model_default_parameters, available_models=regression_models
+)
+
+
+if __name__ == "__main__":
+    from pprint import pprint
+
+    # from pycaret.containers.models.regression import LightGBMContainer
+
+    default_params = get_regression_default_parameters("et")
+    pprint(default_params)

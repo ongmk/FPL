@@ -45,23 +45,49 @@ def impute_past_data(data: pd.DataFrame) -> pd.DataFrame:
             data.loc[season_filter, "round"].dropna().unique(), "Round", leave=False
         ):
             season_round_filter = season_filter & (data["round"] == round)
-            for col in categorical_columns:
-                missing = data[col].isnull()
-                data.loc[season_round_filter & missing, col] = impute_with_knn(
-                    data.loc[season_round_filter & missing],
-                    data.loc[season_round_filter & ~missing],
-                    col,
-                    "categorical",
-                )
-            for col in numerical_columns:
-                missing = data[col].isnull()
-                if (season_round_filter & missing).sum() > 0:
-                    data.loc[season_round_filter & missing, col] = impute_with_knn(
-                        data.loc[season_round_filter & missing],
-                        data.loc[season_round_filter & ~missing],
-                        col,
-                        "numerical",
-                    )
+            for pos in tqdm(
+                data.loc[season_round_filter, "pos"].dropna().unique(),
+                "Position",
+                leave=False,
+            ):
+                season_round_pos_filter = season_round_filter & (data["pos"] == pos)
+                for col in categorical_columns:
+                    missing = data[col].isnull()
+                    if (season_round_pos_filter & missing).sum() > 0:
+                        data.loc[
+                            season_round_pos_filter & missing, col
+                        ] = impute_with_knn(
+                            data.loc[season_round_pos_filter & missing],
+                            data.loc[season_round_pos_filter & ~missing],
+                            col,
+                            "categorical",
+                        )
+                for col in numerical_columns:
+                    missing = data[col].isnull()
+                    if (season_round_pos_filter & missing).sum() > 0:
+                        data.loc[
+                            season_round_pos_filter & missing, col
+                        ] = impute_with_knn(
+                            data.loc[season_round_pos_filter & missing],
+                            data.loc[season_round_pos_filter & ~missing],
+                            col,
+                            "numerical",
+                        )
+                    # If still missing, impute with other season's data
+                    missing = data[col].isnull()
+                    if (season_round_pos_filter & missing).sum() > 0:
+                        other_season_pos_filter = (data["season"] != season) & (
+                            data["pos"] == pos
+                        )
+                        data.loc[
+                            season_round_pos_filter & missing, col
+                        ] = impute_with_knn(
+                            data.loc[season_round_pos_filter & missing],
+                            data.loc[other_season_pos_filter & ~missing],
+                            col,
+                            "numerical",
+                        )
+
     return data
 
 

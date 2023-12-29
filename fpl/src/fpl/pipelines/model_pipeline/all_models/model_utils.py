@@ -1,5 +1,5 @@
-from typing import Any
 import inspect
+from typing import Any
 
 
 def has_named_parameter(cls, parameter_name):
@@ -29,3 +29,10 @@ def get_model_instance(
     if has_named_parameter(model, "verbose"):
         model_params["verbose"] = verbose
     return model(**model_params)
+
+
+def get_model_default_parameters(
+    model_id: str, available_models: dict[str, Any]
+) -> dict:
+    model = get_model_instance(model_id, available_models, {})
+    return model.get_params()

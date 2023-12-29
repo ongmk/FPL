@@ -1,8 +1,9 @@
+from functools import partial
+
+import lightgbm
 import sklearn
 import xgboost
-import lightgbm
-from .model_utils import get_model_instance
-from functools import partial
+from src.fpl.pipelines.model_pipeline.all_models.model_utils import get_model_instance
 
 classification_models = {
     "lr": sklearn.linear_model._logistic.LogisticRegression,

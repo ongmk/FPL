@@ -25,66 +25,69 @@ model:
     - rank_b4_match
     - pts_gap_above
     - pts_gap_below
-  ma_features:
-    - min
-    - gls
-    - ast
-    - pk
-    - pkatt
-    - sh
-    - sot
-    - touches
-    - xg
-    - npxg
-    - xag
-    - sca
-    - gca
-    - sota
-    - ga
-    - saves
-    - savepct
-    - cs
-    - psxg
-    - team_poss
-    - team_gf
-    - team_ga
-    - team_xg
-    - team_xga
-    - fpl_points
-    - value
-    - att_elo
-    - def_elo
-    - home_att_elo
-    - home_def_elo
-    - away_att_elo
-    - away_def_elo
-    - att_elo_opp
-    - def_elo_opp
-    - home_att_elo_opp
-    - home_def_elo_opp
-    - away_att_elo_opp
-    - away_def_elo_opp
-    - att_total
-    - home_att_total
-    - away_att_total
-    - def_total
-    - home_def_total
-    - away_def_total
-    - match_points
-    - league_points
+    - min_ma5
+    - gls_ma5
+    - ast_ma5
+    - pk_ma5
+    - pkatt_ma5
+    - sh_ma5
+    - sot_ma5
+    - touches_ma5
+    - xg_ma5
+    - npxg_ma5
+    - xag_ma5
+    - sca_ma5
+    - gca_ma5
+    - sota_ma5
+    - ga_ma5
+    - saves_ma5
+    - savepct_ma5
+    - cs_ma5
+    - psxg_ma5
+    - team_poss_ma5
+    - team_gf_ma5
+    - team_ga_ma5
+    - team_xg_ma5
+    - team_xga_ma5
+    - fpl_points_ma5
+    - value_ma5
+    - att_elo_ma5
+    - def_elo_ma5
+    - home_att_elo_ma5
+    - home_def_elo_ma5
+    - away_att_elo_ma5
+    - away_def_elo_ma5
+    - att_elo_opp_ma5
+    - def_elo_opp_ma5
+    - home_att_elo_opp_ma5
+    - home_def_elo_opp_ma5
+    - away_att_elo_opp_ma5
+    - away_def_elo_opp_ma5
+    - att_total_ma5
+    - home_att_total_ma5
+    - away_att_total_ma5
+    - def_total_ma5
+    - home_def_total_ma5
+    - away_def_total_ma5
+    - match_points_ma5
+    - league_points_ma5
   group_by: season
-  ma_lag: 5
-  pca_components: 7
+  pca_components: 10
   random_state: 42
   verbose: false
   n_jobs: null
   sort_models: r2
   models:
-    - huber
-    - ridge
-    - lr
-    - gbr
-    - rf
+    # - huber
+    # - ridge
+    # - lr
+    # - gbr
+    # - rf
+    Light Gradient Boosting Machine
+    Gradient Boosting Regressor
+    Ridge Regression
+    Linear Regression
+    Extra Trees Regressor
   model_weights: [1, 1, 1, 1, 1]
   huber_params:
     alpha: 0.99

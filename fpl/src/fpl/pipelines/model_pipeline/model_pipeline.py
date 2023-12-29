@@ -10,6 +10,7 @@ from src.fpl.pipelines.model_pipeline.modelling.training import (
     cross_validation,
     feature_selection,
     filter_train_val_data,
+    pca_elbow_method,
     pycaret_compare_models,
     train_model,
 )
@@ -97,6 +98,12 @@ def create_feature_selection_pipeline() -> Pipeline:
                 inputs=["filtered_train_val_data", "sklearn_pipeline", "params:model"],
                 outputs=["FEATURE_SELECTION_SUMMARY", "FEATURE_SELECTION_PLOTS"],
                 name="feature_selection",
+            ),
+            node(
+                func=pca_elbow_method,
+                inputs=["filtered_train_val_data", "params:model"],
+                outputs="PCA_ELBOW_METHOD_OUTPUT",
+                name="pca_elbow_method",
             ),
         ]
     )

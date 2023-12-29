@@ -18,23 +18,13 @@ from src.fpl.pipelines.model_pipeline.modelling.evaluation import evaluate_model
 logger = logging.getLogger(__name__)
 
 
-def get_all_numerical_features(parameters: dict[str, Any]) -> list[str]:
-    numerical_features = parameters["numerical_features"]
-    ma_lag = parameters["ma_lag"]
-    ma_features = parameters["ma_features"]
-    for feature in ma_features:
-        for i in range(ma_lag):
-            numerical_features.append(f"{feature}_ma{i+1}")
-    return numerical_features
-
-
 def filter_train_val_data(
     train_val_data: pd.DataFrame, parameters: dict[str, Any]
 ) -> pd.DataFrame:
     group_by = parameters["group_by"]
     target = parameters["target"]
     categorical_features = parameters["categorical_features"]
-    numerical_features = get_all_numerical_features(parameters)
+    numerical_features = parameters["numerical_features"]
 
     train_val_data = train_val_data[
         [group_by] + categorical_features + numerical_features + [target]
@@ -47,7 +37,7 @@ def create_sklearn_pipeline(
     train_val_data: pd.DataFrame, parameters: dict[str, Any]
 ) -> Pipeline:
     categorical_features = parameters["categorical_features"]
-    numerical_features = get_all_numerical_features(parameters)
+    numerical_features = parameters["numerical_features"]
 
     numerical_pipeline = Pipeline(
         [
@@ -111,7 +101,7 @@ def feature_selection(
 ) -> list[pd.DataFrame, dict[str, Figure]]:
     target = parameters["target"]
     categorical_features = parameters["categorical_features"]
-    numerical_features = get_all_numerical_features(parameters)
+    numerical_features = parameters["numerical_features"]
     variance_threshold = parameters["variance_threshold"]
     f_test_method = parameters["f_test_method"]
     f_test_threshold = parameters["f_test_threshold"]
@@ -267,3 +257,27 @@ def train_model(
         y=y_train,
     )
     return model, sklearn_pipeline
+
+
+def pca_elbow_method(train_val_data, parameters):
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from sklearn.decomposition import PCA
+
+    numerical_features = parameters["numerical_features"]
+    X = train_val_data[numerical_features]
+
+    # Perform PCA
+    pca = PCA()
+    pca.fit(X)  # X is your dataset
+
+    # Calculate explained variance ratio
+    explained_variance_ratio = pca.explained_variance_ratio_
+
+    # Plot the explained variance ratio
+    fig = plt.figure()
+    plt.plot(np.cumsum(explained_variance_ratio))
+    plt.xlabel("Number of Components")
+    plt.ylabel("Cumulative Explained Variance Ratio")
+    plt.title("Elbow Method for PCA")
+    return {"pca_elbow_method.png": fig}

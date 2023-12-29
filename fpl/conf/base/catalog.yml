@@ -107,6 +107,10 @@ FEATURE_SELECTION_PLOTS:
   type: matplotlib.MatplotlibWriter
   filepath: data/preprocess
 
+PCA_ELBOW_METHOD_OUTPUT:
+  type: matplotlib.MatplotlibWriter
+  filepath: data/preprocess
+
 PYCARET_RESULT:
   type: pandas.SQLTableDataSet
   table_name: pycaret_result

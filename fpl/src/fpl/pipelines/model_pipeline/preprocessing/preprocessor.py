@@ -401,8 +401,12 @@ def clean_data(
     return combined_data
 
 
-def split_data(processed_data, parameters):
-    holdout_year = parameters["holdout_year"]
+def split_data(processed_data, data_params, model_params):
+    holdout_year = data_params["holdout_year"]
+    group_by = model_params["group_by"]
+    target = model_params["target"]
+    categorical_features = model_params["categorical_features"]
+    numerical_features = model_params["numerical_features"]
 
     ma_cols = processed_data.filter(regex=r"\w+_ma\d+").columns
     ma_cols = set([re.sub(r"_ma\d+", "", col) for col in ma_cols])
@@ -421,6 +425,12 @@ def split_data(processed_data, parameters):
     non_features += processed_data.filter(regex="_elo$").columns.tolist()
     non_features += processed_data.filter(regex="_opp$").columns.tolist()
     processed_data = processed_data.drop(ma_cols + non_features, axis=1)
+    processed_data = processed_data[
+        ~((processed_data["season"] == "2016-2017") & (processed_data["round"] <= 5))
+    ]
+    processed_data = processed_data[
+        [group_by] + categorical_features + numerical_features + [target]
+    ]
 
     train_val_data = processed_data[processed_data["season"] < holdout_year]
     holdout_data = processed_data[processed_data["season"] >= holdout_year]

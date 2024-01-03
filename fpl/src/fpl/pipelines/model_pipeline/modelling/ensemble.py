@@ -1,13 +1,14 @@
 import inspect
+import logging
+from dataclasses import dataclass
+from typing import Any
+
+import numpy as np
+import pandas as pd
+from sklearn.inspection import permutation_importance
 from src.fpl.pipelines.model_pipeline.all_models.regression import (
     get_regression_model_instance,
 )
-import pandas as pd
-import numpy as np
-from typing import Any
-from dataclasses import dataclass
-from sklearn.inspection import permutation_importance
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +63,8 @@ class EnsembleModel:
 
     def __repr__(self):
         if self.is_ensemble:
-            return f"EnsembleModel({[m.model for m in self.models]})"
+            models = ",\n\t".join([str(m.model) for m in self.models])
+            return f"EnsembleModel(\n\t{models}\n)"
         else:
             return f"SingleModel({self.models[0].model})"
 

@@ -18,9 +18,9 @@ from src.fpl.pipelines.model_pipeline.modelling.evaluation import evaluate_model
 logger = logging.getLogger(__name__)
 
 
-def filter_train_val_data(
+def create_sklearn_pipeline(
     train_val_data: pd.DataFrame, parameters: dict[str, Any]
-) -> pd.DataFrame:
+) -> Pipeline:
     group_by = parameters["group_by"]
     target = parameters["target"]
     categorical_features = parameters["categorical_features"]
@@ -29,15 +29,6 @@ def filter_train_val_data(
     train_val_data = train_val_data[
         [group_by] + categorical_features + numerical_features + [target]
     ]
-    train_val_data = train_val_data.dropna(subset=numerical_features)
-    return train_val_data
-
-
-def create_sklearn_pipeline(
-    train_val_data: pd.DataFrame, parameters: dict[str, Any]
-) -> Pipeline:
-    categorical_features = parameters["categorical_features"]
-    numerical_features = parameters["numerical_features"]
 
     numerical_pipeline = Pipeline(
         [
@@ -212,8 +203,8 @@ def cross_validation(
 
     all_folds_metrics = []
     for train_index, val_index in group_kfold.split(X=train_val_data, groups=groups):
-        train_data = train_val_data.loc[train_index]
-        val_data = train_val_data.loc[val_index]
+        train_data = train_val_data.iloc[train_index]
+        val_data = train_val_data.iloc[val_index]
         model, sklearn_pipeline = train_model(
             train_data=train_data,
             model=model,

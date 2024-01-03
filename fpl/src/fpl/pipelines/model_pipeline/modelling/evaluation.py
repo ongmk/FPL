@@ -103,22 +103,26 @@ def plot_residual_histogram(
     return None
 
 
+def calculate_r2(prediction, target):
+    not_nan = ~prediction.isna() & ~target.isna()
+    prediction = prediction[not_nan]
+    target = target[not_nan]
+    return r2_score(target, prediction)
+
+
 def plot_residual_scatter(
     ax: Axes,
     col: str,
     prediction: np.ndarray,
     target: np.ndarray,
     color: str = None,
-) -> float:
-    has_prediction = ~prediction.isna()
-    prediction = prediction[has_prediction]
-    target = target[has_prediction]
+) -> None:
+    r2 = calculate_r2(prediction, target)
     residual = target - prediction
     ax.scatter(prediction, residual, alpha=0.5, color=color)
     ax.axhline(0, color="black", linestyle="--")
     ax.set_xlabel(f"{col}_predictions")
     ax.set_ylabel(f"residual")
-    r2 = r2_score(target, prediction)
     ax.set_title(f"{col} R^2: {r2:.2f}")
     return None
 
@@ -154,7 +158,7 @@ def evaluate_residuals(
         )
 
     pred_mae = (output_df[f"{prediction_col}_error"]).abs().mean()
-    pred_r2 = r2_score(output_df[target], output_df[prediction_col])
+    pred_r2 = calculate_r2(output_df[target], output_df[prediction_col])
 
     error_metrics = {
         f"{evaluation_set}_mae": pred_mae,
@@ -204,7 +208,7 @@ def evaluate_model(
 
     test_predictions = model.predict(X=X_test_preprocessed)
     output_cols = ordered_set(
-        ["id"] + numerical_features + categorical_features + [target] + baseline_columns
+        numerical_features + categorical_features + [target] + baseline_columns
     )
     output_df = test_data[output_cols].copy()
     output_df["prediction"] = test_predictions

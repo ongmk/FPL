@@ -3,7 +3,9 @@ model:
   f_test_method: spearmanr
   f_test_threshold: 0.15
   target: fpl_points
+  baseline_columns: [fpl_points_ma5]
   not_features:
+    - id
     - fpl_name
     - date
     - player
@@ -72,18 +74,24 @@ model:
     - match_points_ma5
     - league_points_ma5
   group_by: season
-  pca_components: 10
+  pca_components: 7
   random_state: 42
   verbose: false
   n_jobs: null
   sort_models: r2
   models:
-    - lightgbm
-    - gbr
     - ridge
     - lr
-    - et
+    - lightgbm
+    - gbr
+    - huber
   model_weights: [1, 1, 1, 1, 1]
+
+  ridge_params:
+    alpha: 9.99
+
+  lr_params:
+    fit_intercept: True
 
   lightgbm_params:
     num_leaves: 31
@@ -107,19 +115,10 @@ model:
     min_impurity_decrease: 0.011
     n_iter_no_change: null
 
-  ridge_params:
-    alpha: 9.99
-
-  lr_params:
+  huber_params:
+    epsilon: 1.35
+    alpha: 0.0001
     fit_intercept: True
-
-  et_params:
-    n_estimators: 100
-    max_depth: null
-    min_samples_split: 2
-    min_samples_leaf: 1
-    max_features: 1.0
-    min_impurity_decrease: 0.0
 
 # hyperopt:
 #   target:

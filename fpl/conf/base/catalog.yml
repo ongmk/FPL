@@ -1,32 +1,47 @@
-PICKS_SUMMARY:
+_index: &index
+  credentials: db_credentials
+  save_args:
+    if_exists: replace
+    index: True
+  load_args:
+    index_col: index
+
+_flexible: &flexible
+  type: fpl.extras.datasets.FlexibleSQLTableDataSet
+  credentials: db_credentials
+  save_args:
+    if_exists: append
+
+_txt: &txt
   type: text.TextDataSet
-  filepath: data/optimization/summary.txt
   fs_args:
     open_args_save:
       encoding: utf-8-sig
 
-PICKS_CSV:
+_csv: &csv
   type: pandas.CSVDataSet
-  filepath: data/optimization/picks.csv
   save_args:
     encoding: utf-8-sig
+
+PICKS_SUMMARY:
+  <<: *txt
+  filepath: data/optimization/summary.txt
+
+PICKS_CSV:
+  <<: *csv
+  filepath: data/optimization/picks.csv
 
 BACKTEST_PLOTS:
   type: matplotlib.MatplotlibWriter
   filepath: data/optimization/backtest
 
 EXPERIMENT_RECORD:
-  type: fpl.extras.datasets.FlexibleSQLTableDataSet
+  <<: *flexible
   table_name: experiment
-  credentials: db_credentials
-  save_args:
-    if_exists: append
 
 FPL_HISTORY_BACKUP:
-  type: pandas.CSVDataSet
+  <<: *csv
   filepath: data/preprocess/fpl_history_backup.csv
-  save_args:
-    encoding: utf-8-sig
 
 READ_FPL_DATA:
   type: fpl.extras.datasets.ReadOnlySQLTableDataSet
@@ -36,9 +51,7 @@ READ_FPL_DATA:
 FPL_DATA:
   type: pandas.SQLTableDataSet
   table_name: raw_fpl_data
-  credentials: db_credentials
-  save_args:
-    if_exists: replace
+  <<: *index
 
 PLAYER_MATCH_LOG:
   type: pandas.SQLTableDataSet
@@ -50,10 +63,8 @@ FUZZY_MATCH_OVERRIDES:
   filepath: data/preprocess/fuzzy_match_overrides.yml
 
 PLAYER_NAME_MAPPING:
-  type: pandas.CSVDataSet
+  <<: *csv
   filepath: data/preprocess/player_name_mapping.csv
-  save_args:
-    encoding: utf-8-sig
 
 FPL_2_FBREF_TEAM_MAPPING:
   type: yaml.YAMLDataSet
@@ -67,41 +78,31 @@ TEAM_MATCH_LOG:
 ELO_DATA:
   type: pandas.SQLTableDataSet
   table_name: elo_data
-  credentials: db_credentials
-  save_args:
-    if_exists: replace
+  <<: *index
 
 READ_PROCESSED_DATA:
   type: fpl.extras.datasets.ReadOnlySQLTableDataSet
   table_name: processed_data
-  credentials: db_credentials
+  <<: *index
 
 PROCESSED_DATA:
   type: pandas.SQLTableDataSet
   table_name: processed_data
-  credentials: db_credentials
-  save_args:
-    if_exists: replace
+  <<: *index
 
 TRAIN_VAL_DATA:
   type: pandas.SQLTableDataSet
   table_name: train_val_data
-  credentials: db_credentials
-  save_args:
-    if_exists: replace
+  <<: *index
 
 HOLDOUT_DATA:
   type: pandas.SQLTableDataSet
   table_name: holdout_data
-  credentials: db_credentials
-  save_args:
-    if_exists: replace
+  <<: *index
 
 FEATURE_SELECTION_SUMMARY:
-  type: pandas.CSVDataSet
+  <<: *csv
   filepath: data/preprocess/feature_selection_summary.csv
-  save_args:
-    encoding: utf-8-sig
 
 FEATURE_SELECTION_PLOTS:
   type: matplotlib.MatplotlibWriter
@@ -114,10 +115,7 @@ PCA_ELBOW_METHOD_OUTPUT:
 PYCARET_RESULT:
   type: pandas.SQLTableDataSet
   table_name: pycaret_result
-  credentials: db_credentials
-  save_args:
-    if_exists: replace
-    index: True
+  <<: *index
 
 FITTED_MODEL:
   type: pickle.PickleDataSet
@@ -128,11 +126,8 @@ FITTED_SKLEARN_PIPELINE:
   filepath: models/fitted_sklearn_pipeline.pkl
 
 HOLDOUT_EVALUATION_RESULT:
-  type: fpl.extras.datasets.FlexibleSQLTableDataSet
+  <<: *flexible
   table_name: evaluation_result
-  credentials: db_credentials
-  save_args:
-    if_exists: append
 
 HOLDOUT_EVALUATION_PLOTS:
   type: matplotlib.MatplotlibWriter

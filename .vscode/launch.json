@@ -5,6 +5,23 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "name": "Scrape",
+            "type": "python",
+            "request": "launch",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}\\fpl"
+            },
+            "cwd": "${workspaceFolder}\\fpl",
+            "program": "src\\fpl\\custom_run\\kedro_cli.py",
+            "args": [
+                "run",
+                "--pipeline",
+                "scraping_pipeline"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+        },
+        {
             "name": "Data preprocessing",
             "type": "python",
             "request": "launch",
@@ -102,23 +119,6 @@
                 "run",
                 "--pipeline",
                 "backtest_optimization_pipeline"
-            ],
-            "console": "integratedTerminal",
-            "justMyCode": false,
-        },
-        {
-            "name": "Scrape",
-            "type": "python",
-            "request": "launch",
-            "env": {
-                "PYTHONPATH": "${workspaceFolder}\\fpl"
-            },
-            "cwd": "${workspaceFolder}\\fpl",
-            "program": "src\\fpl\\custom_run\\kedro_cli.py",
-            "args": [
-                "run",
-                "--pipeline",
-                "scraping_pipeline"
             ],
             "console": "integratedTerminal",
             "justMyCode": false,

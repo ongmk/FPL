@@ -121,7 +121,7 @@ def create_compare_model_pipeline() -> Pipeline:
     )
 
 
-def create_model_pipeline() -> Pipeline:
+def create_hypertuning_pipeline() -> Pipeline:
     return pipeline(
         [
             node(
@@ -136,46 +136,84 @@ def create_model_pipeline() -> Pipeline:
                 outputs=["experiment_id", "start_time", "EXPERIMENT_RECORD"],
                 name="init_experiment",
             ),
-            # node(
-            #     func=create_sklearn_pipeline,
-            #     inputs=["TRAIN_VAL_DATA", "params:model"],
-            #     outputs="sklearn_pipeline",
-            #     name="create_sklearn_pipeline",
-            # ),
-            # node(
-            #     func=model_selection,
-            #     inputs="params:model",
-            #     outputs="model",
-            #     name="model_selection",
-            # ),
-            # node(
-            #     func=cross_validation,
-            #     inputs=[
-            #         "TRAIN_VAL_DATA",
-            #         "model",
-            #         "sklearn_pipeline",
-            #         "experiment_id",
-            #         "start_time",
-            #         "params:model",
-            #     ],
-            #     outputs=[
-            #         "val_score",
-            #         "TRAIN_METRICS",
-            #         "LAST_FOLD_EVALUATION_PLOTS",
-            #     ],
-            #     name="cross_validation",
-            # ),
-            # node(
-            #     func=train_model,
-            #     inputs=[
-            #         "TRAIN_VAL_DATA",
-            #         "model",
-            #         "sklearn_pipeline",
-            #         "params:model",
-            #     ],
-            #     outputs=["FITTED_MODEL", "FITTED_SKLEARN_PIPELINE"],
-            #     name="train_model",
-            # ),
+            node(
+                func=create_sklearn_pipeline,
+                inputs=["TRAIN_VAL_DATA", "params:model"],
+                outputs="sklearn_pipeline",
+                name="create_sklearn_pipeline",
+            ),
+            node(
+                func=model_selection,
+                inputs="params:model",
+                outputs="model",
+                name="model_selection",
+            ),
+            node(
+                func=cross_validation,
+                inputs=[
+                    "TRAIN_VAL_DATA",
+                    "model",
+                    "sklearn_pipeline",
+                    "experiment_id",
+                    "start_time",
+                    "params:model",
+                ],
+                outputs=[
+                    "val_score",
+                    "TRAIN_METRICS",
+                    "LAST_FOLD_EVALUATION_PLOTS",
+                ],
+                name="cross_validation",
+            ),
+        ]
+    )
+
+
+def create_training_pipeline() -> Pipeline:
+    return pipeline(
+        [
+            node(
+                func=create_sklearn_pipeline,
+                inputs=["TRAIN_VAL_DATA", "params:model"],
+                outputs="sklearn_pipeline",
+                name="create_sklearn_pipeline",
+            ),
+            node(
+                func=model_selection,
+                inputs="params:model",
+                outputs="model",
+                name="model_selection",
+            ),
+            node(
+                func=train_model,
+                inputs=[
+                    "TRAIN_VAL_DATA",
+                    "model",
+                    "sklearn_pipeline",
+                    "params:model",
+                ],
+                outputs=["FITTED_MODEL", "FITTED_SKLEARN_PIPELINE"],
+                name="train_model",
+            ),
+        ]
+    )
+
+
+def create_evaluation_inference_pipeline() -> Pipeline:
+    return pipeline(
+        [
+            node(
+                func=run_housekeeping,
+                inputs="params:housekeeping",
+                outputs=None,
+                name="run_housekeeping",
+            ),
+            node(
+                func=init_experiment,
+                inputs="params:model",
+                outputs=["experiment_id", "start_time", "EXPERIMENT_RECORD"],
+                name="init_experiment",
+            ),
             node(
                 func=evaluate_model_holdout,
                 inputs=[

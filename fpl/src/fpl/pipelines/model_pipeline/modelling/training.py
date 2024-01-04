@@ -1,6 +1,7 @@
 import logging
 from typing import Any
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -15,6 +16,7 @@ from sklearn.preprocessing import MinMaxScaler, OneHotEncoder, StandardScaler
 from src.fpl.pipelines.model_pipeline.modelling.ensemble import EnsembleModel
 from src.fpl.pipelines.model_pipeline.modelling.evaluation import evaluate_model
 
+matplotlib.use("Agg")
 logger = logging.getLogger(__name__)
 
 

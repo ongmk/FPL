@@ -4,6 +4,7 @@ from datetime import datetime
 from functools import partial
 from typing import Any
 
+import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -14,6 +15,7 @@ from sklearn.metrics import r2_score
 from sklearn.pipeline import Pipeline
 from src.fpl.pipelines.model_pipeline.modelling.ensemble import EnsembleModel, Model
 
+matplotlib.use("Agg")
 logger = logging.getLogger(__name__)
 color_pal = sns.color_palette()
 plt.style.use("ggplot")
@@ -199,7 +201,7 @@ def evaluate_model(
             sklearn_pipeline=sklearn_pipeline,
             categorical_features=categorical_features,
             ensemble_model=model,
-            X=X_train_preprocessed.toarray(),
+            X=X_train_preprocessed,
             y=y_train,
             evaluation_set=evaluation_set,
             start_time=start_time,

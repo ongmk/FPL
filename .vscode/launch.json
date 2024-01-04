@@ -5,7 +5,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Scrape",
+            "name": "Data Scraping",
             "type": "python",
             "request": "launch",
             "env": {
@@ -22,7 +22,7 @@
             "justMyCode": false,
         },
         {
-            "name": "Data preprocessing",
+            "name": "Data Preprocessing",
             "type": "python",
             "request": "launch",
             "env": {
@@ -56,7 +56,7 @@
             "justMyCode": false,
         },
         {
-            "name": "Model comparison",
+            "name": "Model Comparison",
             "type": "python",
             "request": "launch",
             "env": {
@@ -73,7 +73,7 @@
             "justMyCode": false,
         },
         {
-            "name": "Model training",
+            "name": "Hyperparameter Tuning",
             "type": "python",
             "request": "launch",
             "env": {
@@ -84,13 +84,47 @@
             "args": [
                 "run",
                 "--pipeline",
-                "model_pipeline"
+                "hypertuning_pipeline"
             ],
             "console": "integratedTerminal",
             "justMyCode": false,
         },
         {
-            "name": "Live Optimize",
+            "name": "Model Training",
+            "type": "python",
+            "request": "launch",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}\\fpl"
+            },
+            "cwd": "${workspaceFolder}\\fpl",
+            "program": "src\\fpl\\custom_run\\kedro_cli.py",
+            "args": [
+                "run",
+                "--pipeline",
+                "training_pipeline"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+        },
+        {
+            "name": "Evaluation + Inference",
+            "type": "python",
+            "request": "launch",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}\\fpl"
+            },
+            "cwd": "${workspaceFolder}\\fpl",
+            "program": "src\\fpl\\custom_run\\kedro_cli.py",
+            "args": [
+                "run",
+                "--pipeline",
+                "evaluation_inference_pipeline"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+        },
+        {
+            "name": "Live Optimization",
             "type": "python",
             "request": "launch",
             "env": {
@@ -107,7 +141,7 @@
             "justMyCode": false,
         },
         {
-            "name": "Backtest Optimize",
+            "name": "Backtest Optimization",
             "type": "python",
             "request": "launch",
             "env": {

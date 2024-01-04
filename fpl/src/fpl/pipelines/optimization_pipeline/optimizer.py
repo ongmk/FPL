@@ -1,28 +1,27 @@
-import pandas as pd
-from subprocess import check_output
-
 import logging
-from src.fpl.pipelines.optimization_pipeline.lp_constructor import construct_lp
+
+import matplotlib
+import matplotlib.pyplot as plt
+import pandas as pd
+from pulp import lpSum
 from src.fpl.pipelines.optimization_pipeline.cplex.cplex_solver import (
     solve_lp_with_cplex,
 )
-from src.fpl.pipelines.optimization_pipeline.fpl_api import (
-    FplData,
-    get_initial_squad,
-    get_fpl_base_data,
-    get_backtest_data,
-)
-from src.fpl.pipelines.optimization_pipeline.lp_constructor import LpData
 from src.fpl.pipelines.optimization_pipeline.fetch_predictions import (
     get_pred_pts_data,
     resolve_fpl_names,
 )
-from pulp import lpSum
-import matplotlib.pyplot as plt
+from src.fpl.pipelines.optimization_pipeline.fpl_api import (
+    FplData,
+    get_backtest_data,
+    get_fpl_base_data,
+    get_initial_squad,
+)
+from src.fpl.pipelines.optimization_pipeline.lp_constructor import LpData, construct_lp
 from tqdm import tqdm
 
 plt.style.use("ggplot")
-
+matplotlib.use("Agg")
 logger = logging.getLogger(__name__)
 
 
@@ -428,8 +427,9 @@ def backtest_single_player(parameters: dict, title: str = "Backtest Result"):
 
 
 if __name__ == "__main__":
-    import yaml
     from datetime import datetime
+
+    import yaml
     from src.fpl.pipelines.optimization_pipeline.fetch_predictions import (
         refresh_fpl_names_mapping,
     )

@@ -86,7 +86,7 @@ lr_params:
     method: choice
     values: [True, False]
 
-light_gbm_params:
+lightgbm_params:
   num_leaves:
     method: uniform
     scope: int

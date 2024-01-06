@@ -1,12 +1,13 @@
-import sqlite3
-import os
-from datetime import datetime
-import subprocess
-from typing import Any
-from flatten_dict import flatten
-import pandas as pd
 import logging
+import os
+import sqlite3
+import subprocess
+from datetime import datetime
 from sqlite3 import Connection
+from typing import Any
+
+import pandas as pd
+from flatten_dict import flatten
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +72,28 @@ def delete_empty_columns(table_name: str, conn: Connection):
     return None
 
 
+def ensure_metric_col_type(conn: Connection, metric_column: str):
+    cursor = conn.cursor()
+    cursor.execute(f"PRAGMA table_info(experiment)")
+    columns = cursor.fetchall()
+
+    column_data = next((col for col in columns if col[1] == metric_column), None)
+    if column_data:
+        column_type = column_data[2]
+        if column_type != "FLOAT":
+            raise TypeError(
+                f'Metric column {metric_column} is not a float in table "experiment"'
+            )
+        else:
+            return metric_column
+    else:
+        logger.warning(f"Metric column {metric_column} not found. Revert to sort by id")
+        return "id"
+
+
 def update_model_best(conn: Connection, metric_column: str, top_n: int, maximize: bool):
+    metric_column = ensure_metric_col_type(conn, metric_column)
+
     cursor = conn.cursor()
 
     # Set all model_best values to NULL

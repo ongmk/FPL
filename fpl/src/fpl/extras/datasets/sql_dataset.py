@@ -2,20 +2,31 @@ import logging
 
 import pandas as pd
 from kedro.extras.datasets.pandas.sql_dataset import SQLTableDataSet
+from pandas.api.types import (
+    is_bool_dtype,
+    is_datetime64_any_dtype,
+    is_float_dtype,
+    is_integer_dtype,
+    is_object_dtype,
+)
 from sqlalchemy import inspect
 
 logger = logging.getLogger(__name__)
 
 
 def pandas_dtype_to_sqlite(dtype):
-    if pd.api.types.is_integer_dtype(dtype):
+    if is_integer_dtype(dtype):
         return "INTEGER"
-    elif pd.api.types.is_float_dtype(dtype):
-        return "REAL"
-    elif pd.api.types.is_datetime64_any_dtype(dtype):
-        return "TIMESTAMP"
-    else:
+    elif is_float_dtype(dtype):
+        return "FLOAT"
+    elif is_datetime64_any_dtype(dtype):
         return "TEXT"
+    elif is_object_dtype(dtype):
+        return "TEXT"
+    elif is_bool_dtype(dtype):
+        return "INTEGER"
+    else:
+        raise TypeError(f"Cannot convert type {dtype} to sqlite type")
 
 
 def expand_table(table_name: str, data: pd.DataFrame, engine):
@@ -60,7 +71,7 @@ class ExperimentMetrics(FlexibleSQLTableDataSet):
         values = list(metrics.values())
         metrics = list(metrics.keys())
         missing_columns = list(set(metrics) - set(new_table.columns))
-        new_table[missing_columns] = None
+        new_table[missing_columns] = float("nan")
         new_table.loc[new_table["id"] == id, metrics] = values
         self._save_args["if_exists"] = "replace"
         super()._save(new_table)

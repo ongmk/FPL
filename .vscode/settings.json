@@ -3,5 +3,6 @@
         "editor.defaultFormatter": "ms-python.black-formatter"
     },
     "python.formatting.provider": "black",
-    "editor.formatOnSave": true
+    "editor.formatOnSave": true,
+    "jupyter.notebookFileRoot": "${workspaceFolder}\\fpl"
 }

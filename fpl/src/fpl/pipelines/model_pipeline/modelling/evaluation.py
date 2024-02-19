@@ -105,7 +105,7 @@ def plot_residual_histogram(
     return None
 
 
-def calculate_r2(prediction, target):
+def calculate_r2(target, prediction):
     not_nan = ~prediction.isna() & ~target.isna()
     prediction = prediction[not_nan]
     target = target[not_nan]
@@ -113,13 +113,13 @@ def calculate_r2(prediction, target):
 
 
 def plot_residual_scatter(
-    ax: Axes,
+    ax,
     col: str,
-    prediction: np.ndarray,
     target: np.ndarray,
+    prediction: np.ndarray,
     color: str = None,
 ) -> None:
-    r2 = calculate_r2(prediction, target)
+    r2 = calculate_r2(target, prediction)
     residual = target - prediction
     ax.scatter(prediction, residual, alpha=0.5, color=color)
     ax.axhline(0, color="black", linestyle="--")
@@ -154,8 +154,8 @@ def evaluate_residuals(
         plot_residual_scatter(
             ax=axes[1, i],
             col=col,
-            prediction=output_df[col],
             target=output_df[target],
+            prediction=output_df[col],
             color=color_pal[i],
         )
 
@@ -169,7 +169,7 @@ def evaluate_residuals(
     for metric, score in error_metrics.items():
         logger.info(f"{metric} = {score}")
     plt.subplots_adjust(wspace=0.1)
-    error_plot = {f"{start_time}__{evaluation_set}_residuals.png": fig}
+    error_plot = {f"{start_time}__{evaluation_set}_{model.id}_residuals.png": fig}
     return error_metrics, error_plot
 
 

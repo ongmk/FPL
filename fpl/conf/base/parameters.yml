@@ -80,11 +80,11 @@ model:
   n_jobs: null
   sort_models: r2
   models:
-    - ridge
-    - lr
-    - lightgbm
-    - gbr
-    - huber
+    # - ridge
+    # - lr
+    # - lightgbm
+    # - gbr
+    # - huber
   model_weights: [1, 1, 1, 1, 1]
 
   ridge_params:
@@ -120,137 +120,137 @@ model:
     alpha: 0.0001
     fit_intercept: True
 
-hyperopt:
-  target:
-    name: val_score
-    max_trials: 100
-    strategy: max
-    algo: tpe
-    early_termination: null
-  groups:
-    model:
-      models:
-        # - [lr]
-        - [ridge]
-        - [huber]
-        - [lightgbm]
-        - [gbr]
-  # 0:
-  #   model:
-  #     lr_params:
-  #       fit_intercept:
-  #         method: choice
-  #         values: [True, False]
-  0:
-    model:
-      ridge_params:
-        alpha:
-          method: uniform
-          low: 0.001
-          high: 10
-        fit_intercept:
-          method: choice
-          values: [True, False]
-  1:
-    model:
-      huber_params:
-        epsilon:
-          method: uniform
-          low: 1
-          high: 2
-        alpha:
-          method: uniform
-          low: 0.0000000001
-          high: 0.9999999999
-        fit_intercept:
-          method: choice
-          values: [True, False]
-  2:
-    model:
-      lightgbm_params:
-        num_leaves:
-          method: uniform
-          scope: int
-          low: 2
-          high: 256
-        learning_rate:
-          method: loguniform
-          low: 0.000001
-          high: 0.5
-        n_estimators:
-          method: uniform
-          scope: int
-          low: 10
-          high: 300
-        min_split_gain:
-          method: uniform
-          low: 0
-          high: 1
-        reg_alpha:
-          method: loguniform
-          low: 0.0000000001
-          high: 10
-        reg_lambda:
-          method: loguniform
-          low: 0.0000000001
-          high: 10
-        feature_fraction:
-          method: uniform
-          low: 0.4
-          high: 1
-        bagging_fraction:
-          method: uniform
-          low: 0.4
-          high: 1
-        bagging_freq:
-          method: uniform
-          scope: int
-          low: 0
-          high: 7
-        min_child_samples:
-          method: uniform
-          scope: int
-          low: 1
-          high: 100
-  3:
-    model:
-      gbr_params:
-        n_estimators:
-          method: uniform
-          scope: int
-          low: 10
-          high: 300
-        learning_rate:
-          method: loguniform
-          low: -6
-          high: -0.69
-        subsample:
-          method: uniform
-          low: 0.2
-          high: 1
-        min_samples_split:
-          method: uniform
-          scope: int
-          low: 2
-          high: 10
-        min_samples_leaf:
-          method: uniform
-          scope: int
-          low: 1
-          high: 5
-        max_depth:
-          method: uniform
-          scope: int
-          low: 1
-          high: 11
-        max_features:
-          method: uniform
-          low: 0.4
-          high: 1
-        min_impurity_decrease:
-          method: loguniform
-          low: -9
-          high: -0.69
+# hyperopt:
+#   target:
+#     name: val_score
+#     max_trials: 100
+#     strategy: max
+#     algo: tpe
+#     early_termination: null
+#   groups:
+#     model:
+#       models:
+#         # - [lr]
+#         - [ridge]
+#         - [huber]
+#         - [lightgbm]
+#         - [gbr]
+# 0:
+#   model:
+#     lr_params:
+#       fit_intercept:
+#         method: choice
+#         values: [True, False]
+# 0:
+#   model:
+#     ridge_params:
+#       alpha:
+#         method: uniform
+#         low: 0.001
+#         high: 10
+#       fit_intercept:
+#         method: choice
+#         values: [True, False]
+# 1:
+#   model:
+#     huber_params:
+#       epsilon:
+#         method: uniform
+#         low: 1
+#         high: 2
+#       alpha:
+#         method: uniform
+#         low: 0.0000000001
+#         high: 0.9999999999
+#       fit_intercept:
+#         method: choice
+#         values: [True, False]
+# 2:
+#   model:
+#     lightgbm_params:
+#       num_leaves:
+#         method: uniform
+#         scope: int
+#         low: 2
+#         high: 256
+#       learning_rate:
+#         method: loguniform
+#         low: 0.000001
+#         high: 0.5
+#       n_estimators:
+#         method: uniform
+#         scope: int
+#         low: 10
+#         high: 300
+#       min_split_gain:
+#         method: uniform
+#         low: 0
+#         high: 1
+#       reg_alpha:
+#         method: loguniform
+#         low: 0.0000000001
+#         high: 10
+#       reg_lambda:
+#         method: loguniform
+#         low: 0.0000000001
+#         high: 10
+#       feature_fraction:
+#         method: uniform
+#         low: 0.4
+#         high: 1
+#       bagging_fraction:
+#         method: uniform
+#         low: 0.4
+#         high: 1
+#       bagging_freq:
+#         method: uniform
+#         scope: int
+#         low: 0
+#         high: 7
+#       min_child_samples:
+#         method: uniform
+#         scope: int
+#         low: 1
+#         high: 100
+# 3:
+#   model:
+#     gbr_params:
+#       n_estimators:
+#         method: uniform
+#         scope: int
+#         low: 10
+#         high: 300
+#       learning_rate:
+#         method: loguniform
+#         low: -6
+#         high: -0.69
+#       subsample:
+#         method: uniform
+#         low: 0.2
+#         high: 1
+#       min_samples_split:
+#         method: uniform
+#         scope: int
+#         low: 2
+#         high: 10
+#       min_samples_leaf:
+#         method: uniform
+#         scope: int
+#         low: 1
+#         high: 5
+#       max_depth:
+#         method: uniform
+#         scope: int
+#         low: 1
+#         high: 11
+#       max_features:
+#         method: uniform
+#         low: 0.4
+#         high: 1
+#       min_impurity_decrease:
+#         method: loguniform
+#         low: -9
+#         high: -0.69
 
 ######################################
 

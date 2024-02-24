@@ -77,7 +77,7 @@ def evaluate_feature_importance(
     X: np.ndarray,
     y: np.ndarray,
     evaluation_set: str,
-    start_time: str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
+    start_time: str = datetime.now().strftime("%Y%m%d_%H%M%S"),
 ):
     transformed_columns = get_transformed_columns(
         sklearn_pipeline=sklearn_pipeline, categorical_features=categorical_features
@@ -135,7 +135,7 @@ def evaluate_residuals(
     target: str,
     baseline_cols: list[str],
     evaluation_set: str,
-    start_time: str = datetime.now().strftime("%Y-%m-%d_%H-%M-%S"),
+    start_time: str = datetime.now().strftime("%Y%m%d_%H%M%S"),
 ) -> tuple[dict[str, float], dict[str, Figure]]:
     eval_cols = [prediction_col] + baseline_cols
     fig, axes = plt.subplots(
@@ -169,7 +169,7 @@ def evaluate_residuals(
     for metric, score in error_metrics.items():
         logger.info(f"{metric} = {score}")
     plt.subplots_adjust(wspace=0.1)
-    error_plot = {f"{start_time}__{evaluation_set}_{model.id}_residuals.png": fig}
+    error_plot = {f"{start_time}__{evaluation_set}_residuals.png": fig}
     return error_metrics, error_plot
 
 

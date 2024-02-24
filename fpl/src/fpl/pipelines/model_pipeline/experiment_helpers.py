@@ -194,7 +194,7 @@ def init_experiment(parameters: dict[str, Any]) -> tuple[int, str, pd.DataFrame]
     query = "select COALESCE(max(id)  + 1 , 0) from experiment;"
     cursor = conn.execute(query)
     id = cursor.fetchone()[0]
-    start_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    start_time = datetime.now().strftime("%Y%m%d_%H%M%S")
     cursor.close()
     conn.close()
 

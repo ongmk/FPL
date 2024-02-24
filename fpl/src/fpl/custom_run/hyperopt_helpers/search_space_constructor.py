@@ -1,9 +1,10 @@
+import math
 from collections import defaultdict
 from typing import Any, Dict
 
+from deepdiff import DeepDiff
 from flatten_dict import flatten, unflatten
 from hyperopt import hp
-from deepdiff import DeepDiff
 from hyperopt.pyll.base import scope
 
 
@@ -22,7 +23,7 @@ def tuple_list_type_check(search_space: Dict, parameters: Dict):
     return parameters
 
 
-def find_search_groups(hyperopt_param: dict) -> list[tuple[int, dict[str, Any]]]:
+def find_search_groups(hyperopt_param: dict) -> list[dict[str, Any]]:
     hyperopt_group_params = (
         hyperopt_param.pop("groups") if "groups" in hyperopt_param else {}
     )
@@ -30,14 +31,11 @@ def find_search_groups(hyperopt_param: dict) -> list[tuple[int, dict[str, Any]]]
     if len(flat_param_dict.keys()) > 1:
         raise ValueError(f"Cannot group by more than one key.")
     if len(flat_param_dict.keys()) == 0:
-        return [(0, {})]
+        return [{}]
     else:
         key = list(flat_param_dict.keys())[0]
         groups = list(flat_param_dict.values())[0]
-        return [
-            (i, unflatten({key: group}, splitter="dot"))
-            for i, group in enumerate(groups)
-        ]
+        return [unflatten({key: group}, splitter="dot") for group in groups]
 
 
 def construct_search_space(param_dict: Dict, hyper_param_dict: Dict) -> Dict:
@@ -75,6 +73,8 @@ def _build_hyper_param_expression(param_name: str, hyper_param_details: Dict):
         if method == "uniform":
             search_space = hp.uniform(param_name, low, high)
         elif method == "loguniform":
+            low = round(math.log10(low))
+            high = round(math.log10(high))
             search_space = hp.loguniform(param_name, low, high)
         elif method == "normal":
             search_space = hp.normal(param_name, mu, sigma)
@@ -83,6 +83,8 @@ def _build_hyper_param_expression(param_name: str, hyper_param_details: Dict):
         elif method == "quniform":
             search_space = hp.quniform(param_name, low, high, q)
         elif method == "qloguniform":
+            low = round(math.log10(low))
+            high = round(math.log10(high))
             search_space = hp.qloguniform(param_name, low, high, q)
         elif method == "qnormal":
             search_space = hp.qnormal(param_name, mu, sigma, q)

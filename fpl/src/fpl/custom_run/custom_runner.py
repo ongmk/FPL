@@ -1,18 +1,20 @@
 import logging
 import uuid
+from collections.abc import MutableMapping
 from copy import deepcopy
 from pathlib import Path
+from pprint import pprint
+from textwrap import dedent
 from typing import Dict
 
+import yaml
+from hyperopt import space_eval
+from hyperopt.pyll.base import Apply as hyperopt_apply
+from kedro.config import OmegaConfigLoader
 from kedro.framework.cli.utils import KedroCliError
+from kedro.framework.project import settings
 from kedro.framework.session import KedroSession
 from kedro.utils import load_obj
-from textwrap import dedent
-import yaml
-from collections.abc import MutableMapping
-from hyperopt.pyll.base import Apply as hyperopt_apply
-from hyperopt import space_eval
-from pprint import pprint
 
 
 def find_hyperopt_apply_keys(dct, parent_key=None, result=None):
@@ -38,9 +40,9 @@ def dict_nested_update(lhs: dict, rhs: dict):
 
 
 def read_base_params():
-    with open("./conf/base/parameters.yml", "r") as f:
-        params = yaml.load(f, Loader=yaml.FullLoader)
-    return params
+    conf_path = settings.CONF_SOURCE
+    conf_loader = OmegaConfigLoader(conf_source=conf_path)
+    return conf_loader["parameters"]
 
 
 def custom_kedro_run(
@@ -83,9 +85,9 @@ def custom_kedro_run(
         from hyperopt import STATUS_OK, fmin
         from src.fpl.custom_run.hyperopt_helpers import (
             build_run_config,
+            find_search_groups,
             tuple_list_type_check,
             update_parameters,
-            find_search_groups,
         )
 
         def optimize(parameters: Dict):
@@ -107,7 +109,7 @@ def custom_kedro_run(
 
         hyperopt_param = param_dict.pop("hyperopt")
         hyperopt_run_groups = find_search_groups(hyperopt_param)
-        for i, group_param in hyperopt_run_groups:
+        for i, group_param in enumerate(hyperopt_run_groups):
             base_param = update_parameters(param_dict, group_param)
             hyperopt_run_config, log_info = build_run_config(
                 base_param, hyperopt_param[i], hyperopt_param["target"]

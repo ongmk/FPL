@@ -52,5 +52,5 @@ if __name__ == "__main__":
 
     # from pycaret.containers.models.regression import LightGBMContainer
 
-    default_params = get_regression_default_parameters("et")
+    default_params = get_regression_default_parameters("xgboost")
     pprint(default_params)

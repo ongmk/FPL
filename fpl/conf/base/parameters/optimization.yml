@@ -1,0 +1,21 @@
+optimization:
+  team_id: 3531385
+  ft: 1
+  horizon: 3
+  tr_horizon: 2
+  wc_on: 8
+  bb_on: null
+  fh_on: null
+  timeout: 60
+  log: false
+  decay: 0.5
+  ft_bonus: 1.5
+  itb_bonus: 0.08
+  bench_weights: { 0: 0.03, 1: 0.21, 2: 0.06, 3: 0.002 }
+  solver: cplex
+  backtest_player_history: true
+  backtest_players:
+    Me: 3531385
+    Hazard: 1195527
+    FPL Raptor: 5431
+    Donald: 307190

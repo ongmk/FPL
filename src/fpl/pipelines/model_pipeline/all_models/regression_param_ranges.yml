@@ -1,0 +1,213 @@
+rf_params:
+  n_estimators:
+    method: uniform
+    scope: int
+    low: 10
+    high: 300
+  max_depth:
+    method: uniform
+    scope: int
+    low: 1
+    high: 11
+  min_impurity_decrease:
+    method: loguniform
+    low: -9
+    high: -0.69
+  max_features:
+    method: uniform
+    low: 0.4
+    high: 1
+  bootstrap:
+    method: choice
+    values: [true, false]
+
+gbr_params:
+  n_estimators:
+    method: uniform
+    scope: int
+    low: 10
+    high: 300
+  learning_rate:
+    method: loguniform
+    low: 0.000001
+    high: 0.5
+  subsample:
+    method: uniform
+    low: 0.2
+    high: 1
+  min_samples_split:
+    method: uniform
+    scope: int
+    low: 2
+    high: 10
+  min_samples_leaf:
+    method: uniform
+    scope: int
+    low: 1
+    high: 5
+  max_depth:
+    method: uniform
+    scope: int
+    low: 1
+    high: 11
+  max_features:
+    method: uniform
+    low: 0.4
+    high: 1
+  min_impurity_decrease:
+    method: loguniform
+    low: 0.000000001
+    high: 0.5
+
+huber_params:
+  epsilon:
+    method: uniform
+    low: 1
+    high: 2
+  alpha:
+    method: uniform
+    low: 0.0000000001
+    high: 0.9999999999
+  fit_intercept:
+    method: choice
+    values: [True, False]
+
+ridge_params:
+  alpha:
+    method: uniform
+    low: 0.001
+    high: 10
+  fit_intercept:
+    method: choice
+    values: [True, False]
+
+lr_params:
+  fit_intercept:
+    method: choice
+    values: [True, False]
+
+lightgbm_params:
+  num_leaves:
+    method: uniform
+    scope: int
+    low: 2
+    high: 256
+  learning_rate:
+    method: loguniform
+    low: 0.000001
+    high: 0.5
+  n_estimators:
+    method: uniform
+    scope: int
+    low: 10
+    high: 300
+  min_split_gain:
+    method: uniform
+    low: 0
+    high: 1
+  reg_alpha:
+    method: loguniform
+    low: 0.0000000001
+    high: 10
+  reg_lambda:
+    method: loguniform
+    low: 0.0000000001
+    high: 10
+  feature_fraction:
+    method: uniform
+    low: 0.4
+    high: 1
+  bagging_fraction:
+    method: uniform
+    low: 0.4
+    high: 1
+  bagging_freq:
+    method: uniform
+    scope: int
+    low: 0
+    high: 7
+  min_child_samples:
+    method: uniform
+    scope: int
+    low: 1
+    high: 100
+
+et_params:
+  n_estimators:
+    method: uniform
+    scope: int
+    min: 10
+    max: 300
+  max_depth:
+    method: uniform
+    scope: int
+    min: 1
+    max: 11
+  min_samples_split:
+    method: uniform
+    scope: int
+    min: 2
+    max: 10
+  min_samples_leaf:
+    method: uniform
+    scope: int
+    min: 1
+    max: 5
+  max_features:
+    method: uniform
+    min: 0.4
+    max: 1
+  min_impurity_decrease:
+    method: loguniform
+    min: 0.000000001
+    max: 0.5
+
+xgboost_params:
+  n_estimators:
+    method: uniform
+    scope: int
+    low: 10
+    high: 300
+  learning_rate:
+    method: loguniform
+    low: -6
+    high: -0.69
+  learning_rate: 
+    method: loguniform
+    low: 0.000001
+    high: 0.5
+  n_estimators: 
+    method: uniform
+    scope: int
+    low: 10
+    high: 300
+  subsample: 
+    method: uniform
+    low: 0.2
+    high: 1
+  max_depth: 
+    method: uniform
+    scope: int
+    low: 1
+    high: 11
+  colsample_bytree: 
+    method: uniform
+    low: 0.5
+    high: 1
+  min_child_weight: 
+    method: uniform
+    scope: int
+    low: 1
+    high: 4
+  reg_alpha: 
+    method: uniform
+    low: 0.0000000001
+    high: 10
+  reg_lambda: 
+    method: uniform
+    low: 0.0000000001
+    high: 10
+  scale_pos_weight: 
+    method: uniform
+    low: 1
+    high: 50

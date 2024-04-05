@@ -1,0 +1,8 @@
+data:
+  elo_learning_rate: 0.1
+  home_away_weight: 0.5
+  start_year: 2016-2017
+  holdout_year: 2022-2023
+  ma_lag: 5
+  debug_run: False
+  use_cache: False

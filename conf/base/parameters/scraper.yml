@@ -1,0 +1,4 @@
+scraper:
+  current_season: 2023-2024
+  fresh_start: False
+  headless: True

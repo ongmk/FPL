@@ -149,11 +149,12 @@ venv.bak/
 solution.txt
 *.log
 *.png
-solver/*
-chromedriver.exe
 *.db
 *.pyc
 __pycache__/
 env_config.ini
-chrome-win64/
 *.pkl
+
+# Custom
+chromedriver/*
+solver/*

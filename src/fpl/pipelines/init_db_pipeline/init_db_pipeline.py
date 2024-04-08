@@ -1,6 +1,7 @@
 import logging
 import os
 import sqlite3
+import pandas as pd
 
 from kedro.pipeline import Pipeline, node
 
@@ -18,7 +19,7 @@ def execute_sql(sql):
 
 def create_db_tables():
     sqls = [
-        # "drop_tables.sql",
+        "drop_tables.sql",
         "create_tables.sql",
     ]
 
@@ -28,6 +29,8 @@ def create_db_tables():
         logger.info(f"Executed SQL {sql}")
     return True
 
+def copy_fpl_data_to_db(_):
+    return pd.read_csv("data/fpl_history_backup.csv")
 
 def create_pipeline():
     return Pipeline(
@@ -36,7 +39,11 @@ def create_pipeline():
                 func=create_db_tables,
                 inputs=None,
                 outputs="done",
-                name="create_db_tables_node",
+            ),
+            node(
+                func=copy_fpl_data_to_db,
+                inputs="done",
+                outputs="FPL_DATA",
             ),
         ]
     )

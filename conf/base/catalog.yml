@@ -41,12 +41,12 @@ EXPERIMENT_RECORD:
 
 FPL_HISTORY_BACKUP:
   <<: *csv
-  filepath: data/preprocess/fpl_history_backup.csv
+  filepath: data/fpl_history_backup.csv
 
 READ_FPL_DATA:
   type: fpl.extras.datasets.ReadOnlySQLTableDataSet
   table_name: raw_fpl_data
-  credentials: db_credentials
+  <<: *index
 
 FPL_DATA:
   type: pandas.SQLTableDataSet

@@ -13,7 +13,7 @@ from tqdm import tqdm
 logger = logging.getLogger(__name__)
 
 
-def crawl_team_match_logs(_: pd.DataFrame, parameters: dict[str, Any]):
+def crawl_team_match_logs(parameters: dict[str, Any]):
     current_season = parameters["current_season"]
     current_year = int(re.findall(r"\d+", current_season)[0])
     if parameters["fresh_start"]:
@@ -57,7 +57,7 @@ def crawl_team_match_logs(_: pd.DataFrame, parameters: dict[str, Any]):
     return True
 
 
-def crawl_player_match_logs(_: pd.DataFrame, parameters: dict[str, Any]):
+def crawl_player_match_logs(parameters: dict[str, Any]):
     current_season = parameters["current_season"]
     current_year = int(re.findall(r"\d+", current_season)[0])
     if parameters["fresh_start"]:
@@ -100,9 +100,10 @@ def crawl_player_match_logs(_: pd.DataFrame, parameters: dict[str, Any]):
                 crawled_df.loc[len(crawled_df)] = [player, s]
 
     conn.close()
+    return True
 
 
-def merge_fpl_data(
+def crawl_fpl_data(
     old_data: pd.DataFrame, parameters: dict[str, Any]
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     override_mapping = {

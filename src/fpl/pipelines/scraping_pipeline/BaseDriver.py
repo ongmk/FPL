@@ -42,7 +42,7 @@ class BaseDriver:
         chrome_options = webdriver.ChromeOptions()
         chrome_options.add_argument("--blink-settings=imagesEnabled=false")
         chrome_options.binary_location = (
-            ".//src//fpl//pipelines//scraping_pipeline//chrome-win64//chrome.exe"
+            "chromedriver//chrome-win64//chrome.exe"
         )
         chrome_options.headless = headless
 

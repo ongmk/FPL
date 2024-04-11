@@ -40,7 +40,19 @@ class BaseDriver:
     def __init__(self, headless=True):
         service = Service(ChromeDriverManager().install())
         chrome_options = webdriver.ChromeOptions()
+        
+        chrome_options.add_argument("enable-automation")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-extensions")
+        chrome_options.add_argument("--dns-prefetch-disable")
+        chrome_options.add_argument("--disable-gpu")
+        chrome_options.add_argument("--enable-chrome-browser-cloud-management")
         chrome_options.add_argument("--blink-settings=imagesEnabled=false")
+        
+        # Fix stuck on .get()
+        chrome_options.add_argument('--disable-browser-side-navigation') 
+        
+        if headless: chrome_options.add_argument("--headless") 
         chrome_options.binary_location = (
             "chromedriver//chrome-win64//chrome.exe"
         )
@@ -89,7 +101,7 @@ class BaseDriver:
             tree = etree.parse(StringIO(element.get_attribute("innerHTML")), parser)
             return tree
         except TimeoutException as e:
-            logger.warning("Can't find element by ID. Retrying...")
+            logger.warning(f"Can't find element with ID={id}. Retrying...")
             self.driver.refresh()
             raise e
 
@@ -103,7 +115,7 @@ class BaseDriver:
             tree = etree.parse(StringIO(element.get_attribute("innerHTML")), parser)
             return tree
         except TimeoutException as e:
-            logger.warning("Can't find element by XPath. Retrying...")
+            logger.warning(f"Can't find element with XPath={xpath}. Retrying...")
             self.driver.refresh()
             raise e
 

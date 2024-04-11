@@ -160,3 +160,14 @@ class FBRefDriver(BaseDriver):
         match_log_df["Link"] = link
 
         return match_log_df
+
+
+if __name__ == "__main__":
+    with FBRefDriver(headless=False) as d:
+        match_log_df = d.get_player_match_log(
+            "season", 
+            "player", 
+            "pos",
+            "https://fbref.com/en/players/2973d8ff/matchlogs/2016-2017/Michy-Batshuayi-Match-Logs"
+            )
+    pass

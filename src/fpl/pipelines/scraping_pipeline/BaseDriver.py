@@ -41,6 +41,7 @@ class BaseDriver:
         service = Service(ChromeDriverManager().install())
         chrome_options = webdriver.ChromeOptions()
         
+        # disable images and extensions
         chrome_options.add_argument("enable-automation")
         chrome_options.add_argument("--no-sandbox")
         chrome_options.add_argument("--disable-extensions")
@@ -50,7 +51,12 @@ class BaseDriver:
         chrome_options.add_argument("--blink-settings=imagesEnabled=false")
         
         # Fix stuck on .get()
-        chrome_options.add_argument('--disable-browser-side-navigation') 
+        chrome_options.add_argument('--disable-browser-side-navigation')
+        
+        # suppress chromedriver logs
+        chrome_options.add_argument('--log-level=3')
+        chrome_options.add_argument('--ignore-certificate-errors')
+        chrome_options.add_argument('--ignore-ssl-errors')
         
         if headless: chrome_options.add_argument("--headless") 
         chrome_options.binary_location = (
@@ -153,3 +159,8 @@ class BaseDriver:
         for e in elements:
             self.driver.execute_script("arguments[0].scrollIntoView();", e)
             self.driver.execute_script("arguments[0].click();", e)
+
+
+if __name__ == "__main__":
+    driver = BaseDriver(headless=False)
+    driver.get("https://fbref.com/en/players/2973d8ff/matchlogs/2016-2017/Michy-Batshuayi-Match-Logs")

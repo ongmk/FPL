@@ -16,10 +16,10 @@ logger = logging.getLogger(__name__)
 def crawl_team_match_logs(parameters: dict[str, Any]):
     current_season = parameters["current_season"]
     current_year = int(re.findall(r"\d+", current_season)[0])
-    if parameters["fresh_start"]:
-        seasons = [i for i in range(2016, current_year + 1)]
-    else:
+    if parameters["current_season_only"]:
         seasons = [current_year]
+    else:
+        seasons = [i for i in range(2016, current_year + 1)]
     seasons = [f"{s}-{s+1}" for s in seasons]
 
     conn = sqlite3.connect("./data/fpl.db")
@@ -60,10 +60,10 @@ def crawl_team_match_logs(parameters: dict[str, Any]):
 def crawl_player_match_logs(parameters: dict[str, Any]):
     current_season = parameters["current_season"]
     current_year = int(re.findall(r"\d+", current_season)[0])
-    if parameters["fresh_start"]:
-        seasons = [i for i in range(2016, current_year + 1)]
-    else:
+    if parameters["current_season_only"]:
         seasons = [current_year]
+    else:
+        seasons = [i for i in range(2016, current_year + 1)]
     seasons = [f"{s}-{s+1}" for s in seasons]
 
     conn = sqlite3.connect("./data/fpl.db")

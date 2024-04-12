@@ -1,4 +1,4 @@
 scraper:
   current_season: 2023-2024
-  fresh_start: False
+  current_season_only: False
   headless: True

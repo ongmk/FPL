@@ -94,14 +94,19 @@ class BaseDriver:
         for flag in chrome_flags_for_tooling:
             chrome_options.add_argument(flag)
 
-        # more
-        chrome_options.add_experimental_option('excludeSwitches', ['disable-popup-blocking'])
+        chrome_options.add_experimental_option('prefs', {
+            "profile.managed_default_content_settings.images":2,
+            "profile.default_content_setting_values.notifications":2,
+            "profile.managed_default_content_settings.stylesheets":2,
+            "profile.managed_default_content_settings.cookies":2,
+            "profile.managed_default_content_settings.popups":2,
+            "profile.managed_default_content_settings.geolocation":2,
+            "profile.managed_default_content_settings.media_stream":2,
+        }) # disable stuff
         chrome_options.add_argument('--disable-browser-side-navigation') # Fix stuck on .get()
 
         # logging
-        chrome_options.add_argument('--log-level=INFO')
-        chrome_options.add_argument('--ignore-certificate-errors')
-        chrome_options.add_argument('--ignore-ssl-errors')
+        chrome_options.add_argument('--log-level=3')
         
         if headless: chrome_options.add_argument("--headless") 
         chrome_options.binary_location = (

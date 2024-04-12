@@ -41,7 +41,7 @@ class BaseDriver:
         service = Service(
             ChromeDriverManager().install(), 
             log_path="logs/chromedriver.log",
-            service_args=['--readable-timestamp', '--log-level=INFO']
+            service_args=['--readable-timestamp', '--verbose']
             )
         chrome_options = webdriver.ChromeOptions()
         # https://github.com/GoogleChrome/chrome-launcher/blob/main/docs/chrome-flags-for-tools.md
@@ -107,6 +107,7 @@ class BaseDriver:
 
         # logging
         chrome_options.add_argument('--log-level=3')
+        chrome_options.add_argument('--log-file=D:/my_documents/personal_projects/FPL/logs/tmp.log')
         
         if headless: chrome_options.add_argument("--headless") 
         chrome_options.binary_location = (

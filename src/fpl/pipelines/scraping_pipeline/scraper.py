@@ -35,21 +35,21 @@ def crawl_team_match_logs(parameters: dict[str, Any]):
             "select distinct team, season from raw_team_match_log", conn
         )
 
-        for s in tqdm(seasons, desc="Seasons crawled"):
-            team_season_links = d.get_team_season_links(s)
+        for season in tqdm(seasons, desc="Seasons crawled"):
+            team_season_links = d.get_team_season_links(season)
 
             for team, link in tqdm(
                 team_season_links, leave=False, desc="Teams crawled"
             ):
                 if not crawled_df.loc[
-                    (crawled_df["season"] == s) & (crawled_df["team"] == team)
+                    (crawled_df["season"] == season) & (crawled_df["team"] == team)
                 ].empty:
-                    logger.warning(f"{s} {team}\tMatch Log already crawled.\t{link}")
+                    logger.warning(f"{season} {team}\tMatch Log already crawled.\t{link}")
                     continue
 
-                match_log_df = d.get_team_match_log(s, team, link)
+                match_log_df = d.get_team_match_log(season, team, link)
 
-                logger.info(f"Saving Match Log:\t{s} {team}")
+                logger.info(f"Saving Match Log:\t{season} {team}")
                 match_log_df.to_sql(
                     "raw_team_match_log", conn, if_exists="append", index=False
                 )
@@ -126,7 +126,14 @@ def crawl_fpl_data(
     return fpl_history, new_data
 
 
-# if __name__ == "__main__":
+if __name__ == "__main__":
 # crawl_team_match_logs()
 # crawl_player_match_logs()
 # crawl_match_odds()
+    with FBRefDriver(headless=False) as d:
+        match_log_df = d.get_team_match_log(
+            "season", 
+            "team", 
+            "link"
+        )
+    pass

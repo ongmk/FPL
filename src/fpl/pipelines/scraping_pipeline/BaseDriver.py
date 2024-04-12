@@ -38,23 +38,68 @@ class BaseDriver:
     """Base Web Driver for handling timeouts"""
 
     def __init__(self, headless=True):
-        service = Service(ChromeDriverManager().install())
+        service = Service(
+            ChromeDriverManager().install(), 
+            log_path="logs/chromedriver.log",
+            service_args=['--readable-timestamp', '--log-level=INFO']
+            )
         chrome_options = webdriver.ChromeOptions()
-        
-        # disable images and extensions
-        chrome_options.add_argument("enable-automation")
-        chrome_options.add_argument("--no-sandbox")
-        chrome_options.add_argument("--disable-extensions")
-        chrome_options.add_argument("--dns-prefetch-disable")
-        chrome_options.add_argument("--disable-gpu")
-        chrome_options.add_argument("--enable-chrome-browser-cloud-management")
-        chrome_options.add_argument("--blink-settings=imagesEnabled=false")
-        
-        # Fix stuck on .get()
-        chrome_options.add_argument('--disable-browser-side-navigation')
-        
-        # suppress chromedriver logs
-        chrome_options.add_argument('--log-level=3')
+        # https://github.com/GoogleChrome/chrome-launcher/blob/main/docs/chrome-flags-for-tools.md
+        chrome_flags_for_tooling = [
+            "--disable-client-side-phishing-detection",
+            "--disable-component-extensions-with-background-pages",
+            "--disable-extensions",
+            "--disable-default-apps",
+            "--disable-extensions",
+            "--disable-features=InterestFeedContentSuggestions",
+            "--disable-features=Translate",
+            "--hide-scrollbars",
+            "--mute-audio",
+            "--no-default-browser-check",
+            "--no-first-run",
+            "--ash-no-nudges",
+            "--disable-search-engine-choice-screen",
+            "--disable-background-timer-throttling",
+            "--disable-backgrounding-occluded-windows",
+            "--disable-features=CalculateNativeWinOcclusion",
+            "--disable-hang-monitor",
+            "--disable-ipc-flooding-protection",
+            "--disable-renderer-backgrounding",
+            "--autoplay-policy=user-gesture-required",
+            "--deny-permission-prompts",
+            "--disable-external-intent-requests",
+            "--disable-features=GlobalMediaControls",
+            "--disable-features=ImprovedCookieControls",
+            "--disable-features=PrivacySandboxSettings4",
+            "--disable-notifications",
+            "--disable-popup-blocking",
+            "--disable-prompt-on-repost",
+            "--noerrdialogs",
+            "--enable-automation",
+            "--disable-background-networking",
+            "--disable-breakpad",
+            "--disable-component-update",
+            "--disable-domain-reliability",
+            "--disable-features=AutofillServerCommunication",
+            "--disable-features=CertificateTransparencyComponentUpdater",
+            "--disable-sync",
+            "--enable-crash-reporter-for-testing",
+            "--metrics-recording-only",
+            "--disable-features=OptimizationHints",
+            "--disable-features=DialMediaRouteProvider",
+            "--no-pings",
+            "--no-sandbox",
+            "--disable-gpu",
+        ]
+        for flag in chrome_flags_for_tooling:
+            chrome_options.add_argument(flag)
+
+        # more
+        chrome_options.add_experimental_option('excludeSwitches', ['disable-popup-blocking'])
+        chrome_options.add_argument('--disable-browser-side-navigation') # Fix stuck on .get()
+
+        # logging
+        chrome_options.add_argument('--log-level=INFO')
         chrome_options.add_argument('--ignore-certificate-errors')
         chrome_options.add_argument('--ignore-ssl-errors')
         
@@ -164,3 +209,4 @@ class BaseDriver:
 if __name__ == "__main__":
     driver = BaseDriver(headless=False)
     driver.get("https://fbref.com/en/players/2973d8ff/matchlogs/2016-2017/Michy-Batshuayi-Match-Logs")
+    pass

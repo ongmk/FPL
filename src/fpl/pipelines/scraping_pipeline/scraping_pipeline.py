@@ -19,11 +19,11 @@ def create_pipeline() -> Pipeline:
                 inputs="params:scraper",
                 outputs=None,
             ),
-            node(
-                func=crawl_player_match_logs,
-                inputs="params:scraper",
-                outputs=None,
-            ),
+            # node(
+            #     func=crawl_player_match_logs,
+            #     inputs="params:scraper",
+            #     outputs=None,
+            # ),
         ]
     )
 

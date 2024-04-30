@@ -136,6 +136,7 @@ class BaseDriver:
             cookie_dict[cookie["name"]] = cookie["value"]
         return cookie_dict
 
+    @retry(stop=stop_after_attempt(3))
     def get(self, url):
         # One request every three seconds
         delay = 3

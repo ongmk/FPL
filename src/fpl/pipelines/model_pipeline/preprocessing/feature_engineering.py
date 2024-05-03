@@ -5,6 +5,9 @@ import numpy as np
 import pandas as pd
 from pandas.core.groupby.generic import DataFrameGroupBy
 from tqdm import tqdm
+from pandarallel import pandarallel
+import logging
+logger = logging.getLogger(__name__)
 
 
 def agg_home_away_elo(data: pd.DataFrame) -> pd.DataFrame:
@@ -155,9 +158,9 @@ def single_ma_feature(
     ma_data = ma_data.sort_values(by=["date"])
 
     tqdm.pandas(leave=False, desc="Calculating row")
-    ma_data = ma_data.groupby("fpl_name").progress_apply(
+    ma_data = ma_data.groupby("fpl_name").parallel_apply(
         lambda player_df: calculate_single_lag_ma(player_df, match_stat_col, lag)
-    )
+    ).droplevel(0)
     ma_data = pd.concat([cached_ma_data[ma_cols], ma_data])
     data = data.drop(columns=ma_cols, errors="ignore")
     return pd.merge(data, ma_data, left_index=True, right_index=True)
@@ -196,7 +199,7 @@ def calculate_single_lag_ma(group: DataFrameGroupBy, match_stat_col: str, lag: i
 
 def create_ma_features(
     data: pd.DataFrame, cached_data: pd.DataFrame, ma_lag: int, parameters: dict
-) -> (pd.DataFrame, [str]):
+) -> pd.DataFrame:
     excluded = ["pts_gap_above", "pts_gap_below", "pts_b4_match", "start", "round"]
     ma_features = [
         col
@@ -248,10 +251,11 @@ def extract_mode_pos(data: pd.DataFrame, cached_data: pd.DataFrame) -> pd.DataFr
         ].fillna(0)
 
     # # Step 3: Apply the function to each row
-    tqdm.pandas(desc="Processing positions")
-    data["pos"] = data.progress_apply(
+    logger.info("Processing positions...")
+    data["pos"] = data.parallel_apply(
         lambda row: select_most_common(row, df_counts), axis=1
     )
+    logger.info("Done")
     return data
 
 
@@ -260,6 +264,9 @@ def feature_engineering(
 ) -> pd.DataFrame:
     use_cache = parameters["use_cache"]
     ma_lag = parameters["ma_lag"]
+    n_cores = parameters["n_cores"]
+    
+    pandarallel.initialize(progress_bar=True, nb_workers=n_cores)
 
     if parameters["use_cache"] and read_processed_data is not None:
         cached_data = read_processed_data.loc[read_processed_data["cached"] == True]

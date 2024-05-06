@@ -156,5 +156,6 @@ env_config.ini
 *.pkl
 
 # Custom
-chromedriver/*
+chromedriver/*/
 solver/*
+tmp/**

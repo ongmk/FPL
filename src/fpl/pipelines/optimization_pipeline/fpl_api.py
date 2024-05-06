@@ -6,11 +6,12 @@ from dataclasses import dataclass
 import numpy as np
 import pandas as pd
 import requests
+from tqdm import tqdm
+
 from src.fpl.pipelines.optimization_pipeline.fetch_predictions import (
     get_pred_pts_data,
     resolve_fpl_names,
 )
-from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -58,13 +59,16 @@ def get_fpl_base_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]
 
 def fetch_player_fixtures(
     player_id: int, current_season: str
-) -> [pd.DataFrame, pd.DataFrame]:
+) -> list[pd.DataFrame, pd.DataFrame]:
     r = requests.get(
         f"https://fantasy.premierleague.com/api/element-summary/{player_id}/"
     )
     data = r.json()
     history = pd.DataFrame(data["history"])
     fixtures = pd.DataFrame(data["fixtures"])
+    history = history[
+        ~history["fixture"].isin(fixtures["id"])
+    ]  # sometimes the same fixture appears in history and fixtures
     fixtures["element"] = player_id
     fixtures["opponent_team"] = fixtures.apply(
         lambda row: row["team_a"] if row["is_home"] else row["team_h"], axis=1
@@ -78,6 +82,14 @@ def fetch_player_fixtures(
     fixtures = pd.concat([history, fixtures])
     fixtures["season"] = current_season
     return fixtures
+
+
+def fetch_most_recent_fixture() -> dict:
+    r = requests.get(f"https://fantasy.premierleague.com/api/fixtures/")
+    data = r.json()
+    data = sorted(data, key=lambda f: f["kickoff_time"], reverse=True)
+    most_recent_fixture = next(d for d in data if d["finished"] == True)
+    return most_recent_fixture
 
 
 def get_current_season_fpl_data(current_season: str) -> pd.DataFrame:

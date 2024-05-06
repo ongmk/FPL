@@ -4,11 +4,14 @@ import sqlite3
 from typing import Any, Tuple
 
 import pandas as pd
+from tqdm import tqdm
 
 # from src.fpl.pipelines.scraping_pipeline.OddsPortalDriver import OddsPortalDriver
-from src.fpl.pipelines.optimization_pipeline.fpl_api import get_current_season_fpl_data
+from src.fpl.pipelines.optimization_pipeline.fpl_api import (
+    fetch_most_recent_fixture,
+    get_current_season_fpl_data,
+)
 from src.fpl.pipelines.scraping_pipeline.FBRefDriver import FBRefDriver
-from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
@@ -44,7 +47,9 @@ def crawl_team_match_logs(parameters: dict[str, Any]):
                 if not crawled_df.loc[
                     (crawled_df["season"] == season) & (crawled_df["team"] == team)
                 ].empty:
-                    logger.warning(f"{season} {team}\tMatch Log already crawled.\t{link}")
+                    logger.warning(
+                        f"{season} {team}\tMatch Log already crawled.\t{link}"
+                    )
                     continue
 
                 match_log_df = d.get_team_match_log(season, team, link)
@@ -54,7 +59,7 @@ def crawl_team_match_logs(parameters: dict[str, Any]):
                     "raw_team_match_log", conn, if_exists="append", index=False
                 )
     conn.close()
-    return True
+    return None
 
 
 def crawl_player_match_logs(parameters: dict[str, Any]):
@@ -67,13 +72,12 @@ def crawl_player_match_logs(parameters: dict[str, Any]):
     seasons = [f"{s}-{s+1}" for s in seasons]
 
     conn = sqlite3.connect("./data/fpl.db")
-    logger.info(f"Initializing FBRefDriver...")
-
     cur = conn.cursor()
     cur.execute(f"DELETE FROM raw_player_match_log WHERE season = '{current_season}'")
     conn.commit()
     logger.info(f"Deleting player logs from previous weeks.")
 
+    logger.info(f"Initializing FBRefDriver...")
     with FBRefDriver(headless=parameters["headless"]) as d:
         crawled_df = pd.read_sql(
             "select distinct player, season from raw_player_match_log", conn
@@ -100,40 +104,47 @@ def crawl_player_match_logs(parameters: dict[str, Any]):
                 crawled_df.loc[len(crawled_df)] = [player, s]
 
     conn.close()
-    return True
+    return None
 
 
-def crawl_fpl_data(
-    old_data: pd.DataFrame, parameters: dict[str, Any]
-) -> Tuple[pd.DataFrame, pd.DataFrame]:
-    override_mapping = {
-        "Benjamin Chilwell": "Ben Chilwell",
-        "Mateo Kovacic": "Mateo Kovačić",
-        "Tomas Soucek": "Tomáš Souček",
-    }  # Fix unaligned names between seasons
-    old_data["full_name"] = (
-        old_data["full_name"].map(override_mapping).fillna(old_data["full_name"])
+def crawl_fpl_data(parameters: dict[str, Any]) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    current_season = parameters["current_season"]
+    conn = sqlite3.connect("./data/fpl.db")
+    cur = conn.cursor()
+    most_recent_fixture = fetch_most_recent_fixture()["id"]
+    cur.execute(
+        f"SELECT sum(total_points) IS NOT null FROM raw_fpl_data WHERE fixture = {most_recent_fixture} and season = '{current_season}'"
     )
+    already_crawled = cur.fetchone()[0]
 
-    fpl_history = old_data[~old_data["total_points"].isna()].sort_values(
-        by=["season", "round", "element"], ascending=[False, False, True]
-    )
+    if already_crawled:
+        logger.info(
+            f"Most recent match was already crawled. Skipping fetching of FPL data."
+        )
+        return None
+
+    cur.execute(f"DELETE FROM raw_fpl_data WHERE season = '{current_season}'")
+    conn.commit()
+    logger.info(f"Deleting fpl data from previous weeks.")
+
     current_season_data = get_current_season_fpl_data(
         current_season=parameters["current_season"]
     )
-    past_season_data = old_data[old_data["season"] != parameters["current_season"]]
-    new_data = pd.concat([past_season_data, current_season_data])
-    return fpl_history, new_data
+    current_season_data.to_sql("raw_fpl_data", conn, if_exists="append", index=False)
+
+    fpl_history = pd.read_sql(
+        "select *  from raw_fpl_data where total_points IS NOT NULL order by season DESC, round DESC, element",
+        conn,
+    ).sort_values(by=["season", "round", "element"], ascending=[False, False, True])
+    fpl_history.to_csv("data/fpl_history_backup.csv", index=False)
+
+    return None
 
 
 if __name__ == "__main__":
-# crawl_team_match_logs()
-# crawl_player_match_logs()
-# crawl_match_odds()
+    # crawl_team_match_logs()
+    # crawl_player_match_logs()
+    # crawl_match_odds()
     with FBRefDriver(headless=False) as d:
-        match_log_df = d.get_team_match_log(
-            "season", 
-            "team", 
-            "link"
-        )
+        match_log_df = d.get_team_match_log("season", "team", "link")
     pass

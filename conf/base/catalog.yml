@@ -39,19 +39,10 @@ EXPERIMENT_RECORD:
   <<: *flexible
   table_name: experiment
 
-FPL_HISTORY_BACKUP:
-  <<: *csv
-  filepath: data/fpl_history_backup.csv
-
-READ_FPL_DATA:
-  type: fpl.extras.datasets.ReadOnlySQLTableDataSet
-  table_name: raw_fpl_data
-  <<: *index
-
 FPL_DATA:
   type: pandas.SQLTableDataSet
   table_name: raw_fpl_data
-  <<: *index
+  credentials: db_credentials
 
 PLAYER_MATCH_LOG:
   type: pandas.SQLTableDataSet

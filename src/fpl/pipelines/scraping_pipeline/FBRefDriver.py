@@ -153,9 +153,9 @@ class FBRefDriver(BaseDriver):
             pd.to_numeric
         )
         match_log_df["Start"] = match_log_df["Start"].str.contains("Y").mul(1)
-        match_log_df["Pos"] = match_log_df["Pos"].fillna(
-            match_log_df["Pos"].mode().values[0]
-        )
+        pos_mode = match_log_df["Pos"].mode()
+        fill_val = pos_mode.values[0] if len(pos_mode) > 0 else pos
+        match_log_df["Pos"] = match_log_df["Pos"].fillna(fill_val)
         match_log_df = match_log_df.rename(columns={"Save%": "SavePCT"})
 
         match_log_df["Season"] = season

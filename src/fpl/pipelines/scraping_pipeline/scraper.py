@@ -47,9 +47,7 @@ def crawl_team_match_logs(parameters: dict[str, Any]):
                 if not crawled_df.loc[
                     (crawled_df["season"] == season) & (crawled_df["team"] == team)
                 ].empty:
-                    logger.warning(
-                        f"{season} {team}\tMatch Log already crawled.\t{link}"
-                    )
+                    logger.info(f"{season} {team}\tMatch Log already crawled.\t{link}")
                     continue
 
                 match_log_df = d.get_team_match_log(season, team, link)
@@ -92,7 +90,7 @@ def crawl_player_match_logs(parameters: dict[str, Any]):
                 if not crawled_df.loc[
                     (crawled_df["season"] == s) & (crawled_df["player"] == player)
                 ].empty:
-                    logger.warning(f"{s} {player}\tMatch Log already crawled.\t{link}")
+                    logger.info(f"{s} {player}\tMatch Log already crawled.\t{link}")
                     continue
 
                 match_log_df = d.get_player_match_log(s, player, pos, link)

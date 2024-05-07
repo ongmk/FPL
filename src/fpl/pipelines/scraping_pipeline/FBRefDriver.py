@@ -1,6 +1,7 @@
 import logging
 
 import pandas as pd
+
 from src.fpl.pipelines.scraping_pipeline.BaseDriver import BaseDriver
 
 logger = logging.getLogger(__name__)
@@ -24,7 +25,7 @@ class FBRefDriver(BaseDriver):
 
     def get_player_season_links(
         self, season: str, current_season: str
-    ) -> [str, str, str]:
+    ) -> list[str, str, str]:
         if season == current_season:
             relative_url = f"/en/comps/9/stats/Premier-League-Stats"
         else:
@@ -118,7 +119,7 @@ class FBRefDriver(BaseDriver):
                 "PKcon",
                 "PrgP",
                 "PrgC",
-                "Att (GK)"
+                "Att (GK)",
             ]
         ]
         match_log_df = match_log_df.drop(useless_cols, axis=1)
@@ -152,7 +153,9 @@ class FBRefDriver(BaseDriver):
             pd.to_numeric
         )
         match_log_df["Start"] = match_log_df["Start"].str.contains("Y").mul(1)
-        match_log_df["Pos"] = match_log_df["Pos"].fillna(pos)
+        match_log_df["Pos"] = match_log_df["Pos"].fillna(
+            match_log_df["Pos"].mode().values[0]
+        )
         match_log_df = match_log_df.rename(columns={"Save%": "SavePCT"})
 
         match_log_df["Season"] = season
@@ -165,9 +168,9 @@ class FBRefDriver(BaseDriver):
 if __name__ == "__main__":
     with FBRefDriver(headless=False) as d:
         match_log_df = d.get_player_match_log(
-            "season", 
-            "player", 
+            "season",
+            "player",
             "pos",
-            "https://fbref.com/en/players/2973d8ff/matchlogs/2016-2017/Michy-Batshuayi-Match-Logs"
-            )
+            "https://fbref.com/en/players/2973d8ff/matchlogs/2016-2017/Michy-Batshuayi-Match-Logs",
+        )
     pass

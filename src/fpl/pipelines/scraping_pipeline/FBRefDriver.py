@@ -46,6 +46,22 @@ class FBRefDriver(BaseDriver):
             player_season_links.append((player, pos, self.absolute_url(relative_url)))
         return player_season_links
 
+    def get_most_recent_game(self, current_season):
+        url = self.absolute_url(
+            "/en/comps/9/schedule/Premier-League-Scores-and-Fixtures"
+        )
+        logger.info(f"Getting all fixtures:\t{url}")
+        self.get(url)
+        fixtures_df = self.get_table_df_by_id(f"sched_{current_season}_9_1")
+        completed = fixtures_df.loc[~fixtures_df["Score"].isna()]
+        most_recent_game = completed.sort_values(
+            by=["Date", "Time"], ascending=False
+        ).iloc[0]
+        date = most_recent_game["Date"]
+        home = most_recent_game["Home"]
+        away = most_recent_game["Away"]
+        return date, home, away
+
     def get_team_match_log(self, season, team, link):
         logger.info(f"Crawling Match Log:\t{season} {team}\t{link}")
         self.get(link)

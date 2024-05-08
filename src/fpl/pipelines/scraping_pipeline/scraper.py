@@ -8,8 +8,8 @@ from tqdm import tqdm
 
 # from src.fpl.pipelines.scraping_pipeline.OddsPortalDriver import OddsPortalDriver
 from src.fpl.pipelines.optimization_pipeline.fpl_api import (
-    fetch_most_recent_fixture,
     get_current_season_fpl_data,
+    get_most_recent_fpl_game,
 )
 from src.fpl.pipelines.scraping_pipeline.FBRefDriver import FBRefDriver
 
@@ -26,14 +26,32 @@ def crawl_team_match_logs(parameters: dict[str, Any]):
     seasons = [f"{s}-{s+1}" for s in seasons]
 
     conn = sqlite3.connect("./data/fpl.db")
+    cur = conn.cursor()
     logger.info(f"Initializing FBRefDriver...")
 
-    cur = conn.cursor()
-    cur.execute(f"DELETE FROM raw_team_match_log WHERE season = '{current_season}'")
-    conn.commit()
-    logger.info(f"Deleting team logs from previous weeks.")
-
     with FBRefDriver(headless=parameters["headless"]) as d:
+
+        date, home, away = d.get_most_recent_game(current_season)
+        crawled = pd.read_sql(
+            f"""select * from raw_team_match_log 
+                where comp = 'Premier League'
+                and date = '{date}'
+                and team = '{home}'
+                and opponent = '{away}'
+            """,
+            conn,
+        )
+
+        if len(crawled) > 0:
+            logger.info(
+                f"Most recent match was already crawled. Skipping fetching of team match logs."
+            )
+            return None
+
+        cur.execute(f"DELETE FROM raw_team_match_log WHERE season = '{current_season}'")
+        conn.commit()
+        logger.info(f"Deleting team logs from previous weeks.")
+
         crawled_df = pd.read_sql(
             "select distinct team, season from raw_team_match_log", conn
         )
@@ -71,12 +89,33 @@ def crawl_player_match_logs(parameters: dict[str, Any]):
 
     conn = sqlite3.connect("./data/fpl.db")
     cur = conn.cursor()
-    cur.execute(f"DELETE FROM raw_player_match_log WHERE season = '{current_season}'")
-    conn.commit()
-    logger.info(f"Deleting player logs from previous weeks.")
 
     logger.info(f"Initializing FBRefDriver...")
     with FBRefDriver(headless=parameters["headless"]) as d:
+
+        date, home, away = d.get_most_recent_game(current_season)
+        crawled = pd.read_sql(
+            f"""select * from raw_player_match_log 
+                where comp = 'Premier League'
+                and date = '{date}'
+                and squad = '{home}'
+                and opponent = '{away}'
+            """,
+            conn,
+        )
+
+        if len(crawled) > 5:
+            logger.info(
+                f"Most recent match was already crawled. Skipping fetching of player match logs."
+            )
+            return None
+
+        cur.execute(
+            f"DELETE FROM raw_player_match_log WHERE season = '{current_season}'"
+        )
+        conn.commit()
+        logger.info(f"Deleting player logs from previous weeks.")
+
         crawled_df = pd.read_sql(
             "select distinct player, season from raw_player_match_log", conn
         )
@@ -109,13 +148,13 @@ def crawl_fpl_data(parameters: dict[str, Any]) -> Tuple[pd.DataFrame, pd.DataFra
     current_season = parameters["current_season"]
     conn = sqlite3.connect("./data/fpl.db")
     cur = conn.cursor()
-    most_recent_fixture = fetch_most_recent_fixture()["id"]
-    cur.execute(
-        f"SELECT sum(total_points) IS NOT null FROM raw_fpl_data WHERE fixture = {most_recent_fixture} and season = '{current_season}'"
+    most_recent_fixture = get_most_recent_fpl_game()
+    crawled = pd.read_sql(
+        f"select * from raw_fpl_data where fixture = {most_recent_fixture['id']}",
+        conn,
     )
-    already_crawled = cur.fetchone()[0]
 
-    if already_crawled:
+    if len(crawled) > 0:
         logger.info(
             f"Most recent match was already crawled. Skipping fetching of FPL data."
         )

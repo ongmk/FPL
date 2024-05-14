@@ -6,10 +6,6 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from src.fpl.pipelines.model_pipeline.preprocessing.feature_engineering import (
-    feature_engineering,
-)
-from src.fpl.pipelines.model_pipeline.preprocessing.imputer import impute_missing_values
 from thefuzz import process
 from tqdm import tqdm
 
@@ -17,7 +13,9 @@ logger = logging.getLogger(__name__)
 
 
 def fuzzy_match_player_names(
-    player_match_log: pd.DataFrame, fpl_data: pd.DataFrame, overrides: dict[str, str]
+    player_match_log: pd.DataFrame,
+    fpl_data: pd.DataFrame,
+    fbref2fpl_player_mapping: dict[str, str],
 ) -> None:
     player_match_log = (
         player_match_log[["season", "player"]]
@@ -52,7 +50,7 @@ def fuzzy_match_player_names(
         player_match_log_season["fpl_name"] = player_match_log_season["fpl_name"].str[0]
         matched_df.append(player_match_log_season)
     matched_df = pd.concat(matched_df, ignore_index=True)
-    for fbref_name, fpl_name in overrides.items():
+    for fbref_name, fpl_name in fbref2fpl_player_mapping.items():
         matched_df.loc[
             matched_df["fbref_name"] == fbref_name, ["fpl_name", "fuzzy_score"]
         ] = (fpl_name, 100)
@@ -62,10 +60,10 @@ def fuzzy_match_player_names(
         & (matched_df["total_points"] > 0),
         "review",
     ] = True
-    matched_df.loc[
-        matched_df["fpl_name"].notnull(), "duplicated"
-    ] = matched_df.duplicated(subset=["season", "fpl_name"], keep=False).replace(
-        False, np.nan
+    matched_df.loc[matched_df["fpl_name"].notnull(), "duplicated"] = (
+        matched_df.duplicated(subset=["season", "fpl_name"], keep=False).replace(
+            False, np.nan
+        )
     )
     logger.warning(
         f"{matched_df['review'].sum()}/{len(matched_df)} records in player name mapping needs review."
@@ -266,6 +264,7 @@ def align_data_structure(
     elo_data["next_match"] = elo_data.groupby("team")["date"].shift(-1)
     elo_data = elo_data.drop(["date", "season"], axis=1)
 
+    fpl_data = add_unplayed_matches(fpl_data)
     fpl_data["team"] = fpl_data["team"].map(fpl_2_fbref_team_mapping)
     fpl_data["opponent"] = fpl_data["opponent_team_name"].map(fpl_2_fbref_team_mapping)
     fpl_data["team_gf"] = np.where(
@@ -323,16 +322,16 @@ def add_unplayed_matches(fpl_data: pd.DataFrame):
             list(
                 itertools.product(
                     [season],
-                    season_data["fpl_name"].unique(),
+                    season_data["full_name"].unique(),
                     season_data["round"].dropna().unique(),
                 )
             ),
-            columns=["season", "fpl_name", "round"],
+            columns=["season", "full_name", "round"],
         )
         fill_dates = player_round.merge(
-            season_data, on=["season", "fpl_name", "round"], how="left"
+            season_data, on=["season", "full_name", "round"], how="left"
         )
-        fill_dates = fill_dates.sort_values(["date", "fpl_name"])
+        fill_dates = fill_dates.sort_values(["date", "full_name"])
         output_data = pd.concat([output_data, fill_dates])
     output_data = output_data.reset_index(drop=True)
     return output_data
@@ -387,7 +386,6 @@ def clean_data(
         fpl_data,
         parameters,
     )
-    fpl_data = add_unplayed_matches(fpl_data)
     combined_data = combine_data(
         player_match_log,
         team_match_log,
@@ -425,9 +423,17 @@ def split_data(processed_data, data_params, model_params):
     non_features += processed_data.filter(regex="_elo$").columns.tolist()
     non_features += processed_data.filter(regex="_opp$").columns.tolist()
     processed_data = processed_data.drop(ma_cols + non_features, axis=1)
-    processed_data = processed_data[
-        ~((processed_data["season"] == "2016-2017") & (processed_data["round"] <= 5))
-    ]
+    original_len = len(processed_data)
+    contains_na = processed_data.isna().any(axis=1)
+    processed_data = processed_data[~contains_na]
+    filtered_rows = original_len - contains_na.sum()
+    if filtered_rows / original_len > 0.3:
+        raise RuntimeError(
+            f"Too many rows ({filtered_rows}/{original_len}) have been filtered out"
+        )
+    logger.info(
+        f"{filtered_rows}/{original_len} rows are filtered out because they contain NaN."
+    )
     processed_data = processed_data[
         [group_by] + categorical_features + numerical_features + [target]
     ]
@@ -436,3 +442,49 @@ def split_data(processed_data, data_params, model_params):
     holdout_data = processed_data[processed_data["season"] >= holdout_year]
 
     return train_val_data, holdout_data
+
+
+if __name__ == "__main__":
+    import sqlite3
+
+    import yaml
+
+    conn = sqlite3.connect("./data/fpl.db")
+    cur = conn.cursor()
+
+    fpl_name = "Ângelo Gabriel Borges Damaceno"
+    fbref_name = "Mohammed Kudus"
+    fpl_data = pd.read_sql(
+        f"select * from raw_fpl_data where full_name = '{fpl_name}'", conn
+    )
+    player_match_log = pd.read_sql(
+        f"select * from raw_player_match_log where player = '{fbref_name}'", conn
+    )
+    teams = (
+        player_match_log.loc[player_match_log["comp"] == "Premier League", "squad"]
+        .unique()
+        .tolist()
+    )
+    teams_string = [f"'{t}'" for t in teams]
+    teams_string = "(" + ",".join(teams_string) + ")"
+    elo_data = pd.read_sql(f"select * from elo_data where team in {teams_string}", conn)
+    team_match_log = pd.read_sql(
+        f"select * from raw_team_match_log where team in {teams_string}", conn
+    )
+    player_name_mapping = pd.read_csv("data/preprocess/player_name_mapping.csv")
+    with open("data/preprocess/fpl2fbref_team_mapping.yml", "r") as file:
+        fpl_2_fbref_team_mapping = yaml.safe_load(file)
+
+    parameters = {"start_year": "2016-2017", "debug_run": False}
+
+    df = clean_data(
+        player_match_log,
+        team_match_log,
+        elo_data,
+        fpl_data,
+        player_name_mapping,
+        fpl_2_fbref_team_mapping,
+        parameters,
+    )
+    assert len(df) > 0
+    pass

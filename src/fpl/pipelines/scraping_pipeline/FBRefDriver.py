@@ -2,7 +2,7 @@ import logging
 
 import pandas as pd
 
-from src.fpl.pipelines.scraping_pipeline.BaseDriver import BaseDriver
+from fpl.pipelines.scraping_pipeline.BaseDriver import BaseDriver
 
 logger = logging.getLogger(__name__)
 

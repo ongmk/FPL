@@ -5,5 +5,14 @@ data:
   holdout_year: 2022-2023
   ma_lag: 5
   debug_run: False
-  use_cache: True
+  use_cache: False
   n_cores: 12
+  do_not_impute:
+    - season
+    - date
+    - round
+    - fpl_name
+    - fpl_points
+    - value
+    - player
+    - pos

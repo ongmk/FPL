@@ -1,10 +1,10 @@
 from kedro.pipeline import Pipeline, node
-from src.fpl.pipelines.optimization_pipeline.fpl_api import get_live_data
-from src.fpl.pipelines.optimization_pipeline.optimizer import (
+from fpl.pipelines.optimization_pipeline.fpl_api import get_live_data
+from fpl.pipelines.optimization_pipeline.optimizer import (
     solve_multi_period_fpl,
     backtest_single_player,
 )
-from src.fpl.pipelines.optimization_pipeline.fetch_predictions import (
+from fpl.pipelines.optimization_pipeline.fetch_predictions import (
     refresh_fpl_names_mapping,
 )
 import logging

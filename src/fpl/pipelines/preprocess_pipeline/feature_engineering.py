@@ -1,12 +1,13 @@
 import itertools
+import logging
 from datetime import timedelta
 
 import numpy as np
 import pandas as pd
+from pandarallel import pandarallel
 from pandas.core.groupby.generic import DataFrameGroupBy
 from tqdm import tqdm
-from pandarallel import pandarallel
-import logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -158,9 +159,13 @@ def single_ma_feature(
     ma_data = ma_data.sort_values(by=["date"])
 
     tqdm.pandas(leave=False, desc="Calculating row")
-    ma_data = ma_data.groupby("fpl_name").parallel_apply(
-        lambda player_df: calculate_single_lag_ma(player_df, match_stat_col, lag)
-    ).droplevel(0)
+    ma_data = (
+        ma_data.groupby("fpl_name")
+        .parallel_apply(
+            lambda player_df: calculate_single_lag_ma(player_df, match_stat_col, lag)
+        )
+        .droplevel(0)
+    )
     ma_data = pd.concat([cached_ma_data[ma_cols], ma_data])
     data = data.drop(columns=ma_cols, errors="ignore")
     return pd.merge(data, ma_data, left_index=True, right_index=True)
@@ -234,7 +239,11 @@ def select_most_common(row, df_counts):
 
 
 def extract_mode_pos(data: pd.DataFrame, cached_data: pd.DataFrame) -> pd.DataFrame:
-    unpivot_pos = data.assign(pos=data["pos"].str.split(",")).explode("pos")
+    unpivot_pos = (
+        data.assign(pos=data["pos"].str.split(","))
+        .explode("pos")
+        .dropna(subset=["pos"])
+    )
     df_counts = (
         unpivot_pos.groupby(["fpl_name", "pos"]).size().reset_index(name="counts")
     )
@@ -255,6 +264,9 @@ def extract_mode_pos(data: pd.DataFrame, cached_data: pd.DataFrame) -> pd.DataFr
     data["pos"] = data.parallel_apply(
         lambda row: select_most_common(row, df_counts), axis=1
     )
+    data["pos"] = data["pos"].map(
+        {"MF": "CM", "DF": "CB"}
+    )  # MF and DF are only used in 2016-2017
     logger.info("Done")
     return data
 
@@ -265,7 +277,7 @@ def feature_engineering(
     use_cache = parameters["use_cache"]
     ma_lag = parameters["ma_lag"]
     n_cores = parameters["n_cores"]
-    
+
     pandarallel.initialize(progress_bar=True, nb_workers=n_cores)
 
     if parameters["use_cache"] and read_processed_data is not None:

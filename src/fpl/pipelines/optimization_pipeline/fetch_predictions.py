@@ -69,7 +69,7 @@ def fuzzy_match(row, df_to_match):
 
 
 def refresh_fpl_names_mapping():
-    from src.fpl.pipelines.optimization_pipeline.fpl_api import get_fpl_base_data
+    from fpl.pipelines.optimization_pipeline.fpl_api import get_fpl_base_data
 
     elements_team = pd.read_csv("./data/raw/backtest_data/merged_gw.csv")[
         ["name", "team", "position"]

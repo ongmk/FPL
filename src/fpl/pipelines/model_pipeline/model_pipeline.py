@@ -1,11 +1,12 @@
 from kedro.pipeline import Pipeline, node, pipeline
-from src.fpl.pipelines.model_pipeline.experiment_helpers import (
+
+from fpl.pipelines.model_pipeline.experiment_helpers import (
     init_experiment,
     run_housekeeping,
 )
-from src.fpl.pipelines.model_pipeline.modelling.ensemble import model_selection
-from src.fpl.pipelines.model_pipeline.modelling.evaluation import evaluate_model_holdout
-from src.fpl.pipelines.model_pipeline.modelling.training import (
+from fpl.pipelines.model_pipeline.modelling.ensemble import model_selection
+from fpl.pipelines.model_pipeline.modelling.evaluation import evaluate_model_holdout
+from fpl.pipelines.model_pipeline.modelling.training import (
     create_sklearn_pipeline,
     cross_validation,
     feature_selection,
@@ -13,68 +14,6 @@ from src.fpl.pipelines.model_pipeline.modelling.training import (
     pycaret_compare_models,
     train_model,
 )
-from src.fpl.pipelines.model_pipeline.preprocessing.elo_calculation import (
-    calculate_elo_score,
-)
-from src.fpl.pipelines.model_pipeline.preprocessing.preprocessor import (
-    clean_data,
-    feature_engineering,
-    fuzzy_match_player_names,
-    impute_missing_values,
-    split_data,
-)
-
-
-def create_preprocess_pipeline() -> Pipeline:
-    return pipeline(
-        [
-            # node(
-            #     func=fuzzy_match_player_names,
-            #     inputs=["PLAYER_MATCH_LOG", "FPL_DATA", "FUZZY_MATCH_OVERRIDES"],
-            #     outputs="PLAYER_NAME_MAPPING",
-            # ),
-            node(
-                func=calculate_elo_score,
-                inputs=["TEAM_MATCH_LOG", "READ_PROCESSED_DATA", "params:data"],
-                outputs="ELO_DATA",
-            ),
-            node(
-                func=clean_data,
-                inputs=[
-                    "PLAYER_MATCH_LOG",
-                    "TEAM_MATCH_LOG",
-                    "ELO_DATA",
-                    "FPL_DATA",
-                    "PLAYER_NAME_MAPPING",
-                    "FPL_2_FBREF_TEAM_MAPPING",
-                    "params:data",
-                ],
-                outputs="cleaned_data",
-            ),
-            node(
-                func=feature_engineering,
-                inputs=[
-                    "cleaned_data",
-                    "READ_PROCESSED_DATA",
-                    "params:data",
-                ],
-                outputs="intermediate_data",
-            ),
-            node(
-                func=impute_missing_values,
-                inputs=["intermediate_data", "params:data"],
-                outputs="PROCESSED_DATA",
-            ),
-            node(
-                func=split_data,
-                inputs=["PROCESSED_DATA", "params:data", "params:model"],
-                outputs=[
-                    "TRAIN_VAL_DATA",
-                    "HOLDOUT_DATA",
-                ],
-            ),
-        ]
-    )
 
 
 def create_feature_selection_pipeline() -> Pipeline:

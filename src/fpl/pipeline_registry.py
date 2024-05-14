@@ -1,23 +1,25 @@
 """Project pipelines."""
+
 from typing import Dict
 
 from kedro.pipeline import Pipeline
-from src.fpl.pipelines.init_db_pipeline import (
+
+from fpl.pipelines.init_db_pipeline import (
     create_pipeline as create_init_db_pipeline,
 )
-from src.fpl.pipelines.model_pipeline import (
+from fpl.pipelines.model_pipeline import (
     create_compare_model_pipeline,
     create_evaluation_inference_pipeline,
     create_feature_selection_pipeline,
     create_hypertuning_pipeline,
-    create_preprocess_pipeline,
     create_training_pipeline,
 )
-from src.fpl.pipelines.optimization_pipeline import (
+from fpl.pipelines.optimization_pipeline import (
     create_backtest_pipeline,
     create_live_pipeline,
 )
-from src.fpl.pipelines.scraping_pipeline import (
+from fpl.pipelines.preprocess_pipeline import create_preprocess_pipeline
+from fpl.pipelines.scraping_pipeline import (
     create_pipeline as create_scraping_pipeline,
 )
 

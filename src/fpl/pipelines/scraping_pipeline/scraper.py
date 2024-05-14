@@ -6,17 +6,36 @@ from typing import Any, Tuple
 import pandas as pd
 from tqdm import tqdm
 
-# from src.fpl.pipelines.scraping_pipeline.OddsPortalDriver import OddsPortalDriver
-from src.fpl.pipelines.optimization_pipeline.fpl_api import (
+# from fpl.pipelines.scraping_pipeline.OddsPortalDriver import OddsPortalDriver
+from fpl.pipelines.optimization_pipeline.fpl_api import (
     get_current_season_fpl_data,
     get_most_recent_fpl_game,
 )
-from src.fpl.pipelines.scraping_pipeline.FBRefDriver import FBRefDriver
+from fpl.pipelines.scraping_pipeline.FBRefDriver import FBRefDriver
 
 logger = logging.getLogger(__name__)
 
 
-def crawl_team_match_logs(parameters: dict[str, Any]):
+def align_fpl_player_name(
+    old2new_fpl_player_mapping: dict[str, str], parameters: dict[str, Any]
+) -> bool:
+    current_season = parameters["current_season"]
+    conn = sqlite3.connect("./data/fpl.db")
+    cur = conn.cursor()
+    for old_name, new_name in old2new_fpl_player_mapping.items():
+        query = f"UPDATE raw_fpl_data SET full_name = '{new_name}' WHERE full_name = '{old_name}' and season != '{current_season}'"
+        cur.execute(query)
+        conn.commit()
+        if cur.rowcount > 0:
+            logger.info(
+                f"{cur.rowcount} rows' FPL Name updated: {old_name} -> {new_name}"
+            )
+
+    conn.close()
+    return True
+
+
+def crawl_team_match_logs(fpl_player_names_aligned: bool, parameters: dict[str, Any]):
     current_season = parameters["current_season"]
     current_year = int(re.findall(r"\d+", current_season)[0])
     if parameters["current_season_only"]:
@@ -78,7 +97,7 @@ def crawl_team_match_logs(parameters: dict[str, Any]):
     return None
 
 
-def crawl_player_match_logs(parameters: dict[str, Any]):
+def crawl_player_match_logs(fpl_player_names_aligned: bool, parameters: dict[str, Any]):
     current_season = parameters["current_season"]
     current_year = int(re.findall(r"\d+", current_season)[0])
     if parameters["current_season_only"]:
@@ -144,7 +163,9 @@ def crawl_player_match_logs(parameters: dict[str, Any]):
     return None
 
 
-def crawl_fpl_data(parameters: dict[str, Any]) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def crawl_fpl_data(
+    fpl_player_names_aligned: bool, parameters: dict[str, Any]
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
     current_season = parameters["current_season"]
     conn = sqlite3.connect("./data/fpl.db")
     cur = conn.cursor()
@@ -183,5 +204,11 @@ if __name__ == "__main__":
     # crawl_player_match_logs()
     # crawl_match_odds()
     with FBRefDriver(headless=False) as d:
-        match_log_df = d.get_team_match_log("season", "team", "link")
+        match_log_df = d.get_player_match_log(
+            "season",
+            "player",
+            "REF",
+            "https://fbref.com/en/players/5f09991f/matchlogs/2017-2018/Patrick-van-Aanholt-Match-Logs",
+        )
+        print(match_log_df)
     pass

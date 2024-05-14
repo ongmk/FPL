@@ -6,7 +6,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from sklearn.inspection import permutation_importance
-from src.fpl.pipelines.model_pipeline.all_models.regression import (
+from fpl.pipelines.model_pipeline.all_models.regression import (
     get_regression_model_instance,
 )
 

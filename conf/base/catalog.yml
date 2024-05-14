@@ -49,17 +49,21 @@ PLAYER_MATCH_LOG:
   table_name: raw_player_match_log
   credentials: db_credentials
 
-FUZZY_MATCH_OVERRIDES:
+FBREF2FPL_PLAYER_MAPPING:
   type: yaml.YAMLDataSet
-  filepath: data/preprocess/fuzzy_match_overrides.yml
+  filepath: data/preprocess/fbref2fpl_player_mapping.yml
+
+OLD2NEW_FPL_PLAYER_MAPPING:
+  type: yaml.YAMLDataSet
+  filepath: data/preprocess/old2new_fpl_player_mapping.yml
 
 PLAYER_NAME_MAPPING:
   <<: *csv
   filepath: data/preprocess/player_name_mapping.csv
 
-FPL_2_FBREF_TEAM_MAPPING:
+FPL2FBREF_TEAM_MAPPING:
   type: yaml.YAMLDataSet
-  filepath: data/preprocess/fpl_2_fbref_team_mapping.yml
+  filepath: data/preprocess/fpl2fbref_team_mapping.yml
 
 TEAM_MATCH_LOG:
   type: pandas.SQLTableDataSet
@@ -69,6 +73,11 @@ TEAM_MATCH_LOG:
 ELO_DATA:
   type: pandas.SQLTableDataSet
   table_name: elo_data
+  <<: *index
+
+INTERMEDIATE_DATA:
+  type: pandas.SQLTableDataSet
+  table_name: intermediate_data
   <<: *index
 
 READ_PROCESSED_DATA:

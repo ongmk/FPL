@@ -4,7 +4,7 @@ import lightgbm
 import sklearn
 import xgboost
 from sklearn import ensemble, kernel_ridge, neighbors, neural_network, tree
-from src.fpl.pipelines.model_pipeline.all_models.model_utils import (
+from fpl.pipelines.model_pipeline.all_models.model_utils import (
     get_model_default_parameters,
     get_model_instance,
 )

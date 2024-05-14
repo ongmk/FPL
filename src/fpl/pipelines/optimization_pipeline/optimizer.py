@@ -4,20 +4,20 @@ import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
 from pulp import lpSum
-from src.fpl.pipelines.optimization_pipeline.cplex.cplex_solver import (
+from fpl.pipelines.optimization_pipeline.cplex.cplex_solver import (
     solve_lp_with_cplex,
 )
-from src.fpl.pipelines.optimization_pipeline.fetch_predictions import (
+from fpl.pipelines.optimization_pipeline.fetch_predictions import (
     get_pred_pts_data,
     resolve_fpl_names,
 )
-from src.fpl.pipelines.optimization_pipeline.fpl_api import (
+from fpl.pipelines.optimization_pipeline.fpl_api import (
     FplData,
     get_backtest_data,
     get_fpl_base_data,
     get_initial_squad,
 )
-from src.fpl.pipelines.optimization_pipeline.lp_constructor import LpData, construct_lp
+from fpl.pipelines.optimization_pipeline.lp_constructor import LpData, construct_lp
 from tqdm import tqdm
 
 plt.style.use("ggplot")
@@ -228,9 +228,9 @@ def generate_summary(
                 chip_used = None
             next_gw_dict = {
                 "itb": round(lp_data.in_the_bank[w].value(), 1),
-                "ft": round(lp_data.free_transfers[w + 1].value())
-                if w + 1 <= 38
-                else 0,
+                "ft": (
+                    round(lp_data.free_transfers[w + 1].value()) if w + 1 <= 38 else 0
+                ),
                 "hits": round(lp_data.penalized_transfers[w].value()),
                 "solve_time": solution_time,
                 "n_transfers": round(
@@ -430,7 +430,7 @@ if __name__ == "__main__":
     from datetime import datetime
 
     import yaml
-    from src.fpl.pipelines.optimization_pipeline.fetch_predictions import (
+    from fpl.pipelines.optimization_pipeline.fetch_predictions import (
         refresh_fpl_names_mapping,
     )
 

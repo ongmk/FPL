@@ -8,7 +8,7 @@ import pandas as pd
 import requests
 from tqdm import tqdm
 
-from src.fpl.pipelines.optimization_pipeline.fetch_predictions import (
+from fpl.pipelines.optimization_pipeline.fetch_predictions import (
     get_pred_pts_data,
     resolve_fpl_names,
 )

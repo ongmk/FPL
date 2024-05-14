@@ -9,7 +9,7 @@ from pulp import (
 )
 import itertools
 from dataclasses import dataclass
-from src.fpl.pipelines.optimization_pipeline.fpl_api import FplData
+from fpl.pipelines.optimization_pipeline.fpl_api import FplData
 import pandas as pd
 
 

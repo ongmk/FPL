@@ -83,7 +83,7 @@ def custom_kedro_run(
 
     if "hyperopt" in param_dict:
         from hyperopt import STATUS_OK, fmin
-        from src.fpl.custom_run.hyperopt_helpers import (
+        from fpl.custom_run.hyperopt_helpers import (
             build_run_config,
             find_search_groups,
             tuple_list_type_check,

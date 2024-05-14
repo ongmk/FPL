@@ -91,7 +91,7 @@ import re
 
 import pandas as pd
 from lxml import etree
-from src.fpl.pipelines.scraping_pipeline.BaseDriver import BaseDriver, DelayedRequests
+from fpl.pipelines.scraping_pipeline.BaseDriver import BaseDriver, DelayedRequests
 
 logger = logging.getLogger(__name__)
 

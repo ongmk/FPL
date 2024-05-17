@@ -47,35 +47,10 @@ def impute_round(
                 col,
                 "categorical",
             )
-    gk_only_cols = [
-        "sota",
-        "ga",
-        "saves",
-        "savepct",
-        "cs",
-        "psxg",
-    ]
-    outfield_only_cols = [
-        "gls",
-        "ast",
-        "pk",
-        "sh",
-        "sot",
-        "touches",
-        "xg",
-        "npxg",
-        "xag",
-        "sca",
-        "gca",
-    ]
+
     for col in numerical_columns:
         missing = data[col].isnull()
         if (season_round_pos_filter & missing).sum() == 0:
-            continue
-        if (pos == "GK" and col in outfield_only_cols) or (
-            pos != "GK" and col in gk_only_cols
-        ):
-            data.loc[season_round_pos_filter & missing, col] = -1
             continue
         data.loc[season_round_pos_filter & missing, col] = impute_with_knn(
             data.loc[season_round_pos_filter & missing],
@@ -101,18 +76,53 @@ def impute_round(
     return None
 
 
-def impute_past_data(data: pd.DataFrame, n_cores, excluded=[]) -> pd.DataFrame:
+GK_ONLY_COLS = [
+    "sota",
+    "ga",
+    "saves",
+    "savepct",
+    "cs",
+    "psxg",
+]
+OUTFIELD_ONLY_COLS = [
+    "gls",
+    "ast",
+    "pk",
+    "sh",
+    "sot",
+    "touches",
+    "xg",
+    "npxg",
+    "xag",
+    "sca",
+    "gca",
+]
+
+
+def impute_past_data(data: pd.DataFrame, n_cores, ma_lag, excluded=[]) -> pd.DataFrame:
     data = data.copy()
-    numerical_columns = [
-        col
-        for col in data.select_dtypes(include=["int", "float"]).columns
-        if col not in excluded
+
+    gk_only_plus_ma_cols = GK_ONLY_COLS + [f"{col}_ma{ma_lag}" for col in GK_ONLY_COLS]
+    outfield_only_plus_ma_cols = OUTFIELD_ONLY_COLS + [
+        f"{col}_ma{ma_lag}" for col in OUTFIELD_ONLY_COLS
     ]
-    categorical_columns = [
-        col
-        for col in data.select_dtypes(exclude=["int", "float"]).columns
-        if col not in excluded
-    ]
+    data.loc[data["pos"] == "GK", outfield_only_plus_ma_cols] = data.loc[
+        data["pos"] == "GK", outfield_only_plus_ma_cols
+    ].fillna(-1)
+    data.loc[data["pos"] != "GK", gk_only_plus_ma_cols] = data.loc[
+        data["pos"] != "GK", gk_only_plus_ma_cols
+    ].fillna(-1)
+    excluded = excluded + gk_only_plus_ma_cols + outfield_only_plus_ma_cols
+
+    numerical_columns, categorical_columns = [], []
+    for col in data.columns:
+        if col in excluded:
+            continue
+
+        if data[col].dtype in [int, float]:
+            numerical_columns.append(col)
+        else:
+            categorical_columns.append(col)
 
     with mp.Pool(n_cores) as pool:
         total = len(data.groupby(["season", "round", "pos"]).size().reset_index())
@@ -160,12 +170,16 @@ def impute_missing_values(
 ) -> pd.DataFrame:
     n_cores = parameters["n_cores"]
     excluded = parameters["do_not_impute"]
+    ma_lag = parameters["ma_lag"]
 
     data = data.sort_values(["date", "fpl_name"])
     data["value"] = data.groupby("fpl_name")["value"].fillna(method="ffill")
 
     data.loc[data["cached"] == True] = impute_past_data(
-        data.loc[data["cached"] == True], n_cores=n_cores, excluded=excluded
+        data.loc[data["cached"] == True],
+        n_cores=n_cores,
+        ma_lag=ma_lag,
+        excluded=excluded,
     )
 
     data = ffill_future_data(data, excluded=excluded)

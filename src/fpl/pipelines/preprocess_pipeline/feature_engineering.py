@@ -259,13 +259,12 @@ def extract_mode_pos(data: pd.DataFrame, cached_data: pd.DataFrame) -> pd.DataFr
             "counts_y"
         ].fillna(0)
 
-    # # Step 3: Apply the function to each row
     logger.info("Processing positions...")
     data["pos"] = data.parallel_apply(
         lambda row: select_most_common(row, df_counts), axis=1
     )
-    data["pos"] = data["pos"].map(
-        {"MF": "CM", "DF": "CB"}
+    data["pos"] = (
+        data["pos"].map({"MF": "CM", "DF": "CB"}).fillna(data["pos"])
     )  # MF and DF are only used in 2016-2017
     logger.info("Done")
     return data

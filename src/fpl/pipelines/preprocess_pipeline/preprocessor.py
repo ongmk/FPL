@@ -1,7 +1,6 @@
 import itertools
 import logging
 import re
-from datetime import timedelta
 from typing import Any
 
 import numpy as np

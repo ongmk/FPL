@@ -15,63 +15,66 @@ logger = logging.getLogger(__name__)
 def fuzzy_match_player_names(
     player_match_log: pd.DataFrame,
     fpl_data: pd.DataFrame,
-    fbref2fpl_player_mapping: dict[str, str],
+    fbref2fpl_player_overrides: dict[str, str],
 ) -> None:
-    player_match_log = (
-        player_match_log[["season", "player"]]
-        .drop_duplicates()
-        .rename({"player": "fbref_name"}, axis=1)
-    )
     fpl_data = (
-        fpl_data[["season", "full_name", "total_points"]]
-        .groupby(["season", "full_name"], as_index=False)
+        fpl_data[["full_name", "total_points"]]
+        .groupby(["full_name"], as_index=False)
         .sum()
         .rename(columns={"full_name": "fpl_name"})
     )
-    matched_df = []
-    for season in player_match_log["season"].unique():
-        player_match_log_season = player_match_log[
-            player_match_log["season"] == season
-        ].copy()
-        fpl_data_season = fpl_data[fpl_data["season"] == season].copy()
 
-        tqdm.pandas(desc=f"Fuzzy matching {season}")
-        player_match_log_season["fpl_name"] = player_match_log_season[
-            "fbref_name"
-        ].progress_apply(
+    matched_df = (
+        player_match_log[["player"]]
+        .drop_duplicates()
+        .rename(columns={"player": "fbref_name"})
+    )
+    tqdm.pandas(desc=f"Fuzzy matching player names")
+    matched_df["fpl_name"] = (
+        matched_df["fbref_name"]
+        .progress_apply(
             lambda fbref_name: process.extract(
-                fbref_name, fpl_data_season["fpl_name"].tolist(), limit=1
+                fbref_name, fpl_data["fpl_name"].tolist(), limit=1
             )
         )
-        player_match_log_season = player_match_log_season.explode("fpl_name")
-        player_match_log_season["fuzzy_score"] = player_match_log_season[
-            "fpl_name"
-        ].str[1]
-        player_match_log_season["fpl_name"] = player_match_log_season["fpl_name"].str[0]
-        matched_df.append(player_match_log_season)
-    matched_df = pd.concat(matched_df, ignore_index=True)
-    for fbref_name, fpl_name in fbref2fpl_player_mapping.items():
-        matched_df.loc[
-            matched_df["fbref_name"] == fbref_name, ["fpl_name", "fuzzy_score"]
-        ] = (fpl_name, 100)
-    matched_df = pd.merge(matched_df, fpl_data, on=["season", "fpl_name"], how="outer")
+        .explode()
+    )
+    fbref2fpl_player_overrides = {
+        k: (v, 100) for k, v in fbref2fpl_player_overrides.items()
+    }
+    matched_df["fpl_name"] = (
+        matched_df["fbref_name"]
+        .map(fbref2fpl_player_overrides)
+        .fillna(matched_df["fpl_name"])
+    )
+
+    matched_df["fuzzy_score"] = matched_df["fpl_name"].str[1]
+    matched_df["fpl_name"] = matched_df["fpl_name"].str[0]
+
+    matched_df = pd.merge(matched_df, fpl_data, on=["fpl_name"], how="outer")
     matched_df.loc[
         ((matched_df["fuzzy_score"] < 90) | (matched_df["fuzzy_score"].isna()))
         & (matched_df["total_points"] > 0),
         "review",
     ] = True
-    matched_df.loc[matched_df["fpl_name"].notnull(), "duplicated"] = (
-        matched_df.duplicated(subset=["season", "fpl_name"], keep=False).replace(
-            False, np.nan
-        )
+    matched_df["duplicated"] = matched_df["fpl_name"].duplicated(keep=False)
+    logger.warning(
+        f"{matched_df['review'].sum()}/{len(matched_df)} records in player name mappings needs review."
     )
     logger.warning(
-        f"{matched_df['review'].sum()}/{len(matched_df)} records in player name mapping needs review."
-    )
-    logger.warning(
-        f"{matched_df['duplicated'].sum()}/{len(matched_df)} duplicated mappings."
+        f"{matched_df['duplicated'].sum()}/{len(matched_df)} duplicated player name mappings."
     )
     return matched_df
+
+
+def data_checks(player_name_mapping):
+    duplicated_mappings = player_name_mapping["duplicated"].sum()
+    if duplicated_mappings > 0:
+        raise ValueError(
+            f"There are {duplicated_mappings} duplicated player name mappings."
+        )
+    logger.info("Data checks completed.")
+    return None
 
 
 def filter_data(
@@ -234,19 +237,15 @@ def align_data_structure(
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     player_match_log["round"] = player_match_log["round"].apply(get_week_number)
     player_match_log["start"] = player_match_log["start"].replace({"Y": 1, "N": 0})
-    player_name_mapping = player_name_mapping.set_index(["fbref_name", "season"])[
+    player_name_mapping = player_name_mapping.set_index("fbref_name")[
         "fpl_name"
     ].to_dict()
-    player_match_log["player_season"] = list(
-        zip(player_match_log["player"], player_match_log["season"])
-    )
     player_match_log["fpl_name"] = (
-        player_match_log["player_season"]
+        player_match_log["player"]
         .map(player_name_mapping)
-        .fillna(player_match_log["player_season"].str[0])
+        .fillna(player_match_log["player"])
     )
     player_match_log = player_match_log.rename(columns={"squad": "team"})
-    player_match_log = player_match_log.drop(["player_season"], axis=1)
 
     team_match_log = team_match_log.rename(
         columns={
@@ -425,8 +424,8 @@ def split_data(processed_data, data_params, model_params):
     processed_data = processed_data.drop(ma_cols + non_features, axis=1)
     original_len = len(processed_data)
     contains_na = processed_data.isna().any(axis=1)
-    processed_data = processed_data[~contains_na]
-    filtered_rows = original_len - contains_na.sum()
+    filtered_rows = contains_na.sum()
+    filtered_data = processed_data[~contains_na]
     if filtered_rows / original_len > 0.3:
         raise RuntimeError(
             f"Too many rows ({filtered_rows}/{original_len}) have been filtered out"
@@ -434,12 +433,12 @@ def split_data(processed_data, data_params, model_params):
     logger.info(
         f"{filtered_rows}/{original_len} rows are filtered out because they contain NaN."
     )
-    processed_data = processed_data[
+    filtered_data = filtered_data[
         [group_by] + categorical_features + numerical_features + [target]
     ]
 
-    train_val_data = processed_data[processed_data["season"] < holdout_year]
-    holdout_data = processed_data[processed_data["season"] >= holdout_year]
+    train_val_data = filtered_data[filtered_data["season"] < holdout_year]
+    holdout_data = filtered_data[filtered_data["season"] >= holdout_year]
 
     return train_val_data, holdout_data
 
@@ -452,8 +451,8 @@ if __name__ == "__main__":
     conn = sqlite3.connect("./data/fpl.db")
     cur = conn.cursor()
 
-    fpl_name = "Ângelo Gabriel Borges Damaceno"
-    fbref_name = "Mohammed Kudus"
+    fpl_name = "Vitalii Mykolenko"
+    fbref_name = "Vitaliy Mykolenko"
     fpl_data = pd.read_sql(
         f"select * from raw_fpl_data where full_name = '{fpl_name}'", conn
     )

@@ -49,17 +49,17 @@ PLAYER_MATCH_LOG:
   table_name: raw_player_match_log
   credentials: db_credentials
 
-FBREF2FPL_PLAYER_MAPPING:
+FBREF2FPL_PLAYER_OVERRIDES:
   type: yaml.YAMLDataSet
-  filepath: data/preprocess/fbref2fpl_player_mapping.yml
+  filepath: data/preprocess/player_mapping/fbref2fpl_player_overrides.yml
 
-OLD2NEW_FPL_PLAYER_MAPPING:
+OLD2NEW_FPL_PLAYER_OVERRIDES:
   type: yaml.YAMLDataSet
-  filepath: data/preprocess/old2new_fpl_player_mapping.yml
+  filepath: data/preprocess/player_mapping/old2new_fpl_player_overrides.yml
 
 PLAYER_NAME_MAPPING:
   <<: *csv
-  filepath: data/preprocess/player_name_mapping.csv
+  filepath: data/preprocess/player_mapping/player_name_mapping.csv
 
 FPL2FBREF_TEAM_MAPPING:
   type: yaml.YAMLDataSet

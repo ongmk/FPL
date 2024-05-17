@@ -25,11 +25,11 @@ def align_fpl_player_name(
     for old_name, new_name in old2new_fpl_player_mapping.items():
         query = f"UPDATE raw_fpl_data SET full_name = '{new_name}' WHERE full_name = '{old_name}' and season != '{current_season}'"
         cur.execute(query)
-        conn.commit()
         if cur.rowcount > 0:
             logger.info(
                 f"{cur.rowcount} rows' FPL Name updated: {old_name} -> {new_name}"
             )
+        conn.commit()
 
     conn.close()
     return True

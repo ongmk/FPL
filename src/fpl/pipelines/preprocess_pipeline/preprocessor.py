@@ -55,22 +55,39 @@ def fuzzy_match_player_names(
         ((matched_df["fuzzy_score"] < 90) | (matched_df["fuzzy_score"].isna()))
         & (matched_df["total_points"] > 0),
         "review",
-    ] = True
-    matched_df["duplicated"] = matched_df["fpl_name"].duplicated(keep=False)
-    logger.warning(
-        f"{matched_df['review'].sum()}/{len(matched_df)} records in player name mappings needs review."
+    ] = 1
+    matched_df["duplicated"] = (
+        matched_df["fpl_name"].duplicated(keep=False).map({True: 1, False: pd.NA})
     )
-    logger.warning(
-        f"{matched_df['duplicated'].sum()}/{len(matched_df)} duplicated player name mappings."
-    )
+    matched_df.loc[
+        (matched_df["fbref_name"].isna()) & (matched_df["total_points"] > 0),
+        "missing_matchlogs",
+    ] = 1
+    if matched_df["review"].sum() > 0:
+        logger.warning(
+            f"{int(matched_df['review'].sum())}/{len(matched_df)} records in player name mappings needs review."
+        )
+    if matched_df["duplicated"].sum() > 0:
+        logger.warning(
+            f"{int(matched_df['duplicated'].sum())} duplicated player name mappings."
+        )
+    if matched_df["missing_matchlogs"].sum() > 0:
+        logger.warning(
+            f"There are missing FBRef matchlogs for {int(matched_df['missing_matchlogs'].sum())} players."
+        )
     return matched_df
 
 
 def data_checks(player_name_mapping):
-    duplicated_mappings = player_name_mapping["duplicated"].sum()
+    duplicated_mappings = int(player_name_mapping["duplicated"].sum())
     if duplicated_mappings > 0:
         raise ValueError(
             f"There are {duplicated_mappings} duplicated player name mappings."
+        )
+    n_missing_matchlog = int(player_name_mapping["missing_matchlogs"].sum())
+    if n_missing_matchlog > 0:
+        raise ValueError(
+            f"There are missing FBRef matchlogs for {n_missing_matchlog} players."
         )
     logger.info("Data checks completed.")
     return None

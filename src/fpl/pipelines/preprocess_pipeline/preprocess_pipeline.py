@@ -6,7 +6,6 @@ from fpl.pipelines.preprocess_pipeline.imputer import impute_missing_values
 from fpl.pipelines.preprocess_pipeline.preprocessor import (
     clean_data,
     data_checks,
-    fuzzy_match_player_names,
     split_data,
 )
 
@@ -14,11 +13,6 @@ from fpl.pipelines.preprocess_pipeline.preprocessor import (
 def create_preprocess_pipeline() -> Pipeline:
     return pipeline(
         [
-            node(
-                func=fuzzy_match_player_names,
-                inputs=["PLAYER_MATCH_LOG", "FPL_DATA", "FBREF2FPL_PLAYER_OVERRIDES"],
-                outputs="PLAYER_NAME_MAPPING",
-            ),
             node(
                 func=data_checks,
                 inputs=["PLAYER_NAME_MAPPING"],

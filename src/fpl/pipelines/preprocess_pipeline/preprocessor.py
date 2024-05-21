@@ -52,9 +52,10 @@ def fuzzy_match_player_names(
         matched_df["fbref_name"].map(name_only_mapping).fillna(matched_df["fpl_name"])
     )
 
-    matched_df["fpl_name"] = matched_df.apply(lambda row: id_name_mapping.get((row["fbref_id"], row["fbref_name"]), None), axis=1).fillna(
-        matched_df["fpl_name"]
-    )
+    matched_df["fpl_name"] = matched_df.apply(
+        lambda row: id_name_mapping.get((row["fbref_id"], row["fbref_name"]), None),
+        axis=1,
+    ).fillna(matched_df["fpl_name"])
 
     matched_df["fuzzy_score"] = matched_df["fpl_name"].str[1]
     matched_df["fpl_name"] = matched_df["fpl_name"].str[0]
@@ -99,7 +100,7 @@ def data_checks(player_name_mapping):
             f"There are missing FBRef matchlogs for {n_missing_matchlog} players."
         )
     logger.info("Data checks completed.")
-    return None
+    return True
 
 
 def filter_data(
@@ -387,6 +388,7 @@ def sample_players(data: pd.DataFrame) -> pd.DataFrame:
 
 
 def clean_data(
+    data_check_complete,
     player_match_log,
     team_match_log,
     elo_data,

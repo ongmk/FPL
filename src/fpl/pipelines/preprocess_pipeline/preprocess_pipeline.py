@@ -19,15 +19,25 @@ def create_preprocess_pipeline() -> Pipeline:
                 inputs=["PLAYER_MATCH_LOG", "FPL_DATA", "FBREF2FPL_PLAYER_OVERRIDES"],
                 outputs="PLAYER_NAME_MAPPING",
             ),
-            node(func=data_checks, inputs=["PLAYER_NAME_MAPPING"], outputs=None),
+            node(
+                func=data_checks,
+                inputs=["PLAYER_NAME_MAPPING"],
+                outputs="check_complete",
+            ),
             node(
                 func=calculate_elo_score,
-                inputs=["TEAM_MATCH_LOG", "READ_PROCESSED_DATA", "params:data"],
+                inputs=[
+                    "check_complete",
+                    "TEAM_MATCH_LOG",
+                    "READ_PROCESSED_DATA",
+                    "params:data",
+                ],
                 outputs="ELO_DATA",
             ),
             node(
                 func=clean_data,
                 inputs=[
+                    "check_complete",
                     "PLAYER_MATCH_LOG",
                     "TEAM_MATCH_LOG",
                     "ELO_DATA",

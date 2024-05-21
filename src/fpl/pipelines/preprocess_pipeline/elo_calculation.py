@@ -167,9 +167,11 @@ def add_promoted_team_rows(
             )
             last_matches = relegated_match_data.groupby(
                 relegated_match_data.apply(
-                    lambda row: row["team"]
-                    if row["team"] in relegated_teams
-                    else row["opponent"],
+                    lambda row: (
+                        row["team"]
+                        if row["team"] in relegated_teams
+                        else row["opponent"]
+                    ),
                     axis=1,
                 )
             ).last()
@@ -202,6 +204,7 @@ def is_first_match_after_promotion(
 
 
 def calculate_elo_score(
+    data_check_complete,
     match_data: pd.DataFrame,
     read_processed_data: pd.DataFrame,
     parameters: dict[str, Any],

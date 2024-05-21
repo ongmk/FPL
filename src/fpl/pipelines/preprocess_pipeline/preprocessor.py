@@ -23,11 +23,13 @@ def fuzzy_match_player_names(
         .rename(columns={"full_name": "fpl_name"})
     )
 
-    matched_df = (
-        player_match_log[["player"]]
-        .drop_duplicates()
-        .rename(columns={"player": "fbref_name"})
+    player_match_log = player_match_log[["link", "player"]].rename(
+        columns={"player": "fbref_name", "link": "fbref_id"}
     )
+    player_match_log["fbref_id"] = player_match_log["fbref_id"].str.extract(
+        r"/players/([a-f0-9]+)/"
+    )
+    matched_df = player_match_log.drop_duplicates()
     tqdm.pandas(desc=f"Fuzzy matching player names")
     matched_df["fpl_name"] = (
         matched_df["fbref_name"]
@@ -38,13 +40,20 @@ def fuzzy_match_player_names(
         )
         .explode()
     )
-    fbref2fpl_player_overrides = {
-        k: (v, 100) for k, v in fbref2fpl_player_overrides.items()
-    }
+    name_only_mapping = {}
+    id_name_mapping = {}
+    for fbref_name, value in fbref2fpl_player_overrides.items():
+        if isinstance(value, list):
+            for fbref_id, fpl_name in value:
+                id_name_mapping[(fbref_id, fbref_name)] = (fpl_name, 100)
+        else:
+            name_only_mapping[fbref_name] = (value, 100)
     matched_df["fpl_name"] = (
-        matched_df["fbref_name"]
-        .map(fbref2fpl_player_overrides)
-        .fillna(matched_df["fpl_name"])
+        matched_df["fbref_name"].map(name_only_mapping).fillna(matched_df["fpl_name"])
+    )
+
+    matched_df["fpl_name"] = matched_df.apply(lambda row: id_name_mapping.get((row["fbref_id"], row["fbref_name"]), None), axis=1).fillna(
+        matched_df["fpl_name"]
     )
 
     matched_df["fuzzy_score"] = matched_df["fpl_name"].str[1]

@@ -1,86 +1,92 @@
-Adrián: Adrián San Miguel del Castillo
-Allan: Allan Marques Loureiro
-Angeliño: José Ángel Esmorís Tasende
-Bénie Adama Traore: Bénie Traoré
-Benson Manuel: Manuel Benson Hedilazio
-Bernardo Silva: Bernardo Veiga de Carvalho e Silva
-Bernardo: Bernardo Fernandes da Silva Junior
-Beto: Norberto Bercique Gomes Betuncal
-Bruno Fernandes: Bruno Borges Fernandes
-Bruno: Bruno Saltor Grau
-Cafú: Carlos Ribeiro Dias
-Chiquinho: Francisco Jorge Tomás Oliveira
-Cucho: Juan Camilo Hernández Suárez
-Danny Drinkwater: Daniel Drinkwater
-Diego Costa: Diego Da Silva Costa
-Diogo Jota: Diogo Teixeira da Silva
-Fabinho: Fabio Henrique Tavares
-Fabio Carvalho: Fábio Freitas Gouveia Carvalho
-Fabio Vieira: Fábio Ferreira Vieira
-Fábio: Fabio Pereira da Silva
-Fernandinho: Fernando Luiz Rosa
-Francisco Trincão: Francisco Machado Mota de Castro Trincão
-Fred: Frederico Rodrigues de Paula Santos
-Gabriel Dos Santos: Gabriel dos Santos Magalhães
-Gabriel Jesus: Gabriel Fernando de Jesus
-Gabriel Paulista: Gabriel Armando de Abreu
-Gedson Fernandes: Gedson Carvalho Fernandes
-Hamed Junior Traorè: Hamed Traorè
-Jeremy Doku: Jérémy Doku
-João Gomes: João Victor Gomes da Silva
-João Pedro: João Pedro Junqueira de Jesus
-Jon Rowe: Jonathan Rowe
-Jonny Castro: Jonathan Castro Otto
-Jorginho: Jorge Luiz Frello Filho
-José Sá: José Malheiro de Sá
-Jota: José Ignacio Peleteiro Romallo
-Julio César Enciso: Julio Enciso
-Lucas Moura: Lucas Rodrigues Moura da Silva
-Lucas Paquetá: Lucas Tolentino Coelho de Lima
-Marquinhos: Marcus Oliveira Alencar
-Matheus Cunha: Matheus Santos Carneiro Da Cunha
-Nolito: Manuel Agudo Durán
-Nuno Tavares: Nuno Varela Tavares
-Pedro Neto: Pedro Lomba Neto
-Pedro: Pedro Rodríguez Ledesma
-Pepe Reina: José Reina
-Raphinha: Raphael Dias Belloli
-Ricardo Pereira: Ricardo Barbosa Pereira
-Roberto: Roberto Jimenez Gago
-Rodri: Rodrigo Hernandez
-Rodrigo: Rodrigo Moreno
-Rúben Dias: Rúben Gato Alves Dias
-Rúben Neves: Rúben da Silva Neves
-Rúben Vinagre: Rúben Nascimento Vinagre
-Rui Patrício: Rui Pedro dos Santos Patrício
-Ryan John Giles: Ryan Giles
-Samir Santos: Samir Caetano de Souza Santos
-Tetê: Mateus Cardoso Lemos Martins
-Thiago Alcántara: Thiago Alcántara do Nascimento
-Thiago Silva: Thiago Emiliano da Silva
-Toti Gomes: Toti António Gomes
-Trézéguet: Mahmoud Ahmed Ibrahim Hassan
-Vinicius Souza: Vini de Souza Costa
-Vitinha: Vitor Ferreira
-Vitinho: Victor da Silva
-William Thomas Fish: William Fish
-Xande Silva: Alexandre Nascimento Costa Silva
-Gabriel Martinelli: Gabriel Martinelli Silva
-José Izquierdo: José Heriberto Izquierdo Mena
-Felipe: Felipe Augusto de Almeida Monteiro
-Felipe Anderson: Felipe Anderson Pereira Gomes
-Allan Nyom: Allan-Roméo Nyom
-Allan: Marques Loureiro
-David de Gea: David De Gea Quintana
-Ben White: Benjamin White
-Bobby Reid: Bobby De Cordova-Reid
-Emerson: Emerson Leite de Souza Junior
-Danilo: 
-  - [94b2001f, Danilo Luiz da Silva]
-  - [a816dbfb, Danilo dos Santos de Oliveira]
-Aaron Ramsey:
-  - [e1618c22, Aaron James Ramsey]
-  - [a816dbfb, Aaron Ramsey]
-Danny Ward:
-  - [cfb29823, Daniel Carl Ward]
-  - [d3ce0e89, Danny Ward]
+name_only_mapping:
+  Adrián: Adrián San Miguel del Castillo
+  Allan: Allan Marques Loureiro
+  Angeliño: José Ángel Esmorís Tasende
+  Bénie Adama Traore: Bénie Traoré
+  Benson Manuel: Manuel Benson Hedilazio
+  Bernardo Silva: Bernardo Veiga de Carvalho e Silva
+  Bernardo: Bernardo Fernandes da Silva Junior
+  Beto: Norberto Bercique Gomes Betuncal
+  Bruno Fernandes: Bruno Borges Fernandes
+  Bruno: Bruno Saltor Grau
+  Cafú: Carlos Ribeiro Dias
+  Chiquinho: Francisco Jorge Tomás Oliveira
+  Cucho: Juan Camilo Hernández Suárez
+  Danny Drinkwater: Daniel Drinkwater
+  Diego Costa: Diego Da Silva Costa
+  Diogo Jota: Diogo Teixeira da Silva
+  Fabinho: Fabio Henrique Tavares
+  Fabio Carvalho: Fábio Freitas Gouveia Carvalho
+  Fabio Vieira: Fábio Ferreira Vieira
+  Fábio: Fabio Pereira da Silva
+  Fernandinho: Fernando Luiz Rosa
+  Francisco Trincão: Francisco Machado Mota de Castro Trincão
+  Fred: Frederico Rodrigues de Paula Santos
+  Gabriel Dos Santos: Gabriel dos Santos Magalhães
+  Gabriel Jesus: Gabriel Fernando de Jesus
+  Gabriel Paulista: Gabriel Armando de Abreu
+  Gedson Fernandes: Gedson Carvalho Fernandes
+  Hamed Junior Traorè: Hamed Traorè
+  Jeremy Doku: Jérémy Doku
+  João Gomes: João Victor Gomes da Silva
+  João Pedro: João Pedro Junqueira de Jesus
+  Jon Rowe: Jonathan Rowe
+  Jonny Castro: Jonathan Castro Otto
+  Jorginho: Jorge Luiz Frello Filho
+  José Sá: José Malheiro de Sá
+  Jota: José Ignacio Peleteiro Romallo
+  Julio César Enciso: Julio Enciso
+  Lucas Moura: Lucas Rodrigues Moura da Silva
+  Lucas Paquetá: Lucas Tolentino Coelho de Lima
+  Marquinhos: Marcus Oliveira Alencar
+  Matheus Cunha: Matheus Santos Carneiro Da Cunha
+  Nolito: Manuel Agudo Durán
+  Nuno Tavares: Nuno Varela Tavares
+  Pedro Neto: Pedro Lomba Neto
+  Pedro: Pedro Rodríguez Ledesma
+  Pepe Reina: José Reina
+  Raphinha: Raphael Dias Belloli
+  Ricardo Pereira: Ricardo Barbosa Pereira
+  Roberto: Roberto Jimenez Gago
+  Rodri: Rodrigo Hernandez
+  Rodrigo: Rodrigo Moreno
+  Rúben Dias: Rúben Gato Alves Dias
+  Rúben Neves: Rúben da Silva Neves
+  Rúben Vinagre: Rúben Nascimento Vinagre
+  Rui Patrício: Rui Pedro dos Santos Patrício
+  Ryan John Giles: Ryan Giles
+  Samir Santos: Samir Caetano de Souza Santos
+  Tetê: Mateus Cardoso Lemos Martins
+  Thiago Alcántara: Thiago Alcántara do Nascimento
+  Thiago Silva: Thiago Emiliano da Silva
+  Toti Gomes: Toti António Gomes
+  Trézéguet: Mahmoud Ahmed Ibrahim Hassan
+  Vinicius Souza: Vini de Souza Costa
+  Vitinha: Vitor Ferreira
+  Vitinho: Victor da Silva
+  William Thomas Fish: William Fish
+  Xande Silva: Alexandre Nascimento Costa Silva
+  Gabriel Martinelli: Gabriel Martinelli Silva
+  José Izquierdo: José Heriberto Izquierdo Mena
+  Felipe: Felipe Augusto de Almeida Monteiro
+  Felipe Anderson: Felipe Anderson Pereira Gomes
+  Allan Nyom: Allan-Roméo Nyom
+  David de Gea: David De Gea Quintana
+  Ben White: Benjamin White
+  Bobby Reid: Bobby De Cordova-Reid
+  Emerson: Emerson Leite de Souza Junior
+  Semi Ajayi: Oluwasemilogo Adesewo Ibidapo Ajayi
+  Isaac Success: Isaac Success Ajayi
+  Gonçalo Guedes: Gonçalo Manuel Ganchinho Guedes
+  Adrien Silva: Adrien Sebastian Perruchet Silva
+  Oscar: Oscar dos Santos Emboaba Junior
+  José Izquierdo: José Izquierdo
+  Hélder Costa: Hélder Wander Sousa de Azevedo e Costa
+
+id_name_mapping:
+  - [94b2001f, Danilo, Danilo Luiz da Silva]
+  - [a816dbfb, Danilo, Danilo dos Santos de Oliveira]
+  - [e1618c22, Aaron Ramsey, Aaron James Ramsey]
+  - [a816dbfb, Aaron Ramsey, Aaron Ramsey]
+  - [cfb29823, Danny Ward, Daniel Carl Ward]
+  - [d3ce0e89, Danny Ward, Danny Ward]

@@ -72,9 +72,7 @@ if __name__ == "__main__":
     conn = sqlite3.connect("data/fpl.db")
     cur = conn.cursor()
 
-    name_only_mapping = {
-        "Edward Nketiah": "Eddie Nketiah",
-    }
+    name_only_mapping = {"Kaine Kesler Hayden": "Kaine Kesler-Hayden"}
     season_element_mapping = {
         ("2021-2022", 496, "Aaron Ramsey"): "Aaron James Ramsey",
         ("2023-2024", 675, "Aaron Ramsey"): "Aaron James Ramsey",

@@ -40,14 +40,15 @@ def fuzzy_match_player_names(
         )
         .explode()
     )
-    name_only_mapping = {}
-    id_name_mapping = {}
-    for fbref_name, value in fbref2fpl_player_overrides.items():
-        if isinstance(value, list):
-            for fbref_id, fpl_name in value:
-                id_name_mapping[(fbref_id, fbref_name)] = (fpl_name, 100)
-        else:
-            name_only_mapping[fbref_name] = (value, 100)
+    name_only_mapping = {
+        fbref_name: (fpl_name, 100) for fbref_name, fpl_name in fbref2fpl_player_overrides["name_only_mapping"].items()
+    }
+    id_name_mapping = {
+        (fbref_id, fbref_name): (fpl_name, 100)
+        for fbref_id, fbref_name, fpl_name in fbref2fpl_player_overrides[
+            "id_name_mapping"
+        ]
+    }
     matched_df["fpl_name"] = (
         matched_df["fbref_name"].map(name_only_mapping).fillna(matched_df["fpl_name"])
     )

@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS raw_fpl_data(
     team TEXT,
     position TEXT,
     fixture INTEGER,
+    starts INTEGER,
     opponent_team INTEGER,
     opponent_team_name TEXT,
     total_points REAL,
@@ -41,7 +42,7 @@ CREATE TABLE IF NOT EXISTS raw_fpl_data(
     expected_goals_conceded REAL
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS season_element_fixture_pk ON raw_fpl_data(season, element, fixture);
+CREATE UNIQUE INDEX IF NOT EXISTS season_element_fixture_pk ON raw_fpl_data(season, element, fixture, round);
 
 ----------------------------
 CREATE TABLE IF NOT EXISTS raw_team_match_log(

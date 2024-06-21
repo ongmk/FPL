@@ -16,26 +16,7 @@ from fpl.pipelines.scraping_pipeline.FBRefDriver import FBRefDriver
 logger = logging.getLogger(__name__)
 
 
-def align_fpl_player_name(
-    old2new_fpl_player_mapping: dict[str, str], parameters: dict[str, Any]
-) -> bool:
-    current_season = parameters["current_season"]
-    conn = sqlite3.connect("./data/fpl.db")
-    cur = conn.cursor()
-    for old_name, new_name in old2new_fpl_player_mapping.items():
-        query = f"UPDATE raw_fpl_data SET full_name = '{new_name}' WHERE full_name = '{old_name}' and season != '{current_season}'"
-        cur.execute(query)
-        if cur.rowcount > 0:
-            logger.info(
-                f"{cur.rowcount} rows' FPL Name updated: {old_name} -> {new_name}"
-            )
-        conn.commit()
-
-    conn.close()
-    return True
-
-
-def crawl_team_match_logs(fpl_player_names_aligned: bool, parameters: dict[str, Any]):
+def crawl_team_match_logs(parameters: dict[str, Any]):
     current_season = parameters["current_season"]
     current_year = int(re.findall(r"\d+", current_season)[0])
     if parameters["current_season_only"]:
@@ -97,7 +78,7 @@ def crawl_team_match_logs(fpl_player_names_aligned: bool, parameters: dict[str, 
     return None
 
 
-def crawl_player_match_logs(fpl_player_names_aligned: bool, parameters: dict[str, Any]):
+def crawl_player_match_logs(parameters: dict[str, Any]):
     current_season = parameters["current_season"]
     current_year = int(re.findall(r"\d+", current_season)[0])
     if parameters["current_season_only"]:
@@ -163,15 +144,13 @@ def crawl_player_match_logs(fpl_player_names_aligned: bool, parameters: dict[str
     return None
 
 
-def crawl_fpl_data(
-    fpl_player_names_aligned: bool, parameters: dict[str, Any]
-) -> Tuple[pd.DataFrame, pd.DataFrame]:
+def crawl_fpl_data(parameters: dict[str, Any]) -> Tuple[pd.DataFrame, pd.DataFrame]:
     current_season = parameters["current_season"]
     conn = sqlite3.connect("./data/fpl.db")
     cur = conn.cursor()
     most_recent_fixture = get_most_recent_fpl_game()
     crawled = pd.read_sql(
-        f"select * from raw_fpl_data where fixture = {most_recent_fixture['id']}",
+        f"select * from raw_fpl_data where fixture = {most_recent_fixture['id']} and season = '{current_season}'",
         conn,
     )
 

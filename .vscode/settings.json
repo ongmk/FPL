@@ -4,5 +4,4 @@
     },
     "python.formatting.provider": "black",
     "editor.formatOnSave": true,
-    "jupyter.notebookFileRoot": "${workspaceFolder}"
 }

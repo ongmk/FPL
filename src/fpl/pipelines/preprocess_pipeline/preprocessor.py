@@ -88,7 +88,8 @@ def filter_data(
             "xga",
         ],
     ].reset_index(drop=True)
-    fpl_data = fpl_data[
+    fpl_data = fpl_data.loc[
+        fpl_data["starts"] == 1,
         [
             "season",
             "date",
@@ -102,7 +103,7 @@ def filter_data(
             "position",
             "team_h_score",
             "team_a_score",
-        ]
+        ],
     ]
 
     return player_match_log, team_match_log, fpl_data
@@ -262,7 +263,7 @@ def convert_to_datetime(
 
 
 def add_unplayed_matches(fpl_data: pd.DataFrame):
-    output_data = pd.DataFrame()
+    output_data = []
     for season, season_data in fpl_data.groupby("season"):
         player_round = pd.DataFrame(
             list(
@@ -275,11 +276,13 @@ def add_unplayed_matches(fpl_data: pd.DataFrame):
             columns=["season", "full_name", "round"],
         )
         fill_dates = player_round.merge(
-            season_data, on=["season", "full_name", "round"], how="left"
+            season_data,
+            on=["season", "full_name", "round"],
+            how="left",
         )
         fill_dates = fill_dates.sort_values(["date", "full_name"])
-        output_data = pd.concat([output_data, fill_dates])
-    output_data = output_data.reset_index(drop=True)
+        output_data.append(fill_dates)
+    output_data = pd.concat(output_data).reset_index(drop=True)
     return output_data
 
 
@@ -346,6 +349,28 @@ def clean_data(
     return combined_data
 
 
+def drop_non_features(processed_data):
+    ma_cols = processed_data.filter(regex=r"\w+_ma\d+").columns
+    ma_cols = set([re.sub(r"_ma\d+", "", col) for col in ma_cols])
+    future_features = [
+        "value",
+        "total_att_elo",
+        "home_total_att_elo",
+        "away_total_att_elo",
+        "total_def_elo",
+        "home_total_def_elo",
+        "away_total_def_elo",
+        "fpl_points",
+        "no_fpl_data",
+    ]
+    ma_cols = [col for col in ma_cols if col not in future_features]
+    non_features = ["cached", "start", "match_points", "league_points"]
+    non_features += processed_data.filter(regex="_elo$").columns.tolist()
+    non_features += processed_data.filter(regex="_opp$").columns.tolist()
+    processed_data = processed_data.drop(ma_cols + non_features, axis=1)
+    return processed_data
+
+
 def split_data(processed_data, data_params, model_params):
     holdout_year = data_params["holdout_year"]
     group_by = model_params["group_by"]
@@ -353,33 +378,17 @@ def split_data(processed_data, data_params, model_params):
     categorical_features = model_params["categorical_features"]
     numerical_features = model_params["numerical_features"]
 
-    ma_cols = processed_data.filter(regex=r"\w+_ma\d+").columns
-    ma_cols = set([re.sub(r"_ma\d+", "", col) for col in ma_cols])
-    excluded = [
-        "value",
-        "att_total",
-        "home_att_total",
-        "away_att_total",
-        "def_total",
-        "home_def_total",
-        "away_def_total",
-        "fpl_points",
-    ]
-    ma_cols = [col for col in ma_cols if col not in excluded]
-    non_features = ["cached", "start", "match_points", "league_points"]
-    non_features += processed_data.filter(regex="_elo$").columns.tolist()
-    non_features += processed_data.filter(regex="_opp$").columns.tolist()
-    processed_data = processed_data.drop(ma_cols + non_features, axis=1)
+    processed_data = drop_non_features(processed_data)
     original_len = len(processed_data)
-    contains_na = processed_data.isna().any(axis=1)
-    filtered_rows = contains_na.sum()
-    filtered_data = processed_data[~contains_na]
-    if filtered_rows / original_len > 0.3:
+    filtered_data = processed_data[~processed_data.isna().any(axis=1)]
+    filtered_len = original_len - len(filtered_data)
+
+    if filtered_len / original_len > 0.3:
         raise RuntimeError(
-            f"Too many rows ({filtered_rows}/{original_len}) have been filtered out"
+            f"Too many rows ({filtered_len}/{original_len}) have been filtered out"
         )
     logger.info(
-        f"{filtered_rows}/{original_len} rows are filtered out because they contain NaN."
+        f"{filtered_len}/{original_len} rows are filtered out because they contain NaN."
     )
     filtered_data = filtered_data[
         [group_by] + categorical_features + numerical_features + [target]

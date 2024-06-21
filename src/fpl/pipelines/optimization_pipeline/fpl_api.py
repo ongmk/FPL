@@ -65,7 +65,23 @@ def fetch_player_fixtures(
     )
     data = r.json()
     history = pd.DataFrame(data["history"])
-    fixtures = pd.DataFrame(data["fixtures"])
+    useful_columns = [
+        "element",
+        "kickoff_time",
+        "opponent_team",
+        "is_home",
+        "id",
+        "event",
+        "starts",
+    ]
+    fixtures = pd.DataFrame(
+        data["fixtures"],
+        columns=useful_columns
+        + [
+            "team_a",
+            "team_h",
+        ],
+    )
     history = history[
         ~history["fixture"].isin(fixtures["id"])
     ]  # sometimes the same fixture appears in history and fixtures
@@ -73,9 +89,7 @@ def fetch_player_fixtures(
     fixtures["opponent_team"] = fixtures.apply(
         lambda row: row["team_a"] if row["is_home"] else row["team_h"], axis=1
     )
-    fixtures = fixtures[
-        ["element", "kickoff_time", "opponent_team", "is_home", "id", "event"]
-    ]
+    fixtures = fixtures[useful_columns]
     fixtures = fixtures.rename(
         {"is_home": "was_home", "id": "fixture", "event": "round"}, axis=1
     )
@@ -115,6 +129,7 @@ def get_current_season_fpl_data(current_season: str) -> pd.DataFrame:
             "team",
             "position",
             "fixture",
+            "starts",
             "opponent_team",
             "opponent_team_name",
             "total_points",
@@ -263,3 +278,7 @@ def get_initial_squad(team_id: int, gw: int) -> list[dict]:
     )
     picks_data = r.json()
     return picks_data["picks"]
+
+
+if __name__ == "__main__":
+    fetch_player_fixtures(30, "2023-2024")

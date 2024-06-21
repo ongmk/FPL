@@ -12,12 +12,12 @@ logger = logging.getLogger(__name__)
 
 
 def agg_home_away_elo(data: pd.DataFrame) -> pd.DataFrame:
-    data["att_total"] = data.att_elo + data.def_elo_opp
-    data["home_att_total"] = data.home_att_elo + data.away_def_elo_opp
-    data["away_att_total"] = data.away_att_elo + data.home_def_elo_opp
-    data["def_total"] = data.def_elo + data.att_elo_opp
-    data["home_def_total"] = data.home_def_elo + data.away_att_elo_opp
-    data["away_def_total"] = data.away_def_elo + data.home_att_elo_opp
+    data["total_att_elo"] = data.att_elo + data.def_elo_opp
+    data["home_total_att_elo"] = data.home_att_elo + data.away_def_elo_opp
+    data["away_total_att_elo"] = data.away_att_elo + data.home_def_elo_opp
+    data["total_def_elo"] = data.def_elo + data.att_elo_opp
+    data["home_total_def_elo"] = data.home_def_elo + data.away_att_elo_opp
+    data["away_total_def_elo"] = data.away_def_elo + data.home_att_elo_opp
     return data
 
 

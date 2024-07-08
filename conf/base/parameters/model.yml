@@ -17,12 +17,12 @@ model:
   numerical_features:
     - round
     - value
-    - att_total
-    - home_att_total
-    - away_att_total
-    - def_total
-    - home_def_total
-    - away_def_total
+    - total_att_elo
+    - home_total_att_elo
+    - away_total_att_elo
+    - total_def_elo
+    - home_total_def_elo
+    - away_total_def_elo
     - pts_b4_match
     - rank_b4_match
     - pts_gap_above
@@ -53,24 +53,12 @@ model:
     - team_xga_ma5
     - fpl_points_ma5
     - value_ma5
-    - att_elo_ma5
-    - def_elo_ma5
-    - home_att_elo_ma5
-    - home_def_elo_ma5
-    - away_att_elo_ma5
-    - away_def_elo_ma5
-    - att_elo_opp_ma5
-    - def_elo_opp_ma5
-    - home_att_elo_opp_ma5
-    - home_def_elo_opp_ma5
-    - away_att_elo_opp_ma5
-    - away_def_elo_opp_ma5
-    - att_total_ma5
-    - home_att_total_ma5
-    - away_att_total_ma5
-    - def_total_ma5
-    - home_def_total_ma5
-    - away_def_total_ma5
+    - total_att_elo_ma5
+    - home_total_att_elo_ma5
+    - away_total_att_elo_ma5
+    - total_def_elo_ma5
+    - home_total_def_elo_ma5
+    - away_total_def_elo_ma5
     - match_points_ma5
     - league_points_ma5
   group_by: season

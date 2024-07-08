@@ -18,6 +18,22 @@ def agg_home_away_elo(data: pd.DataFrame) -> pd.DataFrame:
     data["total_def_elo"] = data.def_elo + data.att_elo_opp
     data["home_total_def_elo"] = data.home_def_elo + data.away_att_elo_opp
     data["away_total_def_elo"] = data.away_def_elo + data.home_att_elo_opp
+    data = data.drop(
+        columns=[
+            "att_elo",
+            "home_att_elo",
+            "away_att_elo",
+            "def_elo",
+            "home_def_elo",
+            "away_def_elo",
+            "att_elo_opp",
+            "home_att_elo_opp",
+            "away_att_elo_opp",
+            "def_elo_opp",
+            "home_def_elo_opp",
+            "away_def_elo_opp",
+        ]
+    )
     return data
 
 
@@ -288,6 +304,8 @@ def feature_engineering(
 
     data = agg_home_away_elo(data)
     data = calculate_pts_data(data, cached_data)
+    data = data.dropna(subset=["player"])
+
     data = extract_mode_pos(data, cached_data)
     data = create_ma_features(data, cached_data, ma_lag, parameters)
     # TODO: calculate total points per team

@@ -188,11 +188,7 @@ def align_data_structure(
     player_name_mapping = player_name_mapping.set_index("fbref_name")[
         "fpl_name"
     ].to_dict()
-    player_match_log["fpl_name"] = (
-        player_match_log["player"]
-        .map(player_name_mapping)
-        .fillna(player_match_log["player"])
-    )
+    player_match_log["fpl_name"] = player_match_log["player"].map(player_name_mapping)
     player_match_log = player_match_log.rename(columns={"squad": "team"})
 
     team_match_log = team_match_log.rename(
@@ -361,12 +357,9 @@ def drop_non_features(processed_data):
         "home_total_def_elo",
         "away_total_def_elo",
         "fpl_points",
-        "no_fpl_data",
     ]
     ma_cols = [col for col in ma_cols if col not in future_features]
     non_features = ["cached", "start", "match_points", "league_points"]
-    non_features += processed_data.filter(regex="_elo$").columns.tolist()
-    non_features += processed_data.filter(regex="_opp$").columns.tolist()
     processed_data = processed_data.drop(ma_cols + non_features, axis=1)
     return processed_data
 

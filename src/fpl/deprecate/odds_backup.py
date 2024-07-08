@@ -14,8 +14,6 @@ def calculate_score_from_odds(df):
 
 
 def aggregate_odds_data(odds_data, parameters):
-    odds_data = odds_data.loc[odds_data["season"] >= parameters["start_year"]]
-
     agg_odds_data = (
         odds_data.groupby(["season", "h_team", "a_team"])
         .apply(lambda group: calculate_score_from_odds(group))
@@ -91,6 +89,7 @@ import re
 
 import pandas as pd
 from lxml import etree
+
 from fpl.pipelines.scraping_pipeline.BaseDriver import BaseDriver, DelayedRequests
 
 logger = logging.getLogger(__name__)

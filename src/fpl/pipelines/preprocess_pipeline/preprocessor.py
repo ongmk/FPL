@@ -41,8 +41,7 @@ def filter_data(
         .clip(upper=7)
     )
     player_match_log = player_match_log.loc[
-        (player_match_log["comp"] == "Premier League")
-        & (player_match_log["season"] >= parameters["start_year"]),
+        player_match_log["comp"] == "Premier League",
         [
             "season",
             "player",
@@ -75,8 +74,7 @@ def filter_data(
         ],
     ].reset_index(drop=True)
     team_match_log = team_match_log.loc[
-        (team_match_log["comp"] == "Premier League")
-        & (team_match_log["season"] >= parameters["start_year"]),
+        team_match_log["comp"] == "Premier League",
         [
             "team",
             "date",
@@ -365,6 +363,7 @@ def drop_non_features(processed_data):
 
 
 def split_data(processed_data, data_params, model_params):
+    train_start_year = data_params["train_start_year"]
     holdout_year = data_params["holdout_year"]
     group_by = model_params["group_by"]
     target = model_params["target"]
@@ -387,7 +386,10 @@ def split_data(processed_data, data_params, model_params):
         [group_by] + categorical_features + numerical_features + [target]
     ]
 
-    train_val_data = filtered_data[filtered_data["season"] < holdout_year]
+    train_val_data = filtered_data[
+        (filtered_data["season"] >= train_start_year)
+        & (filtered_data["season"] < holdout_year)
+    ]
     holdout_data = filtered_data[filtered_data["season"] >= holdout_year]
 
     return train_val_data, holdout_data
@@ -424,7 +426,7 @@ if __name__ == "__main__":
     with open("data/preprocess/fpl2fbref_team_mapping.yml", "r") as file:
         fpl_2_fbref_team_mapping = yaml.safe_load(file)
 
-    parameters = {"start_year": "2016-2017", "debug_run": False}
+    parameters = {"debug_run": False}
 
     df = clean_data(
         player_match_log,

@@ -218,9 +218,7 @@ def calculate_elo_score(
     match_data["xg"] = match_data["xg"].fillna(match_data["gf"])
     match_data["xga"] = match_data["xga"].fillna(match_data["ga"])
     match_data = match_data.loc[
-        (match_data["comp"] == "Premier League")
-        & (match_data["season"] >= parameters["start_year"])
-        & (match_data["venue"] == "Home"),
+        (match_data["comp"] == "Premier League") & (match_data["venue"] == "Home"),
         ["season", "team", "round", "date", "opponent", "xg", "xga"],
     ]
 
@@ -371,7 +369,6 @@ if __name__ == "__main__":
     parameters = dict(
         elo_learning_rate=0.1,
         home_away_weight=0.5,
-        start_year="2016-2017",
         use_cache=False,
     )
     elo_data = calculate_elo_score(match_log, None, parameters)

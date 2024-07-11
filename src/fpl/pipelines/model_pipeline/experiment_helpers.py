@@ -154,7 +154,7 @@ def run_housekeeping(parameters: dict[str, Any]):
     keep_start_times = list(set(keep_start_times + recent_start_times))
 
     delete_from_db("experiment", keep_start_times, conn)
-    delete_from_db("evaluation_result", keep_start_times, conn)
+    delete_from_db("inference_results", keep_start_times, conn)
     delete_from_path("./data/evaluation", keep_start_times)
     delete_empty_columns("experiment", conn)
 

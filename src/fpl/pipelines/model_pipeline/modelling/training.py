@@ -13,6 +13,7 @@ from sklearn.decomposition import PCA
 from sklearn.model_selection import GroupKFold
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler, OneHotEncoder, StandardScaler
+
 from fpl.pipelines.model_pipeline.modelling.ensemble import EnsembleModel
 from fpl.pipelines.model_pipeline.modelling.evaluation import evaluate_model
 
@@ -200,6 +201,7 @@ def cross_validation(
     start_time: str,
     parameters: dict[str, Any],
 ) -> tuple[float, tuple[int, dict[str, float]]]:
+    sort_models = parameters["sort_models"]
     groups = train_val_data[parameters["group_by"]]
     group_kfold = GroupKFold(n_splits=groups.nunique())
 
@@ -227,7 +229,7 @@ def cross_validation(
 
     mean_metrics = get_mean_metrics(all_folds_metrics)
 
-    val_score = mean_metrics["val_r2"]
+    val_score = mean_metrics[f"val_{sort_models}"]
 
     return (val_score, (experiment_id, mean_metrics), last_fold_evaluation_plots)
 

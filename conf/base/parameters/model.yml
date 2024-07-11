@@ -66,7 +66,7 @@ model:
   random_state: 42
   verbose: false
   n_jobs: null
-  sort_models: r2
+  sort_models: mae
   models:
     - lightgbm
     - gbr
@@ -76,40 +76,41 @@ model:
   model_weights: [1, 1, 1, 1, 1]
 
   lightgbm_params:
-    num_leaves: 3
-    learning_rate: 0.19
-    n_estimators: 237
-    min_split_gain: 0.97
-    reg_alpha: 0.00035
-    reg_lambda: 0.96
-    feature_fraction: 0.76
-    bagging_fraction: 0.89
-    bagging_freq: 1
-    min_child_samples: 78
+    num_leaves: 75
+    learning_rate: 0.0186
+    n_estimators: 287
+    min_split_gain: 0.452
+    reg_alpha: 0.018
+    reg_lambda: 1.71
+    feature_fraction: 0.56
+    bagging_fraction: 0.9
+    bagging_freq: 4
+    min_child_samples: 58
 
   gbr_params:
-    n_estimators: 242
-    learning_rate: 0.168
-    subsample: 0.75
-    min_samples_split: 2
-    max_depth: 2
-    max_features: 0.80
-    min_impurity_decrease: 0.00013
+    n_estimators: 251
+    learning_rate: 0.0235
+    subsample: 0.045
+    min_samples_split: 9
+    min_samples_leaf: 1
+    max_depth: 5
+    max_features: 0.5
+    min_impurity_decrease: 0.21
     n_iter_no_change: null
 
   ridge_params:
-    alpha: 6.43
+    alpha: 9.98
 
   lr_params:
     fit_intercept: True
 
   xgboost_params:
-    learning_rate: 0.056
-    n_estimators: 151
-    subsample: 0.60
-    max_depth: 7
-    colsample_bytree: 0.81
-    min_child_weight: 2
-    reg_alpha: 5.27
-    reg_lambda: 2.07
-    scale_pos_weight: 1.63
+    learning_rate: 0.04
+    n_estimators: 270
+    subsample: 0.349
+    max_depth: 3
+    colsample_bytree: 0.795
+    min_child_weight: 1
+    reg_alpha: 2.0
+    reg_lambda: 4.2
+    scale_pos_weight: 4.55

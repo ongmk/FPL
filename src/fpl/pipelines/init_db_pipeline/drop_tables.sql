@@ -6,4 +6,4 @@ DROP TABLE IF EXISTS raw_player_match_log;
 
 DROP TABLE IF EXISTS experiment;
 
-DROP TABLE IF EXISTS evaluation_result;
+DROP TABLE IF EXISTS inference_results;

@@ -343,25 +343,6 @@ def clean_data(
     return combined_data
 
 
-def drop_non_features(processed_data):
-    ma_cols = processed_data.filter(regex=r"\w+_ma\d+").columns
-    ma_cols = set([re.sub(r"_ma\d+", "", col) for col in ma_cols])
-    future_features = [
-        "value",
-        "total_att_elo",
-        "home_total_att_elo",
-        "away_total_att_elo",
-        "total_def_elo",
-        "home_total_def_elo",
-        "away_total_def_elo",
-        "fpl_points",
-    ]
-    ma_cols = [col for col in ma_cols if col not in future_features]
-    non_features = ["cached", "start", "match_points", "league_points"]
-    processed_data = processed_data.drop(ma_cols + non_features, axis=1)
-    return processed_data
-
-
 def split_data(processed_data, data_params, model_params):
     train_start_year = data_params["train_start_year"]
     holdout_year = data_params["holdout_year"]
@@ -370,7 +351,6 @@ def split_data(processed_data, data_params, model_params):
     categorical_features = model_params["categorical_features"]
     numerical_features = model_params["numerical_features"]
 
-    processed_data = drop_non_features(processed_data)
     original_len = len(processed_data)
     filtered_data = processed_data[~processed_data.isna().any(axis=1)]
     filtered_len = original_len - len(filtered_data)
@@ -382,8 +362,9 @@ def split_data(processed_data, data_params, model_params):
     logger.info(
         f"{filtered_len}/{original_len} rows are filtered out because they contain NaN."
     )
+    useful_cols = [group_by] + categorical_features + numerical_features + [target]
     filtered_data = filtered_data[
-        [group_by] + categorical_features + numerical_features + [target]
+        [c for c in filtered_data.columns if c not in useful_cols] + useful_cols
     ]
 
     train_val_data = filtered_data[

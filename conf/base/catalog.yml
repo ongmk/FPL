@@ -117,9 +117,10 @@ FITTED_SKLEARN_PIPELINE:
   type: pickle.PickleDataSet
   filepath: models/fitted_sklearn_pipeline.pkl
 
-HOLDOUT_EVALUATION_RESULT:
+INFERENCE_RESULTS:
   <<: *flexible
-  table_name: evaluation_result
+  table_name: inference_results
+  <<: *index
 
 HOLDOUT_EVALUATION_PLOTS:
   type: matplotlib.MatplotlibWriter

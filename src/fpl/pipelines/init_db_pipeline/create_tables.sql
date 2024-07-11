@@ -120,8 +120,8 @@ CREATE TABLE IF NOT EXISTS experiment (
 );
 
 ----------------------------
-CREATE TABLE IF NOT EXISTS evaluation_result (
-    id INTEGER,
+CREATE TABLE IF NOT EXISTS inference_results (
+    index INTEGER,
     experiment_id INTEGER,
     start_time TEXT NOT NULL,
     PRIMARY KEY (experiment_id, id)

@@ -13,17 +13,13 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from sklearn.metrics import r2_score
 from sklearn.pipeline import Pipeline
+
 from fpl.pipelines.model_pipeline.modelling.ensemble import EnsembleModel, Model
 
 matplotlib.use("Agg")
 logger = logging.getLogger(__name__)
 color_pal = sns.color_palette()
 plt.style.use("ggplot")
-
-
-def ordered_set(input_list):
-    seen = set()
-    return [x for x in input_list if not (x in seen or seen.add(x))]
 
 
 def get_transformed_columns(
@@ -130,7 +126,7 @@ def plot_residual_scatter(
 
 
 def evaluate_residuals(
-    output_df: pd.DataFrame,
+    inference_results: pd.DataFrame,
     prediction_col: str,
     target: str,
     baseline_cols: list[str],
@@ -147,20 +143,25 @@ def evaluate_residuals(
     )
 
     for i, col in enumerate(eval_cols):
-        output_df[f"{col}_error"] = output_df[col] - output_df[target]
+        inference_results[f"{col}_error"] = (
+            inference_results[col] - inference_results[target]
+        )
         plot_residual_histogram(
-            ax=axes[0, i], col=col, errors=output_df[f"{col}_error"], color=color_pal[i]
+            ax=axes[0, i],
+            col=col,
+            errors=inference_results[f"{col}_error"],
+            color=color_pal[i],
         )
         plot_residual_scatter(
             ax=axes[1, i],
             col=col,
-            target=output_df[target],
-            prediction=output_df[col],
+            target=inference_results[target],
+            prediction=inference_results[col],
             color=color_pal[i],
         )
 
-    pred_mae = (output_df[f"{prediction_col}_error"]).abs().mean()
-    pred_r2 = calculate_r2(output_df[target], output_df[prediction_col])
+    pred_mae = (inference_results[f"{prediction_col}_error"]).abs().mean()
+    pred_r2 = calculate_r2(inference_results[target], inference_results[prediction_col])
 
     error_metrics = {
         f"{evaluation_set}_mae": pred_mae,
@@ -209,14 +210,14 @@ def evaluate_model(
     )
 
     test_predictions = model.predict(X=X_test_preprocessed)
-    output_cols = ordered_set(
-        numerical_features + categorical_features + [target] + baseline_columns
-    )
-    output_df = test_data[output_cols].copy()
-    output_df["prediction"] = test_predictions
+    inference_results = pd.DataFrame(index=test_data.index)
+    inference_results["experiment_id"] = experiment_id
+    inference_results["start_time"] = start_time
+    inference_results = test_data.join(inference_results)
+    inference_results["prediction"] = test_predictions
 
     output_metrics, error_plot = evaluate_residuals(
-        output_df=output_df,
+        inference_results=inference_results,
         prediction_col="prediction",
         target=target,
         baseline_cols=baseline_columns,
@@ -225,15 +226,8 @@ def evaluate_model(
     )
     output_plots.update(error_plot)
 
-    output_df["experiment_id"] = experiment_id
-    output_df["start_time"] = start_time
-    columns = ["experiment_id", "start_time"] + [
-        col for col in output_df.columns if col not in ("experiment_id", "start_time")
-    ]
-    output_df = output_df[columns]
-
     return (
-        output_df,
+        inference_results,
         output_plots,
         (experiment_id, output_metrics),
     )

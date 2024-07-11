@@ -138,7 +138,7 @@ def create_training_pipeline() -> Pipeline:
     )
 
 
-def create_evaluation_inference_pipeline() -> Pipeline:
+def create_inference_evaluation_pipeline() -> Pipeline:
     return pipeline(
         [
             node(
@@ -165,7 +165,7 @@ def create_evaluation_inference_pipeline() -> Pipeline:
                     "params:model",
                 ],
                 outputs=[
-                    "HOLDOUT_EVALUATION_RESULT",
+                    "INFERENCE_RESULTS",
                     "HOLDOUT_EVALUATION_PLOTS",
                     "HOLDOUT_METRICS",
                 ],

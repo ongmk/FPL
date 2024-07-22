@@ -159,3 +159,5 @@ env_config.ini
 chromedriver/*/
 solver/*
 tmp/**
+
+data/optimization/*.json

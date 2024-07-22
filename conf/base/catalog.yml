@@ -23,6 +23,18 @@ _csv: &csv
   save_args:
     encoding: utf-8-sig
 
+LP_INPUTS:
+  type: fpl.extras.datasets.PydanticDataset
+  filepath: data/optimization/lp_inputs.json
+
+LP_MODEL:
+  type: fpl.extras.datasets.PuLpDataset
+  filepath: data/optimization/fpl_model.lp
+
+LP_DATA:
+  type: fpl.extras.datasets.PydanticDataset
+  filepath: data/optimization/lp_data.json
+
 PICKS_SUMMARY:
   <<: *txt
   filepath: data/optimization/summary.txt

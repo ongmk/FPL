@@ -1,4 +1,5 @@
 optimization:
+  current_season: 2023-2024
   team_id: 3531385
   ft: 1
   horizon: 3

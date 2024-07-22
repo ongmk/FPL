@@ -1,17 +1,14 @@
 import itertools
 import logging
-import re
-from dataclasses import dataclass
+from typing import Any
 
 import numpy as np
 import pandas as pd
 import requests
+from pydantic import BaseModel
 from tqdm import tqdm
 
-from fpl.pipelines.optimization_pipeline.fetch_predictions import (
-    get_pred_pts_data,
-    resolve_fpl_names,
-)
+from fpl.utils import PydanticDataFrame
 
 logger = logging.getLogger(__name__)
 
@@ -168,57 +165,80 @@ def get_current_season_fpl_data(current_season: str) -> pd.DataFrame:
     return current_season_data
 
 
-@dataclass
-class FplData:
-    merged_data: pd.DataFrame
-    team_data: pd.DataFrame
-    type_data: pd.DataFrame
+class FplData(BaseModel):
+    merged_data: PydanticDataFrame
+    team_data: PydanticDataFrame
+    type_data: PydanticDataFrame
     gameweeks: list[int]
-    initial_squad: pd.DataFrame
+    initial_squad: PydanticDataFrame
     itb: float
 
+    class Config:
+        arbitrary_types_allowed = True
 
-def get_live_data(team_id: int, horizon: int) -> FplData:
+
+def get_fpl_team_data(team_id: int, gw: int) -> list[dict]:
+    general_request = requests.get(
+        f"https://fantasy.premierleague.com/api/entry/{team_id}/"
+    )
+    general_data = general_request.json()
+    transfer_request = requests.get(
+        f"https://fantasy.premierleague.com/api/entry/{team_id}/transfers/"
+    )
+    transfer_data = reversed(transfer_request.json())
+    picks_request = requests.get(
+        f"https://fantasy.premierleague.com/api/entry/{team_id}/event/{gw}/picks/"
+    )
+    initial_squad = picks_request.json()["picks"]
+    return general_data, transfer_data, initial_squad
+
+
+def get_live_data(
+    inference_results: pd.DataFrame, parameters: dict[str, Any]
+) -> list[pd.DataFrame, pd.DataFrame, pd.DataFrame, list[int], pd.DataFrame, float]:
+    team_id = parameters["team_id"]
+    horizon = parameters["horizon"]
+    current_season = parameters["current_season"]
+
     elements_team, team_data, type_data, all_gws = get_fpl_base_data()
     gameweeks = all_gws["future"][:horizon]
     current_gw = all_gws["current"]
+    current_gw = 33
+    gameweeks = [34, 35, 36, 37, 38]
 
-    pred_pts_data = get_pred_pts_data(gameweeks)
-    pred_pts_data = resolve_fpl_names(pred_pts_data)
+    pred_pts_data = inference_results.loc[
+        (inference_results["season"] == current_season)
+        & inference_results["round"].isin(gameweeks)
+    ]
+    pred_pts_data = pred_pts_data.pivot_table(
+        index="fpl_name", columns="round", values="prediction", aggfunc="first"
+    ).fillna(0)
+    pred_pts_data.columns = [f"xPts_{col}" for col in pred_pts_data.columns]
 
     merged_data = elements_team.merge(
         pred_pts_data,
-        left_on=["web_name", "short_name"],
-        right_on=["FPL name", "Team"],
+        left_on="full_name",
+        right_index=True,
         how="left",
     ).set_index("id")
-
-    r = requests.get(f"https://fantasy.premierleague.com/api/entry/{team_id}/")
-    general_data = r.json()
+    general_data, transfer_data, initial_squad = get_fpl_team_data(team_id, current_gw)
     itb = general_data["last_deadline_bank"] / 10
-    initial_squad = get_initial_squad(team_id, current_gw)
     initial_squad = [p["element"] for p in initial_squad]
-    r = requests.get(
-        f"https://fantasy.premierleague.com/api/entry/{team_id}/transfers/"
-    )
-    transfer_data = reversed(r.json())
     merged_data["sell_price"] = merged_data["now_cost"]
     for t in transfer_data:
-        if t["element_in"] in initial_squad:
-            bought_price = t["element_in_cost"]
-            merged_data.loc[t["element_in"], "bought_price"] = bought_price
-            current_price = merged_data.loc[t["element_in"], "now_cost"]
-            if current_price > bought_price:
-                sell_price = np.ceil(np.mean([current_price, bought_price]))
-                merged_data.loc[t["element_in"], "sell_price"] = sell_price
+        if t["element_in"] not in initial_squad:
+            continue
+        bought_price = t["element_in_cost"]
+        merged_data.loc[t["element_in"], "bought_price"] = bought_price
+        current_price = merged_data.loc[t["element_in"], "now_cost"]
+        if current_price <= bought_price:
+            continue
+        sell_price = np.floor(np.mean([current_price, bought_price]))
+        merged_data.loc[t["element_in"], "sell_price"] = sell_price
 
     merged_data = merged_data.dropna(
         subset=["FPL name", "Team", "Pos", "Price", "bought_price"], how="all"
     )
-    xPts_cols = [
-        column for column in merged_data.columns if re.match(r"xPts_\d+", column)
-    ]
-    merged_data[xPts_cols] = merged_data[xPts_cols].fillna(0)
 
     logger.info("=" * 50)
     logger.info(f"Team: {general_data['name']}. Current week: {current_gw}")
@@ -270,14 +290,6 @@ def get_backtest_data(latest_elements_team, gw):
         .rename({"value": "now_cost"}, axis=1)
     )
     return elements_team
-
-
-def get_initial_squad(team_id: int, gw: int) -> list[dict]:
-    r = requests.get(
-        f"https://fantasy.premierleague.com/api/entry/{team_id}/event/{gw}/picks/"
-    )
-    picks_data = r.json()
-    return picks_data["picks"]
 
 
 if __name__ == "__main__":

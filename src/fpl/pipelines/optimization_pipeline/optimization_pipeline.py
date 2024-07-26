@@ -1,40 +1,31 @@
-from kedro.pipeline import Pipeline, node
-from fpl.pipelines.optimization_pipeline.fpl_api import get_live_data
-from fpl.pipelines.optimization_pipeline.optimizer import (
-    solve_multi_period_fpl,
-    backtest_single_player,
-)
-from fpl.pipelines.optimization_pipeline.fetch_predictions import (
-    refresh_fpl_names_mapping,
-)
 import logging
-import matplotlib.pyplot as plt
-from tqdm import tqdm
 from datetime import datetime
-import pandas as pd
 
+import matplotlib.pyplot as plt
+import pandas as pd
+from kedro.pipeline import Pipeline, node
+from tqdm import tqdm
+
+from fpl.pipelines.optimization_pipeline.fpl_api import get_live_data
+from fpl.pipelines.optimization_pipeline.lp_constructor import construct_lp
+from fpl.pipelines.optimization_pipeline.optimizer import backtest_single_player
 
 logger = logging.getLogger(__name__)
 
 
-def live_run(parameters: dict) -> tuple[str, pd.DataFrame]:
-    refresh_fpl_names_mapping()
-    fpl_data = get_live_data(parameters["team_id"], parameters["horizon"])
-    picks, summary, next_gw_dict = solve_multi_period_fpl(
-        fpl_data=fpl_data, parameters=parameters
-    )
-    logger.info(f"Solved in {next_gw_dict['solve_time']}")
-    for s in summary:
-        logger.info(s)
-    summary = "\n".join(summary)
-    return summary, picks
+# def live_run(inference_results, parameters: dict) -> tuple[str, pd.DataFrame]:
+#     fpl_data = get_live_data(inference_results, parameters)
+#     logger.info(f"Solved in {next_gw_dict['solve_time']}")
+#     for s in summary:
+#         logger.info(s)
+#     summary = "\n".join(summary)
+#     return summary, picks
 
 
 def backtest(parameters):
     start_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     players = parameters["backtest_players"]
     plots = {}
-    refresh_fpl_names_mapping()
     for p, id in tqdm(players.items()):
         parameters["team_id"] = id
         filename, fig = backtest_single_player(parameters, p)
@@ -46,12 +37,27 @@ def backtest(parameters):
 def create_live_pipeline():
     return Pipeline(
         [
+            # node(
+            #     func=get_live_data,
+            #     inputs=["INFERENCE_RESULTS", "params:optimization"],
+            #     outputs="LP_DATA",
+            #     name="get_live_data",
+            # ),
             node(
-                func=live_run,
-                inputs="params:optimization",
-                outputs=["PICKS_SUMMARY", "PICKS_CSV"],
-                name="live_optimization_node",
+                func=construct_lp,
+                inputs=[
+                    "LP_DATA",
+                    "params:optimization",
+                ],
+                outputs=None,
+                name="construct_lp",
             ),
+            # node(
+            #     func=live_run,
+            #     inputs=["INFERENCE_RESULTS", "params:optimization"],
+            #     outputs=["PICKS_SUMMARY", "PICKS_CSV"],
+            #     name="live_optimization_node",
+            # ),
         ]
     )
 

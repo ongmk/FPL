@@ -1,6 +1,7 @@
 import importlib
 from typing import Any
 
+import numpy as np
 import pandas as pd
 from pydantic import BeforeValidator, PlainSerializer, WithJsonSchema
 from typing_extensions import Annotated
@@ -31,7 +32,11 @@ def load_obj(obj_path: str, default_obj_path: str = "") -> Any:
 
 PydanticDataFrame = Annotated[
     pd.DataFrame,
-    BeforeValidator(lambda x: pd.DataFrame(x)),
-    PlainSerializer(lambda x: x.to_dict(orient="records")),
+    BeforeValidator(lambda x: pd.DataFrame(x) if isinstance(x, list) else x),
+    PlainSerializer(
+        lambda x: x.replace({np.nan: None}).to_dict(
+            orient="records",
+        )
+    ),
     WithJsonSchema({"type": "object"}, mode="serialization"),
 ]

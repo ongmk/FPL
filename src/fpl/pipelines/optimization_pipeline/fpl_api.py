@@ -170,7 +170,7 @@ class FplData(BaseModel):
     team_data: PydanticDataFrame
     type_data: PydanticDataFrame
     gameweeks: list[int]
-    initial_squad: PydanticDataFrame
+    initial_squad: list[int]
     itb: float
 
     class Config:
@@ -189,7 +189,14 @@ def get_fpl_team_data(team_id: int, gw: int) -> list[dict]:
     picks_request = requests.get(
         f"https://fantasy.premierleague.com/api/entry/{team_id}/event/{gw}/picks/"
     )
-    initial_squad = picks_request.json()["picks"]
+    picks_data = picks_request.json()
+    if picks_data.get("detail") == "Not found.":
+        logger.warning(
+            f"Team {team_id} has not made picks for GW {gw}. Setting intial squad to empty."
+        )
+        initial_squad = []
+    else:
+        initial_squad = picks_data["picks"]
     return general_data, transfer_data, initial_squad
 
 
@@ -213,7 +220,7 @@ def get_live_data(
     pred_pts_data = pred_pts_data.pivot_table(
         index="fpl_name", columns="round", values="prediction", aggfunc="first"
     ).fillna(0)
-    pred_pts_data.columns = [f"xPts_{col}" for col in pred_pts_data.columns]
+    pred_pts_data.columns = [f"xPts_{int(col)}" for col in pred_pts_data.columns]
 
     merged_data = elements_team.merge(
         pred_pts_data,
@@ -222,7 +229,7 @@ def get_live_data(
         how="left",
     ).set_index("id")
     general_data, transfer_data, initial_squad = get_fpl_team_data(team_id, current_gw)
-    itb = general_data["last_deadline_bank"] / 10
+    itb = (general_data["last_deadline_bank"] or 1000) / 10
     initial_squad = [p["element"] for p in initial_squad]
     merged_data["sell_price"] = merged_data["now_cost"]
     for t in transfer_data:
@@ -236,9 +243,9 @@ def get_live_data(
         sell_price = np.floor(np.mean([current_price, bought_price]))
         merged_data.loc[t["element_in"], "sell_price"] = sell_price
 
-    merged_data = merged_data.dropna(
-        subset=["FPL name", "Team", "Pos", "Price", "bought_price"], how="all"
-    )
+    keys = [k for k in merged_data.columns.to_list() if "xPts_" in k]
+    merged_data["total_ev"] = merged_data[keys].sum(axis=1)
+    merged_data = merged_data.sort_values(by=["total_ev"], ascending=[False])
 
     logger.info("=" * 50)
     logger.info(f"Team: {general_data['name']}. Current week: {current_gw}")

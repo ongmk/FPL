@@ -95,10 +95,10 @@ def initialize_variables(fpl_data: FplData, lp_keys: LpKeys) -> LpVariables:
         "transfer_in", lp_keys.player_gameweeks, cat=LpBinary
     )
     transfer_out_first = LpVariable.dicts(
-        "tr_out_first", lp_keys.price_modified_players_gameweeks, cat=LpBinary
+        "transfer_out_first", lp_keys.price_modified_players_gameweeks, cat=LpBinary
     )
     transfer_out_regular = LpVariable.dicts(
-        "tr_out_reg", lp_keys.player_gameweeks, cat=LpBinary
+        "transfer_out_regular", lp_keys.player_gameweeks, cat=LpBinary
     )
     transfer_out = {
         (p, w): transfer_out_regular[p, w]
@@ -106,7 +106,9 @@ def initialize_variables(fpl_data: FplData, lp_keys: LpKeys) -> LpVariables:
         for p in lp_keys.players
         for w in fpl_data.gameweeks
     }
-    in_the_bank = LpVariable.dicts("itb", lp_keys.all_gws, cat=LpContinuous, lowBound=0)
+    in_the_bank = LpVariable.dicts(
+        "in_the_bank", lp_keys.all_gws, cat=LpContinuous, lowBound=0
+    )
     free_transfers = LpVariable.dicts(
         "free_transfers", lp_keys.all_gws, cat=LpInteger, lowBound=0, upBound=2
     )
@@ -328,8 +330,12 @@ def add_objective_function(
     )
     model += -decay_objective, "total_decay_xp"
 
+    return None
 
-def construct_lp(fpl_data: FplData, parameters: dict) -> None:
+
+def construct_lp(
+    fpl_data: FplData, parameters: dict
+) -> tuple[LpParams, LpVariables, LpKeys, VariableSums]:
     mps_path = parameters["mps_path"]
 
     lp_params = prepare_lp_params(fpl_data, parameters)
@@ -347,4 +353,4 @@ def construct_lp(fpl_data: FplData, parameters: dict) -> None:
 
     backup_latest_n(mps_path, n=5)
 
-    return True
+    return lp_params, lp_keys, lp_variables, variable_sums

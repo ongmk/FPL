@@ -191,7 +191,7 @@ def get_fpl_team_data(team_id: int, gw: int) -> list[dict]:
     )
     picks_data = picks_request.json()
     if picks_data.get("detail") == "Not found.":
-        logger.warning(
+        logger.warn(
             f"Team {team_id} has not made picks for GW {gw}. Setting intial squad to empty."
         )
         initial_squad = []
@@ -210,8 +210,6 @@ def get_live_data(
     elements_team, team_data, type_data, all_gws = get_fpl_base_data()
     gameweeks = all_gws["future"][:horizon]
     current_gw = all_gws["current"]
-    current_gw = 33
-    gameweeks = [34, 35, 36, 37, 38]
 
     pred_pts_data = inference_results.loc[
         (inference_results["season"] == current_season)

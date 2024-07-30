@@ -10,6 +10,7 @@ from fpl.pipelines.optimization_pipeline.fpl_api import get_live_data
 from fpl.pipelines.optimization_pipeline.lp_constructor import construct_lp
 from fpl.pipelines.optimization_pipeline.optimizer import (
     backtest_single_player,
+    generate_outputs,
     solve_lp,
 )
 
@@ -52,21 +53,33 @@ def create_live_pipeline():
                     "LP_DATA",
                     "params:optimization",
                 ],
-                outputs="lp_constructed",
+                outputs=["lp_params", "lp_keys", "lp_variables", "variable_sums"],
                 name="construct_lp",
             ),
             node(
                 func=solve_lp,
-                inputs=["lp_constructed", "params:optimization"],
-                outputs=None,
+                inputs=["lp_variables", "variable_sums", "params:optimization"],
+                outputs=[
+                    "solved_lp_variables",
+                    "solved_variable_sums",
+                    "solution_time",
+                ],
                 name="solve_lp",
             ),
-            # node(
-            #     func=live_run,
-            #     inputs=["INFERENCE_RESULTS", "params:optimization"],
-            #     outputs=["PICKS_SUMMARY", "PICKS_CSV"],
-            #     name="live_optimization_node",
-            # ),
+            node(
+                func=generate_outputs,
+                inputs=[
+                    "LP_DATA",
+                    "lp_params",
+                    "lp_keys",
+                    "solved_lp_variables",
+                    "solved_variable_sums",
+                    "solution_time",
+                    "params:optimization",
+                ],
+                outputs=["PICKS_SUMMARY", "PICKS_CSV", "next_gw_dict"],
+                name="live_optimization_node",
+            ),
         ]
     )
 

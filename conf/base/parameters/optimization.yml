@@ -11,9 +11,6 @@ optimization:
   bb_on: null
   fh_on: null
 
-  timeout: 60
-  log: false
-
   decay: 0.5
   ft_bonus: 1.5
   itb_bonus: 0.08

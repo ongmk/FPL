@@ -1,4 +1,7 @@
 import importlib
+import shutil
+from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -30,13 +33,40 @@ def load_obj(obj_path: str, default_obj_path: str = "") -> Any:
     return getattr(module_obj, obj_name)
 
 
+def read_dict_as_df(x):
+    if isinstance(x, dict):
+        x = {int(k): v for k, v in x.items()}
+        return pd.DataFrame.from_dict(x, orient="index")
+    elif isinstance(x, pd.DataFrame):
+        return x
+    else:
+        raise ValueError(f"Expected dict or DataFrame, got {type(x)}")
+
+
 PydanticDataFrame = Annotated[
     pd.DataFrame,
-    BeforeValidator(lambda x: pd.DataFrame(x) if isinstance(x, list) else x),
-    PlainSerializer(
-        lambda x: x.replace({np.nan: None}).to_dict(
-            orient="records",
-        )
-    ),
+    BeforeValidator(read_dict_as_df),
+    PlainSerializer(lambda x: x.replace({np.nan: None}).to_dict(orient="index")),
     WithJsonSchema({"type": "object"}, mode="serialization"),
 ]
+
+
+def backup_latest_n(current_file, n=5):
+    if isinstance(current_file, str):
+        current_file = Path(current_file)
+    dir = current_file.parent
+
+    current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+    shutil.copy2(
+        current_file,
+        dir / f"{current_file.stem}_{current_time}{current_file.suffix}.bak",
+    )
+
+    files_with_timestamps = sorted(
+        [f for f in dir.glob("*") if f.is_file() and f.suffix == ".bak"],
+        key=lambda f: "".join(f.stem.split("_")[-2:]),
+        reverse=True,
+    )
+
+    for old_file in files_with_timestamps[n:]:
+        old_file.unlink()

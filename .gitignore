@@ -157,7 +157,14 @@ env_config.ini
 
 # Custom
 chromedriver/*/
-solver/*
 tmp/**
+cbc/*
+!cbc/.gitkeep
+*.csv
+!data/fpl_history_backup.csv
+!data/preprocess/*_mapping.csv
 
-data/optimization/*.json
+*.mps
+*.bak
+*.sol
+lp_data.json

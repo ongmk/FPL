@@ -1,5 +1,6 @@
 optimization:
-  lp_save_path: data/optimization/fpl_model.lp
+  mps_path: data/optimization/models/fpl_model.mps
+  solution_path: data/optimization/solutions/fpl_model_solution.sol
 
   current_season: 2023-2024
   team_id: 1792016
@@ -21,8 +22,6 @@ optimization:
     1: 0.21
     2: 0.06
     3: 0.002
-
-  solver: cplex
 
   backtest_player_history: true
   backtest_players:

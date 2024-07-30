@@ -1,24 +1,16 @@
 import logging
+import time
+from subprocess import Popen
 
 import matplotlib
 import matplotlib.pyplot as plt
 import pandas as pd
-from pulp import lpSum
-from fpl.pipelines.optimization_pipeline.cplex.cplex_solver import (
-    solve_lp_with_cplex,
-)
-from fpl.pipelines.optimization_pipeline.fetch_predictions import (
-    get_pred_pts_data,
-    resolve_fpl_names,
-)
-from fpl.pipelines.optimization_pipeline.fpl_api import (
-    FplData,
-    get_backtest_data,
-    get_fpl_base_data,
-    get_initial_squad,
-)
-from fpl.pipelines.optimization_pipeline.lp_constructor import LpData, construct_lp
+from pulp import LpProblem, lpSum
 from tqdm import tqdm
+
+from fpl.pipelines.optimization_pipeline.fpl_api import get_backtest_data
+from fpl.pipelines.optimization_pipeline.lp_constructor import LpVariables
+from fpl.utils import backup_latest_n
 
 plt.style.use("ggplot")
 matplotlib.use("Agg")
@@ -35,52 +27,58 @@ def get_name(row):
     return name
 
 
-def generate_picks_df(lp_data: LpData) -> pd.DataFrame:
+def generate_picks_df(lp_variables: LpVariables) -> pd.DataFrame:
     picks = []
-    for w in lp_data.gameweeks:
-        for p in lp_data.players:
+    for w in lp_variables.gameweeks:
+        for p in lp_variables.players:
             if (
-                lp_data.squad[p, w].value()
-                + lp_data.squad_fh[p, w].value()
-                + lp_data.transfer_out[p, w].value()
+                lp_variables.squad[p, w].value()
+                + lp_variables.squad_fh[p, w].value()
+                + lp_variables.transfer_out[p, w].value()
                 > 0.5
             ):
-                lp = lp_data.merged_data.loc[p]
-                is_captain = 1 if lp_data.captain[p, w].value() > 0.5 else 0
+                lp = lp_variables.merged_data.loc[p]
+                is_captain = 1 if lp_variables.captain[p, w].value() > 0.5 else 0
                 is_squad = (
                     1
                     if (
-                        lp_data.use_fh[w].value() < 0.5
-                        and lp_data.squad[p, w].value() > 0.5
+                        lp_variables.use_fh[w].value() < 0.5
+                        and lp_variables.squad[p, w].value() > 0.5
                     )
                     or (
-                        lp_data.use_fh[w].value() > 0.5
-                        and lp_data.squad_fh[p, w].value() > 0.5
+                        lp_variables.use_fh[w].value() > 0.5
+                        and lp_variables.squad_fh[p, w].value() > 0.5
                     )
                     else 0
                 )
-                is_lineup = 1 if lp_data.lineup[p, w].value() > 0.5 else 0
-                is_vice = 1 if lp_data.vicecap[p, w].value() > 0.5 else 0
-                is_transfer_in = 1 if lp_data.transfer_in[p, w].value() > 0.5 else 0
-                is_transfer_out = 1 if lp_data.transfer_out[p, w].value() > 0.5 else 0
+                is_lineup = 1 if lp_variables.lineup[p, w].value() > 0.5 else 0
+                is_vice = 1 if lp_variables.vicecap[p, w].value() > 0.5 else 0
+                is_transfer_in = (
+                    1 if lp_variables.transfer_in[p, w].value() > 0.5 else 0
+                )
+                is_transfer_out = (
+                    1 if lp_variables.transfer_out[p, w].value() > 0.5 else 0
+                )
                 bench_value = -1
-                for o in lp_data.order:
-                    if lp_data.bench[p, w, o].value() > 0.5:
+                for o in lp_variables.order:
+                    if lp_variables.bench[p, w, o].value() > 0.5:
                         bench_value = o
-                player_buy_price = 0 if not is_transfer_in else lp_data.buy_price[p]
+                player_buy_price = (
+                    0 if not is_transfer_in else lp_variables.buy_price[p]
+                )
                 player_sell_price = (
                     0
                     if not is_transfer_out
                     else (
-                        lp_data.sell_price[p]
-                        if p in lp_data.price_modified_players
-                        and lp_data.transfer_out_first[p, w].value() > 0.5
-                        else lp_data.buy_price[p]
+                        lp_variables.sell_price[p]
+                        if p in lp_variables.price_modified_players
+                        and lp_variables.transfer_out_first[p, w].value() > 0.5
+                        else lp_variables.buy_price[p]
                     )
                 )
                 multiplier = 1 * (is_lineup == 1) + 1 * (is_captain == 1)
-                xp_cont = lp_data.points_player_week[p, w] * multiplier
-                position = lp_data.type_data.loc[
+                xp_cont = lp_variables.points_player_week[p, w] * multiplier
+                position = lp_variables.type_data.loc[
                     lp["element_type"], "singular_name_short"
                 ]
                 picks.append(
@@ -93,7 +91,7 @@ def generate_picks_df(lp_data: LpData) -> pd.DataFrame:
                         lp["name"],
                         player_buy_price,
                         player_sell_price,
-                        round(lp_data.points_player_week[p, w], 2),
+                        round(lp_variables.points_player_week[p, w], 2),
                         is_squad,
                         is_lineup,
                         bench_value,
@@ -135,47 +133,50 @@ def generate_picks_df(lp_data: LpData) -> pd.DataFrame:
 
 
 def generate_summary(
-    lp_data: LpData, picks_df: pd.DataFrame, parameters: dict, solution_time: float
+    lp_variables: LpVariables,
+    picks_df: pd.DataFrame,
+    parameters: dict,
+    solution_time: float,
 ) -> tuple[list[str], dict]:
     summary_of_actions = []
     total_xp = 0
-    for w in lp_data.gameweeks:
+    for w in lp_variables.gameweeks:
         header = f" GW {w} "
         gw_in = pd.DataFrame([], columns=["", "In", "xP", "Pos"])
         gw_out = pd.DataFrame([], columns=["Out", "xP", "Pos"])
         net_cost = 0
         net_xp = 0
-        for p in lp_data.players:
-            if lp_data.transfer_in[p, w].value() > 0.5:
-                price = lp_data.merged_data["now_cost"][p] / 10
-                name = f'{lp_data.merged_data["web_name"][p]} ({price})'
-                pos = lp_data.merged_data["element_type"][p]
-                xp = round(lp_data.points_player_week[p, w], 2)
+        for p in lp_variables.players:
+            if lp_variables.transfer_in[p, w].value() > 0.5:
+                price = lp_variables.merged_data["now_cost"][p] / 10
+                name = f'{lp_variables.merged_data["web_name"][p]} ({price})'
+                pos = lp_variables.merged_data["element_type"][p]
+                xp = round(lp_variables.points_player_week[p, w], 2)
                 net_cost += price
                 net_xp += xp
                 gw_in.loc[len(gw_in)] = ["👉", name, xp, pos]
-            if lp_data.transfer_out[p, w].value() > 0.5:
-                price = lp_data.merged_data["sell_price"][p] / 10
-                name = f'{lp_data.merged_data["web_name"][p]} ({price})'
-                pos = lp_data.merged_data["element_type"][p]
-                xp = round(lp_data.points_player_week[p, w], 2)
+            if lp_variables.transfer_out[p, w].value() > 0.5:
+                price = lp_variables.merged_data["sell_price"][p] / 10
+                name = f'{lp_variables.merged_data["web_name"][p]} ({price})'
+                pos = lp_variables.merged_data["element_type"][p]
+                xp = round(lp_variables.points_player_week[p, w], 2)
                 net_cost -= price
                 net_xp -= xp
                 gw_out.loc[len(gw_out)] = [name, xp, pos]
         gw_in = gw_in.sort_values("Pos").drop("Pos", axis=1).reset_index(drop=True)
         gw_out = gw_out.sort_values("Pos").drop("Pos", axis=1).reset_index(drop=True)
-        if lp_data.use_wc[w].value() > 0.5:
+        if lp_variables.use_wc[w].value() > 0.5:
             chip_summary = "[Wildcard Active]\n"
-        elif lp_data.use_fh[w].value() > 0.5:
+        elif lp_variables.use_fh[w].value() > 0.5:
             chip_summary = "[Free Hit Active]\n"
-        elif lp_data.use_bb[w].value() > 0.5:
+        elif lp_variables.use_bb[w].value() > 0.5:
             chip_summary = "[Bench Boost Active]\n"
         else:
             chip_summary = ""
-        if w in lp_data.transfer_gws:
+        if w in lp_variables.transfer_gws:
             transfer_summary = (
-                f"Free Transfers = {lp_data.free_transfers[w].value()}    Hits = {lp_data.penalized_transfers[w].value()}\n"
-                f"Cost = {net_cost:.1f}    ITB = {lp_data.in_the_bank[w].value():.2f}   xP Gain = {net_xp:.2f}.\n\n"
+                f"Free Transfers = {lp_variables.free_transfers[w].value()}    Hits = {lp_variables.penalized_transfers[w].value()}\n"
+                f"Cost = {net_cost:.1f}    ITB = {lp_variables.in_the_bank[w].value():.2f}   xP Gain = {net_xp:.2f}.\n\n"
                 f"{str(gw_in) if gw_out.empty else str(pd.concat([gw_out, gw_in], axis=1, join='inner'))}\n\n"
             )
         else:
@@ -198,15 +199,15 @@ def generate_summary(
         gw_xp = (
             lpSum(
                 [
-                    (lp_data.lineup[p, w] + lp_data.captain[p, w])
-                    * lp_data.points_player_week[p, w]
-                    for p in lp_data.players
+                    (lp_variables.lineup[p, w] + lp_variables.captain[p, w])
+                    * lp_variables.points_player_week[p, w]
+                    for p in lp_variables.players
                 ]
             ).value()
-            - lp_data.penalized_transfers[w].value() * 4
+            - lp_variables.penalized_transfers[w].value() * 4
         )
         total_xp += gw_xp
-        hits = int(lp_data.penalized_transfers[w].value())
+        hits = int(lp_variables.penalized_transfers[w].value())
         hit_str = f"({hits} hits)" if hits > 0 else ""
         gw_summary = (
             f"\n"
@@ -217,24 +218,28 @@ def generate_summary(
             f"Gameweek xP = {gw_xp:.2f} {hit_str}\n"
         )
         summary_of_actions.append(gw_summary)
-        if w == lp_data.next_gw:
-            if lp_data.use_wc[w].value() > 0.5:
+        if w == lp_variables.next_gw:
+            if lp_variables.use_wc[w].value() > 0.5:
                 chip_used = "wc"
-            elif lp_data.use_fh[w].value() > 0.5:
+            elif lp_variables.use_fh[w].value() > 0.5:
                 chip_used = "fh"
-            elif lp_data.use_bb[w].value() > 0.5:
+            elif lp_variables.use_bb[w].value() > 0.5:
                 chip_used = "bb"
             else:
                 chip_used = None
             next_gw_dict = {
-                "itb": round(lp_data.in_the_bank[w].value(), 1),
+                "itb": round(lp_variables.in_the_bank[w].value(), 1),
                 "ft": (
-                    round(lp_data.free_transfers[w + 1].value()) if w + 1 <= 38 else 0
+                    round(lp_variables.free_transfers[w + 1].value())
+                    if w + 1 <= 38
+                    else 0
                 ),
-                "hits": round(lp_data.penalized_transfers[w].value()),
+                "hits": round(lp_variables.penalized_transfers[w].value()),
                 "solve_time": solution_time,
                 "n_transfers": round(
-                    lpSum([lp_data.transfer_out[p, w] for p in lp_data.players]).value()
+                    lpSum(
+                        [lp_variables.transfer_out[p, w] for p in lp_variables.players]
+                    ).value()
                 ),
                 "chip_used": chip_used,
             }
@@ -247,29 +252,56 @@ def generate_summary(
     return summary_of_actions, next_gw_dict
 
 
-def solve_multi_period_fpl(
-    fpl_data: FplData, parameters: dict
+def solve_lp(
+    lp_constructed: bool, parameters: dict
 ) -> tuple[pd.DataFrame, list[str], dict]:
-    lp_file_path = "./data/optimization/fplmodel.lp"
-    model, lp_data = construct_lp(fpl_data, parameters, lp_file_path)
-    solver = parameters["solver"]
-    if solver == "cplex":
-        solutionXML, solution_time = solve_lp_with_cplex(lp_file_path, parameters)
-        variables = solutionXML.find("variables")
+
+    mps_path = parameters["mps_path"]
+    solution_path = parameters["solution_path"]
+    solution_init_path = f"init_{solution_path}"
+
+    t0 = time.time()
+    command = f"cbc/bin/cbc.exe {mps_path} cost column ratio 1 solve solu {solution_init_path}"
+    process = Popen(command, shell=False)
+    process.wait()
+    command = f"cbc/bin/cbc.exe {mps_path} mips {solution_init_path} cost column sec 20 solve solu {solution_path}"
+    process = Popen(command, shell=False)
+    process.wait()
+    t1 = time.time()
+    print(t1 - t0, "seconds passed")
+
+    _, model = LpProblem.fromMPS(mps_path)
+
+    backup_latest_n(solution_path, 5)
 
     for variable in model.variables():
         variable.varValue = 0
     vars = model.variablesDict()
 
-    for variable in variables:
-        var_name, var_value = variable.get("name"), variable.get("value")
-        vars[var_name].varValue = float(var_value)
+    with open(f"{solution_path}", "r") as f:
+        for line in f:
+            if "objective value" in line:
+                if "Infeasible" in line:
+                    logger.error(line)
+                    raise ValueError("No solution found.")
+                else:
+                    logger.info(line)
+                continue
+            words = line.split()
+            # words = [word for word in words if word != "**"]
 
-    picks_df = generate_picks_df(lp_data)
+            var_name, var_value = words[1], float(words[2])
+            vars[var_name].varValue = var_value
+    return None
+
+
+def generate_outputs(
+    lp_variables: LpVariables, parameters: dict, solution_time: float
+) -> tuple[pd.DataFrame, list[str], dict]:
+    picks_df = generate_picks_df(lp_variables)
     summary_of_actions, next_gw_dict = generate_summary(
-        lp_data, picks_df, parameters, solution_time
+        lp_variables, picks_df, parameters, solution_time
     )
-
     return picks_df, summary_of_actions, next_gw_dict
 
 
@@ -305,7 +337,7 @@ def backtest_single_player(parameters: dict, title: str = "Backtest Result"):
     backtest_player_history = parameters["backtest_player_history"]
 
     # Pre season
-    latest_elements_team, team_data, type_data, all_gws = get_fpl_base_data()
+    latest_elements_team, team_data, type_data, all_gws = 0  # TODO use historical data
     latest_elements_team = latest_elements_team.drop("now_cost", axis=1)
     itb = 100
     initial_squad = []
@@ -329,8 +361,7 @@ def backtest_single_player(parameters: dict, title: str = "Backtest Result"):
         if elements_team.empty:
             logger.warning(f"No data from GW {next_gw}")
         else:
-            pred_pts_data = get_pred_pts_data(gameweeks)
-            pred_pts_data = resolve_fpl_names(pred_pts_data)
+            pred_pts_data = 0  # TODO: fix backtest
             for p in initial_squad:
                 name = elements_team.loc[elements_team["id"] == p, "web_name"].item()
                 team = elements_team.loc[elements_team["id"] == p, "short_name"].item()
@@ -355,7 +386,7 @@ def backtest_single_player(parameters: dict, title: str = "Backtest Result"):
                 )
 
             else:
-                picks_df, summary, next_gw_dict = solve_multi_period_fpl(
+                picks_df, summary, next_gw_dict = solve_lp(
                     {
                         "merged_data": merged_data,
                         "team_data": team_data,
@@ -427,21 +458,4 @@ def backtest_single_player(parameters: dict, title: str = "Backtest Result"):
 
 
 if __name__ == "__main__":
-    from datetime import datetime
-
-    import yaml
-    from fpl.pipelines.optimization_pipeline.fetch_predictions import (
-        refresh_fpl_names_mapping,
-    )
-
-    with open("./conf/base/parameters.yml", "r") as file:
-        parameters = yaml.safe_load(file)
-        parameters = parameters["optimization"]
-
-    start_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    players = parameters["backtest_players"]
-    plots = {}
-    refresh_fpl_names_mapping()
-    for p, id in tqdm(players.items()):
-        parameters["team_id"] = id
-        filename, fig = backtest_single_player(parameters, p)
+    pass

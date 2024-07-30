@@ -228,6 +228,15 @@ def get_live_data(
         right_index=True,
         how="left",
     ).set_index("id")
+
+    initial_num_rows = len(merged_data)
+    merged_data = merged_data.dropna(subset=pred_pts_data.columns)
+    final_num_rows = len(merged_data)
+    percentage_dropped = (initial_num_rows - final_num_rows) / initial_num_rows * 100
+    if percentage_dropped > 20:
+        logger.warn(
+            f"More than 20% of the rows were dropped. ({percentage_dropped:.2f}%)"
+        )
     general_data, transfer_data, initial_squad = get_fpl_team_data(team_id, current_gw)
     itb = (general_data["last_deadline_bank"] or 1000) / 10
     initial_squad = [p["element"] for p in initial_squad]

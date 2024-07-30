@@ -8,7 +8,10 @@ from tqdm import tqdm
 
 from fpl.pipelines.optimization_pipeline.fpl_api import get_live_data
 from fpl.pipelines.optimization_pipeline.lp_constructor import construct_lp
-from fpl.pipelines.optimization_pipeline.optimizer import backtest_single_player
+from fpl.pipelines.optimization_pipeline.optimizer import (
+    backtest_single_player,
+    solve_lp,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -49,8 +52,14 @@ def create_live_pipeline():
                     "LP_DATA",
                     "params:optimization",
                 ],
-                outputs=None,
+                outputs="lp_constructed",
                 name="construct_lp",
+            ),
+            node(
+                func=solve_lp,
+                inputs=["lp_constructed", "params:optimization"],
+                outputs=None,
+                name="solve_lp",
             ),
             # node(
             #     func=live_run,

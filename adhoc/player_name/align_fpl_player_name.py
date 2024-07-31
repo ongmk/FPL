@@ -72,14 +72,24 @@ if __name__ == "__main__":
     conn = sqlite3.connect("data/fpl.db")
     cur = conn.cursor()
 
-    name_only_mapping = {"Kaine Kesler Hayden": "Kaine Kesler-Hayden"}
-    season_element_mapping = {
-        ("2021-2022", 496, "Aaron Ramsey"): "Aaron James Ramsey",
-        ("2023-2024", 675, "Aaron Ramsey"): "Aaron James Ramsey",
-        ("2018-2019", 105, "Danny Ward"): "Daniel Carl Ward",
+    name_only_mapping = {
+        "Lukasz Fabianski": "Łukasz Fabiański",
+        "Seamus Coleman": "Séamus Coleman",
+        "Martin Dubravka": "Martin Dúbravka",
+        "Olu Aina": "Ola Aina",
+        "Alexandre Moreno Lopera": "Álex Moreno Lopera",
+        "Joe Ayodele-Aribo": "Joe Aribo",
+        "Yegor Yarmoliuk": "Yehor Yarmoliuk",
+        "Radu Dragusin": "Radu Drăgușin",
+        "Olayinka Fredrick Oladotun Ladapo": "Freddie Ladapo",
     }
-
     map_name_only(conn, cur, name_only_mapping)
-    map_season_element(conn, cur, season_element_mapping)
+
+    # season_element_mapping = {
+    #     ("2021-2022", 496, "Aaron Ramsey"): "Aaron James Ramsey",
+    #     ("2023-2024", 675, "Aaron Ramsey"): "Aaron James Ramsey",
+    #     ("2018-2019", 105, "Danny Ward"): "Daniel Carl Ward",
+    # }
+    # map_season_element(conn, cur, season_element_mapping)
 
     conn.close()

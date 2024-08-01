@@ -6,6 +6,8 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from fpl.pipelines.preprocess_pipeline.feature_engineering import past_data_mask
+
 logger = logging.getLogger(__name__)
 
 
@@ -30,6 +32,7 @@ def filter_data(
     fpl_data: pd.DataFrame,
     parameters: dict[str, Any],
 ):
+    holdout_year = parameters["holdout_year"]
     team_match_log["days_till_next"] = (
         (team_match_log.groupby("team")["date"].shift(-1) - team_match_log["date"])
         .apply(lambda x: x.days)
@@ -87,7 +90,7 @@ def filter_data(
         ],
     ].reset_index(drop=True)
     fpl_data = fpl_data.loc[
-        fpl_data["starts"] == 1,
+        (fpl_data["starts"] == 1) | (fpl_data["season"] > holdout_year),
         [
             "season",
             "date",
@@ -352,8 +355,11 @@ def split_data(processed_data, data_params, model_params):
     numerical_features = model_params["numerical_features"]
 
     original_len = len(processed_data)
-    filtered_data = processed_data[~processed_data.isna().any(axis=1)]
-    filtered_len = original_len - len(filtered_data)
+    processed_data.loc[processed_data["cached"] == True] = processed_data.loc[
+        processed_data["cached"] == True
+    ].dropna()
+
+    filtered_len = original_len - len(processed_data)
 
     if filtered_len / original_len > 0.3:
         raise RuntimeError(
@@ -363,15 +369,15 @@ def split_data(processed_data, data_params, model_params):
         f"{filtered_len}/{original_len} rows are filtered out because they contain NaN."
     )
     useful_cols = [group_by] + categorical_features + numerical_features + [target]
-    filtered_data = filtered_data[
-        [c for c in filtered_data.columns if c not in useful_cols] + useful_cols
+    processed_data = processed_data[
+        [c for c in processed_data.columns if c not in useful_cols] + useful_cols
     ]
 
-    train_val_data = filtered_data[
-        (filtered_data["season"] >= train_start_year)
-        & (filtered_data["season"] < holdout_year)
+    train_val_data = processed_data[
+        (processed_data["season"] >= train_start_year)
+        & (processed_data["season"] < holdout_year)
     ]
-    holdout_data = filtered_data[filtered_data["season"] >= holdout_year]
+    holdout_data = processed_data[processed_data["season"] >= holdout_year]
 
     return train_val_data, holdout_data
 

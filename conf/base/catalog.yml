@@ -66,6 +66,11 @@ TEAM_MATCH_LOG:
   table_name: raw_team_match_log
   credentials: db_credentials
 
+READ_ELO_DATA:
+  type: fpl.extras.datasets.ReadOnlySQLTableDataSet
+  table_name: elo_data
+  <<: *index
+
 ELO_DATA:
   type: pandas.SQLTableDataSet
   table_name: elo_data

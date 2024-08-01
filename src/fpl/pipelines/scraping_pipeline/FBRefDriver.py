@@ -20,20 +20,25 @@ class FBRefDriver(BaseDriver):
         logger.info(f"Crawling Season Result:\t{season}\t{url}")
         self.get(url)
         tree = self.get_tree_by_id(f"results{season}91_overall")
+        match_played = tree.xpath("*/tbody/tr/td[@data-stat='games']")
+        matched_played = sum([int(m.text) for m in match_played])
+        if matched_played == 0:
+            logger.warn(f"No match played for {season}")
+            return []
         links = tree.xpath("*/tbody/tr/td[1]/a")
         return [(l.text, self.absolute_url(l.get("href"))) for l in links]
 
-    def get_player_season_links(
-        self, season: str, current_season: str
-    ) -> list[str, str, str]:
-        if season == current_season:
-            relative_url = f"/en/comps/9/stats/Premier-League-Stats"
-        else:
-            relative_url = f"/en/comps/9/{season}/stats/{season}-Premier-League-Stats"
-        url = self.absolute_url(relative_url)
+    def get_player_season_links(self, season: str) -> list[str, str, str]:
+        url = self.absolute_url(
+            f"/en/comps/9/{season}/stats/{season}-Premier-League-Stats"
+        )
         logger.info(f"Crawling Season Result:\t{season}\t{url}")
         self.get(url)
-        tree = self.get_tree_by_id(f"stats_standard")
+        try:
+            tree = self.get_tree_by_id(f"stats_standard")
+        except Exception as e:
+            logger.warn(f"No player match logs to fetch for {season}")
+            return []
         rows = tree.xpath("*/tbody/tr[not(@class)]")
         player_season_links = []
         for r in rows:
@@ -48,12 +53,14 @@ class FBRefDriver(BaseDriver):
 
     def get_most_recent_game(self, current_season):
         url = self.absolute_url(
-            "/en/comps/9/schedule/Premier-League-Scores-and-Fixtures"
+            f"/en/comps/9/{current_season}/schedule/{current_season}-Premier-League-Scores-and-Fixtures"
         )
         logger.info(f"Getting all fixtures:\t{url}")
         self.get(url)
         fixtures_df = self.get_table_df_by_id(f"sched_{current_season}_9_1")
         completed = fixtures_df.loc[~fixtures_df["Score"].isna()]
+        if len(completed) == 0:
+            return None, None, None
         most_recent_game = completed.sort_values(
             by=["Date", "Time"], ascending=False
         ).iloc[0]

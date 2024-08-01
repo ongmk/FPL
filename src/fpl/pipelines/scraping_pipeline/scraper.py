@@ -121,7 +121,7 @@ def crawl_player_match_logs(parameters: dict[str, Any]):
         )
 
         for s in tqdm(seasons, desc="Seasons crawled"):
-            player_season_links = d.get_player_season_links(s, current_season)
+            player_season_links = d.get_player_season_links(s)
 
             for player, pos, link in tqdm(
                 player_season_links, leave=False, desc="Players crawled"
@@ -148,7 +148,7 @@ def crawl_fpl_data(parameters: dict[str, Any]) -> Tuple[pd.DataFrame, pd.DataFra
     current_season = parameters["current_season"]
     conn = sqlite3.connect("./data/fpl.db")
     cur = conn.cursor()
-    most_recent_fixture = get_most_recent_fpl_game()
+    most_recent_fixture = get_most_recent_fpl_game() or {"id": -1}
     crawled = pd.read_sql(
         f"select * from raw_fpl_data where fixture = {most_recent_fixture['id']} and season = '{current_season}'",
         conn,

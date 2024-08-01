@@ -151,17 +151,9 @@ def impute_past_data(data: pd.DataFrame, n_cores, ma_lag, excluded=[]) -> pd.Dat
 
 def ffill_future_data(data: pd.DataFrame, excluded=[]) -> pd.DataFrame:
     data = data.sort_values("date")
-    ma_cols = data.filter(regex=r"\w+_ma\d+").columns.tolist()
-    ma_features = set([re.sub(r"_ma\d+", "", col) for col in ma_cols])
-    ma_lags = [int(re.findall(r"\d+", string)[0]) for string in ma_cols]
-    lag = statistics.mode(ma_lags)
-    for feature in ma_features:
-        data[f"{feature}_ma{lag}"] = data[f"{feature}_ma{lag}"].ffill()
-
-    columns = [col for col in data.columns if col not in excluded + ma_cols]
+    columns = [col for col in data.columns if col not in excluded]
     for col in columns:
         data[col] = data[col].ffill()
-
     return data
 
 

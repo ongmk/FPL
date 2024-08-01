@@ -23,8 +23,8 @@ def create_preprocess_pipeline() -> Pipeline:
                 inputs=[
                     "check_complete",
                     "TEAM_MATCH_LOG",
-                    "READ_PROCESSED_DATA",
-                    "params:data",
+                    "READ_ELO_DATA",
+                    "params:preprocess",
                 ],
                 outputs="ELO_DATA",
             ),
@@ -38,7 +38,7 @@ def create_preprocess_pipeline() -> Pipeline:
                     "FPL_DATA",
                     "PLAYER_NAME_MAPPING",
                     "FPL2FBREF_TEAM_MAPPING",
-                    "params:data",
+                    "params:preprocess",
                 ],
                 outputs="cleaned_data",
             ),
@@ -47,18 +47,18 @@ def create_preprocess_pipeline() -> Pipeline:
                 inputs=[
                     "cleaned_data",
                     "READ_PROCESSED_DATA",
-                    "params:data",
+                    "params:preprocess",
                 ],
                 outputs="INTERMEDIATE_DATA",
             ),
             node(
                 func=impute_missing_values,
-                inputs=["INTERMEDIATE_DATA", "params:data"],
+                inputs=["INTERMEDIATE_DATA", "params:preprocess"],
                 outputs="PROCESSED_DATA",
             ),
             node(
                 func=split_data,
-                inputs=["PROCESSED_DATA", "params:data", "params:model"],
+                inputs=["PROCESSED_DATA", "params:preprocess", "params:model"],
                 outputs=[
                     "TRAIN_VAL_DATA",
                     "HOLDOUT_DATA",

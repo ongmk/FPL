@@ -206,7 +206,7 @@ def is_first_match_after_promotion(
 def calculate_elo_score(
     data_check_complete,
     match_data: pd.DataFrame,
-    read_processed_data: pd.DataFrame,
+    read_elo_data: pd.DataFrame,
     parameters: dict[str, Any],
 ) -> pd.DataFrame:
     home_away_weight = parameters["home_away_weight"]
@@ -223,26 +223,14 @@ def calculate_elo_score(
     ]
 
     if parameters["use_cache"]:
-        cached_data = read_processed_data.loc[read_processed_data["cached"] == True]
-        cached_date = cached_data["date"].max().strftime("%Y-%m-%d")
+        elo_df = read_elo_data
+        cached_date = elo_df["date"].max()
         match_data = match_data[match_data["date"] > cached_date]
-        elo_df = cached_data.loc[
-            cached_data["venue"] == "Home",
-            [
-                "team",
-                "season",
-                "date",
-                "att_elo",
-                "def_elo",
-                "home_att_elo",
-                "home_def_elo",
-                "away_att_elo",
-                "away_def_elo",
-            ],
-        ].drop_duplicates(subset=["team", "season", "date"])
-        elo_df["date"] = elo_df["date"].dt.date
     else:
         elo_df = get_init_elo(match_data)
+    if match_data.empty:
+        return elo_df
+
     seasons, promotions, relegations = get_promotions_relegations(match_data)
     match_data = add_promoted_team_rows(
         match_data=match_data,

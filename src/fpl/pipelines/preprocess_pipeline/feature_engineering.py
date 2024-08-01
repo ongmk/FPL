@@ -1,6 +1,6 @@
 import itertools
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 import numpy as np
 import pandas as pd
@@ -299,12 +299,16 @@ def feature_engineering(
         cached_data = read_processed_data.loc[read_processed_data["cached"] == True]
         cached_date = cached_data["date"].max()
         data = data[data["date"] > cached_date]
+        if data.empty:
+            return cached_data
     else:
         cached_data = None
 
     data = agg_home_away_elo(data)
     data = calculate_pts_data(data, cached_data)
-    data = data.dropna(subset=["player"])
+
+    mask = past_data_mask(data)
+    data.loc[mask] = data.loc[mask].dropna(subset=["player"])
 
     data = extract_mode_pos(data, cached_data)
     data = create_ma_features(data, cached_data, ma_lag, parameters)
@@ -314,7 +318,7 @@ def feature_engineering(
     if use_cache:
         data = pd.concat([cached_data, data], ignore_index=True)
 
-    data = cache_rows(data)
+    data.loc[mask, "cached"] = True
     data = reorder_columns(data)
 
     return data
@@ -332,8 +336,6 @@ def reorder_columns(data):
     return data
 
 
-def cache_rows(data):
-    null_counts = data.groupby("date")["fpl_points"].apply(lambda x: x.isnull().sum())
-    most_recent_fpl_data = null_counts[null_counts == 0].index.max()
-    data.loc[data["date"] <= most_recent_fpl_data, "cached"] = True
-    return data
+def past_data_mask(data):
+    one_week_ago = datetime.now() - timedelta(days=7)
+    return data["date"] <= one_week_ago

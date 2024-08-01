@@ -61,32 +61,63 @@ def fetch_player_fixtures(
         f"https://fantasy.premierleague.com/api/element-summary/{player_id}/"
     )
     data = r.json()
-    history = pd.DataFrame(data["history"])
-    useful_columns = [
-        "element",
-        "kickoff_time",
-        "opponent_team",
-        "is_home",
-        "id",
-        "event",
-        "starts",
-    ]
+    history = pd.DataFrame(
+        data["history"],
+        columns=[
+            "total_points",
+            "team_h_score",
+            "team_a_score",
+            "minutes",
+            "goals_scored",
+            "assists",
+            "clean_sheets",
+            "goals_conceded",
+            "own_goals",
+            "penalties_saved",
+            "penalties_missed",
+            "yellow_cards",
+            "red_cards",
+            "saves",
+            "bonus",
+            "bps",
+            "influence",
+            "creativity",
+            "threat",
+            "ict_index",
+            "value",
+            "transfers_balance",
+            "selected",
+            "transfers_in",
+            "transfers_out",
+            "expected_goals",
+            "expected_goal_involvements",
+            "expected_assists",
+            "expected_goals_conceded",
+        ],
+    )
     fixtures = pd.DataFrame(
         data["fixtures"],
-        columns=useful_columns
-        + [
+        columns=[
+            "element",
+            "kickoff_time",
+            "opponent_team",
+            "is_home",
+            "id",
+            "event",
+            "starts",
             "team_a",
             "team_h",
         ],
     )
-    history = history[
-        ~history["fixture"].isin(fixtures["id"])
-    ]  # sometimes the same fixture appears in history and fixtures
+    if len(history) > 0:
+        history = history[
+            ~history["fixture"].isin(fixtures["id"])
+        ]  # sometimes the same fixture appears in history and fixtures
     fixtures["element"] = player_id
     fixtures["opponent_team"] = fixtures.apply(
         lambda row: row["team_a"] if row["is_home"] else row["team_h"], axis=1
     )
-    fixtures = fixtures[useful_columns]
+    fixtures = fixtures.drop(columns=["team_a", "team_h"])
     fixtures = fixtures.rename(
         {"is_home": "was_home", "id": "fixture", "event": "round"}, axis=1
     )
@@ -99,7 +130,7 @@ def get_most_recent_fpl_game() -> dict:
     r = requests.get(f"https://fantasy.premierleague.com/api/fixtures/")
     data = r.json()
     data = sorted(data, key=lambda f: f["kickoff_time"], reverse=True)
-    most_recent_fixture = next(d for d in data if d["finished"] == True)
+    most_recent_fixture = next((d for d in data if d["finished"] == True), None)
     return most_recent_fixture
 
 

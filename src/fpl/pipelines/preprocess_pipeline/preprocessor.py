@@ -1,4 +1,3 @@
-import itertools
 import logging
 import re
 from typing import Any
@@ -6,33 +5,14 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from fpl.pipelines.preprocess_pipeline.feature_engineering import past_data_mask
-
 logger = logging.getLogger(__name__)
-
-
-def data_checks(player_name_mapping):
-    duplicated_mappings = int(player_name_mapping["duplicated"].sum())
-    if duplicated_mappings > 0:
-        raise ValueError(
-            f"There are {duplicated_mappings} duplicated player name mappings."
-        )
-    n_missing_matchlog = int(player_name_mapping["missing_matchlogs"].sum())
-    if n_missing_matchlog > 0:
-        raise ValueError(
-            f"There are missing FBRef matchlogs for {n_missing_matchlog} players."
-        )
-    logger.info("Data checks completed.")
-    return True
 
 
 def filter_data(
     player_match_log: pd.DataFrame,
     team_match_log: pd.DataFrame,
     fpl_data: pd.DataFrame,
-    parameters: dict[str, Any],
 ):
-    holdout_year = parameters["holdout_year"]
     team_match_log["days_till_next"] = (
         (team_match_log.groupby("team")["date"].shift(-1) - team_match_log["date"])
         .apply(lambda x: x.days)
@@ -47,11 +27,12 @@ def filter_data(
         player_match_log["comp"] == "Premier League",
         [
             "season",
+            "fpl_name",
             "player",
             "round",
             "date",
             "venue",
-            "squad",
+            "team",
             "opponent",
             "start",
             "pos",
@@ -82,30 +63,13 @@ def filter_data(
             "team",
             "date",
             "opponent",
-            "poss",
-            "gf",
-            "ga",
-            "xg",
-            "xga",
+            "team_poss",
+            "team_gf",
+            "team_ga",
+            "team_xg",
+            "team_xga",
         ],
     ].reset_index(drop=True)
-    fpl_data = fpl_data.loc[
-        (fpl_data["starts"] == 1) | (fpl_data["season"] > holdout_year),
-        [
-            "season",
-            "date",
-            "round",
-            "full_name",
-            "total_points",
-            "value",
-            "team",
-            "opponent_team_name",
-            "was_home",
-            "position",
-            "team_h_score",
-            "team_a_score",
-        ],
-    ]
 
     return player_match_log, team_match_log, fpl_data
 
@@ -144,6 +108,8 @@ def combine_data(
         combined_data["opponent"]
     )
     combined_data["pos"] = combined_data["pos"].fillna(combined_data["pos_fpl"])
+    elo_data["next_match"] = elo_data.groupby("team")["date"].shift(-1)
+    elo_data = elo_data.drop(["date", "season"], axis=1)
     combined_data = pd.merge(
         combined_data,
         elo_data,
@@ -172,18 +138,22 @@ def combine_data(
         ],
         axis=1,
     )
+    if parameters["debug_run"]:
+        combined_data = sample_players(combined_data)
     return combined_data
 
 
 def align_data_structure(
+    data_check_complete,
     player_match_log: pd.DataFrame,
     team_match_log: pd.DataFrame,
-    elo_data: pd.DataFrame,
+    fpl_data: pd.DataFrame,
     player_name_mapping: pd.DataFrame,
     fpl_2_fbref_team_mapping: pd.DataFrame,
-    fpl_data: pd.DataFrame,
-    parameters: dict[str, Any],
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    player_match_log, team_match_log, fpl_data = convert_to_datetime(
+        player_match_log, team_match_log, fpl_data
+    )
     player_match_log["round"] = player_match_log["round"].apply(get_week_number)
     player_match_log["start"] = player_match_log["start"].replace({"Y": 1, "N": 0})
     player_name_mapping = player_name_mapping.set_index("fbref_name")[
@@ -203,12 +173,6 @@ def align_data_structure(
         errors="raise",
     )
 
-    # ELO DATA stores elo ratings AFTER playing the game on that DATE.
-    # This shifts ratings back to BEFORE playing the game.
-    elo_data["next_match"] = elo_data.groupby("team")["date"].shift(-1)
-    elo_data = elo_data.drop(["date", "season"], axis=1)
-
-    fpl_data = add_unplayed_matches(fpl_data)
     fpl_data["team"] = fpl_data["team"].map(fpl_2_fbref_team_mapping)
     fpl_data["opponent"] = fpl_data["opponent_team_name"].map(fpl_2_fbref_team_mapping)
     fpl_data["team_gf"] = np.where(
@@ -236,7 +200,7 @@ def align_data_structure(
     )
     fpl_data = fpl_data.sort_values(["date", "fpl_name"]).reset_index(drop=True)
 
-    return player_match_log, team_match_log, elo_data, fpl_data
+    return filter_data(player_match_log, team_match_log, fpl_data)
 
 
 def get_week_number(round_str: str) -> int:
@@ -249,38 +213,12 @@ def get_week_number(round_str: str) -> int:
 def convert_to_datetime(
     player_match_log: pd.DataFrame,
     team_match_log: pd.DataFrame,
-    elo_data: pd.DataFrame,
     fpl_data: pd.DataFrame,
 ) -> list[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     player_match_log["date"] = pd.to_datetime(player_match_log["date"])
     team_match_log["date"] = pd.to_datetime(team_match_log["date"])
-    elo_data["date"] = pd.to_datetime(elo_data["date"])
     fpl_data["date"] = pd.to_datetime(fpl_data["kickoff_time"].str[:10])
-    return player_match_log, team_match_log, elo_data, fpl_data
-
-
-def add_unplayed_matches(fpl_data: pd.DataFrame):
-    output_data = []
-    for season, season_data in fpl_data.groupby("season"):
-        player_round = pd.DataFrame(
-            list(
-                itertools.product(
-                    [season],
-                    season_data["full_name"].unique(),
-                    season_data["round"].dropna().unique(),
-                )
-            ),
-            columns=["season", "full_name", "round"],
-        )
-        fill_dates = player_round.merge(
-            season_data,
-            on=["season", "full_name", "round"],
-            how="left",
-        )
-        fill_dates = fill_dates.sort_values(["date", "full_name"])
-        output_data.append(fill_dates)
-    output_data = pd.concat(output_data).reset_index(drop=True)
-    return output_data
+    return player_match_log, team_match_log, fpl_data
 
 
 def sample_players(data: pd.DataFrame) -> pd.DataFrame:
@@ -306,44 +244,6 @@ def sample_players(data: pd.DataFrame) -> pd.DataFrame:
     sampled_data = pd.concat(sampled_data)
 
     return sampled_data
-
-
-def clean_data(
-    data_check_complete,
-    player_match_log,
-    team_match_log,
-    elo_data,
-    fpl_data,
-    player_name_mapping,
-    fpl_2_fbref_team_mapping,
-    parameters,
-):
-    player_match_log, team_match_log, elo_data, fpl_data = convert_to_datetime(
-        player_match_log, team_match_log, elo_data, fpl_data
-    )
-    player_match_log, team_match_log, fpl_data = filter_data(
-        player_match_log, team_match_log, fpl_data, parameters
-    )
-    player_match_log, team_match_log, elo_data, fpl_data = align_data_structure(
-        player_match_log,
-        team_match_log,
-        elo_data,
-        player_name_mapping,
-        fpl_2_fbref_team_mapping,
-        fpl_data,
-        parameters,
-    )
-    combined_data = combine_data(
-        player_match_log,
-        team_match_log,
-        elo_data,
-        fpl_data,
-        parameters,
-    )
-    if parameters["debug_run"]:
-        combined_data = sample_players(combined_data)
-
-    return combined_data
 
 
 def split_data(processed_data, data_params, model_params):

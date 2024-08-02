@@ -41,12 +41,12 @@ def backtest(parameters):
 def create_live_pipeline():
     return Pipeline(
         [
-            # node(
-            #     func=get_live_data,
-            #     inputs=["INFERENCE_RESULTS", "params:optimization"],
-            #     outputs="LP_DATA",
-            #     name="get_live_data",
-            # ),
+            node(
+                func=get_live_data,
+                inputs=["INFERENCE_RESULTS", "params:optimization"],
+                outputs="LP_DATA",
+                name="get_live_data",
+            ),
             node(
                 func=construct_lp,
                 inputs=[

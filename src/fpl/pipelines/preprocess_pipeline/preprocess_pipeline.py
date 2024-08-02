@@ -4,7 +4,8 @@ from fpl.pipelines.preprocess_pipeline.elo_calculation import calculate_elo_scor
 from fpl.pipelines.preprocess_pipeline.feature_engineering import feature_engineering
 from fpl.pipelines.preprocess_pipeline.imputer import impute_missing_values
 from fpl.pipelines.preprocess_pipeline.preprocessor import (
-    clean_data,
+    align_data_structure,
+    combine_data,
     data_checks,
     split_data,
 )
@@ -15,37 +16,51 @@ def create_preprocess_pipeline() -> Pipeline:
         [
             node(
                 func=data_checks,
-                inputs=["PLAYER_NAME_MAPPING"],
+                inputs=["PLAYER_NAME_MAPPING", "FPL_DATA", "FPL2FBREF_TEAM_MAPPING"],
                 outputs="check_complete",
+            ),
+            node(
+                func=align_data_structure,
+                inputs=[
+                    "check_complete",
+                    "PLAYER_MATCH_LOG",
+                    "TEAM_MATCH_LOG",
+                    "FPL_DATA",
+                    "PLAYER_NAME_MAPPING",
+                    "FPL2FBREF_TEAM_MAPPING",
+                ],
+                outputs=[
+                    "aligned_player_match_log",
+                    "aligned_team_match_log",
+                    "aligned_fpl_data",
+                ],
             ),
             node(
                 func=calculate_elo_score,
                 inputs=[
                     "check_complete",
-                    "TEAM_MATCH_LOG",
+                    "aligned_team_match_log",
+                    "aligned_fpl_data",
                     "READ_ELO_DATA",
                     "params:preprocess",
                 ],
                 outputs="ELO_DATA",
             ),
             node(
-                func=clean_data,
+                func=combine_data,
                 inputs=[
-                    "check_complete",
-                    "PLAYER_MATCH_LOG",
-                    "TEAM_MATCH_LOG",
+                    "aligned_player_match_log",
+                    "aligned_team_match_log",
                     "ELO_DATA",
-                    "FPL_DATA",
-                    "PLAYER_NAME_MAPPING",
-                    "FPL2FBREF_TEAM_MAPPING",
+                    "aligned_fpl_data",
                     "params:preprocess",
                 ],
-                outputs="cleaned_data",
+                outputs="combined_data",
             ),
             node(
                 func=feature_engineering,
                 inputs=[
-                    "cleaned_data",
+                    "combined_data",
                     "READ_PROCESSED_DATA",
                     "params:preprocess",
                 ],

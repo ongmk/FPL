@@ -10,30 +10,35 @@ from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
+HOME_ELO_COLS = [
+    "att_elo",
+    "home_att_elo",
+    "away_att_elo",
+    "def_elo",
+    "home_def_elo",
+    "away_def_elo",
+]
+AWAY_ELO_COLS = [
+    "att_elo_opp",
+    "home_att_elo_opp",
+    "away_att_elo_opp",
+    "def_elo_opp",
+    "home_def_elo_opp",
+    "away_def_elo_opp",
+]
+
 
 def agg_home_away_elo(data: pd.DataFrame) -> pd.DataFrame:
+    data[HOME_ELO_COLS] = data.groupby("team")[HOME_ELO_COLS].ffill()
+    data[AWAY_ELO_COLS] = data.groupby("opponent")[AWAY_ELO_COLS].ffill()
     data["total_att_elo"] = data.att_elo + data.def_elo_opp
     data["home_total_att_elo"] = data.home_att_elo + data.away_def_elo_opp
     data["away_total_att_elo"] = data.away_att_elo + data.home_def_elo_opp
     data["total_def_elo"] = data.def_elo + data.att_elo_opp
     data["home_total_def_elo"] = data.home_def_elo + data.away_att_elo_opp
     data["away_total_def_elo"] = data.away_def_elo + data.home_att_elo_opp
-    data = data.drop(
-        columns=[
-            "att_elo",
-            "home_att_elo",
-            "away_att_elo",
-            "def_elo",
-            "home_def_elo",
-            "away_def_elo",
-            "att_elo_opp",
-            "home_att_elo_opp",
-            "away_att_elo_opp",
-            "def_elo_opp",
-            "home_def_elo_opp",
-            "away_def_elo_opp",
-        ]
-    )
+    data = data.drop(columns=HOME_ELO_COLS)
+    data = data.drop(columns=AWAY_ELO_COLS)
     return data
 
 

@@ -14,7 +14,7 @@ from matplotlib.figure import Figure
 from sklearn.metrics import r2_score
 from sklearn.pipeline import Pipeline
 
-from fpl.pipelines.model_pipeline.modelling.ensemble import EnsembleModel, Model
+from fpl.pipelines.modelling.modelling.ensemble import EnsembleModel, Model
 
 matplotlib.use("Agg")
 logger = logging.getLogger(__name__)

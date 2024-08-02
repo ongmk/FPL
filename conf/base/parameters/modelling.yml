@@ -1,4 +1,4 @@
-model:
+modelling:
   variance_threshold: 0.02
   f_test_method: spearmanr
   f_test_threshold: 0.15

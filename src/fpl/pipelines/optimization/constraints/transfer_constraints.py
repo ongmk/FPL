@@ -1,15 +1,13 @@
 from pulp import LpProblem, lpSum
 
-from fpl.pipelines.optimization_pipeline.constraints.base_constraints import (
-    BaseConstraints,
-)
-from fpl.pipelines.optimization_pipeline.data_classes import (
+from fpl.pipelines.optimization.constraints.base_constraints import BaseConstraints
+from fpl.pipelines.optimization.data_classes import (
     LpKeys,
     LpParams,
     LpVariables,
     VariableSums,
 )
-from fpl.pipelines.optimization_pipeline.fpl_api import FplData
+from fpl.pipelines.optimization.fpl_api import FplData
 
 
 class TransferConstraints(BaseConstraints):

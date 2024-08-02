@@ -1,11 +1,11 @@
-preprocess:
+preprocessing:
   elo_learning_rate: 0.1
   home_away_weight: 0.5
   train_start_year: 2017-2018
   holdout_year: 2023-2024
   ma_lag: 5
   debug_run: False
-  use_cache: True
+  use_cache: False
   n_cores: 12
   do_not_impute:
     - season

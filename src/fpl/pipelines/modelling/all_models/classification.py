@@ -3,7 +3,8 @@ from functools import partial
 import lightgbm
 import sklearn
 import xgboost
-from fpl.pipelines.model_pipeline.all_models.model_utils import get_model_instance
+
+from fpl.pipelines.modelling.all_models.model_utils import get_model_instance
 
 classification_models = {
     "lr": sklearn.linear_model._logistic.LogisticRegression,

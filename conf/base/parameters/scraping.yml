@@ -1,4 +1,4 @@
-scraper:
+scraping:
   current_season: 2024-2025
   current_season_only: True
   headless: True

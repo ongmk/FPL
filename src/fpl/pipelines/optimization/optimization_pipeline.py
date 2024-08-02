@@ -6,9 +6,9 @@ import pandas as pd
 from kedro.pipeline import Pipeline, node
 from tqdm import tqdm
 
-from fpl.pipelines.optimization_pipeline.fpl_api import get_live_data
-from fpl.pipelines.optimization_pipeline.lp_constructor import construct_lp
-from fpl.pipelines.optimization_pipeline.optimizer import (
+from fpl.pipelines.optimization.fpl_api import get_live_data
+from fpl.pipelines.optimization.lp_constructor import construct_lp
+from fpl.pipelines.optimization.optimizer import (
     backtest_single_player,
     generate_outputs,
     solve_lp,

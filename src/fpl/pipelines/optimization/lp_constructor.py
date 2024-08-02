@@ -13,18 +13,18 @@ from pulp import (
     lpSum,
 )
 
-from fpl.pipelines.optimization_pipeline.constraints import (
+from fpl.pipelines.optimization.constraints import (
     ChipConstraints,
     SquadConstraints,
     TransferConstraints,
 )
-from fpl.pipelines.optimization_pipeline.data_classes import (
+from fpl.pipelines.optimization.data_classes import (
     LpKeys,
     LpParams,
     LpVariables,
     VariableSums,
 )
-from fpl.pipelines.optimization_pipeline.fpl_api import FplData
+from fpl.pipelines.optimization.fpl_api import FplData
 from fpl.utils import backup_latest_n
 
 

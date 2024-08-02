@@ -1,10 +1,10 @@
 from kedro.pipeline import Pipeline, node, pipeline
 
-from fpl.pipelines.preprocess_pipeline.data_test import data_tests
-from fpl.pipelines.preprocess_pipeline.elo_calculation import calculate_elo_score
-from fpl.pipelines.preprocess_pipeline.feature_engineering import feature_engineering
-from fpl.pipelines.preprocess_pipeline.imputer import impute_missing_values
-from fpl.pipelines.preprocess_pipeline.preprocessor import (
+from fpl.pipelines.preprocessing.data_test import data_tests
+from fpl.pipelines.preprocessing.elo_calculation import calculate_elo_score
+from fpl.pipelines.preprocessing.feature_engineering import feature_engineering
+from fpl.pipelines.preprocessing.imputer import impute_missing_values
+from fpl.pipelines.preprocessing.preprocessor import (
     align_data_structure,
     combine_data,
     split_data,
@@ -46,7 +46,7 @@ def create_preprocess_pipeline() -> Pipeline:
                     "aligned_team_match_log",
                     "aligned_fpl_data",
                     "READ_ELO_DATA",
-                    "params:preprocess",
+                    "params:preprocessing",
                 ],
                 outputs="ELO_DATA",
             ),
@@ -57,7 +57,7 @@ def create_preprocess_pipeline() -> Pipeline:
                     "aligned_team_match_log",
                     "ELO_DATA",
                     "aligned_fpl_data",
-                    "params:preprocess",
+                    "params:preprocessing",
                 ],
                 outputs="combined_data",
             ),
@@ -66,18 +66,18 @@ def create_preprocess_pipeline() -> Pipeline:
                 inputs=[
                     "combined_data",
                     "READ_PROCESSED_DATA",
-                    "params:preprocess",
+                    "params:preprocessing",
                 ],
                 outputs="INTERMEDIATE_DATA",
             ),
             node(
                 func=impute_missing_values,
-                inputs=["INTERMEDIATE_DATA", "params:preprocess"],
+                inputs=["INTERMEDIATE_DATA", "params:preprocessing"],
                 outputs="PROCESSED_DATA",
             ),
             node(
                 func=split_data,
-                inputs=["PROCESSED_DATA", "params:preprocess", "params:model"],
+                inputs=["PROCESSED_DATA", "params:preprocessing", "params:modelling"],
                 outputs=[
                     "TRAIN_VAL_DATA",
                     "HOLDOUT_DATA",

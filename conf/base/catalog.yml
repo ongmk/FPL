@@ -55,11 +55,11 @@ PLAYER_MATCH_LOG:
 
 PLAYER_NAME_MAPPING:
   <<: *csv
-  filepath: data/preprocess/player_name_mapping.csv
+  filepath: data/preprocessing/player_name_mapping.csv
 
 FPL2FBREF_TEAM_MAPPING:
   type: yaml.YAMLDataSet
-  filepath: data/preprocess/fpl2fbref_team_mapping.yml
+  filepath: data/preprocessing/fpl2fbref_team_mapping.yml
 
 TEAM_MATCH_LOG:
   type: pandas.SQLTableDataSet
@@ -103,15 +103,15 @@ HOLDOUT_DATA:
 
 FEATURE_SELECTION_SUMMARY:
   <<: *csv
-  filepath: data/preprocess/feature_selection_summary.csv
+  filepath: data/preprocessing/feature_selection_summary.csv
 
 FEATURE_SELECTION_PLOTS:
   type: matplotlib.MatplotlibWriter
-  filepath: data/preprocess
+  filepath: data/preprocessing
 
 PCA_ELBOW_METHOD_OUTPUT:
   type: matplotlib.MatplotlibWriter
-  filepath: data/preprocess
+  filepath: data/preprocessing
 
 PYCARET_RESULT:
   type: pandas.SQLTableDataSet

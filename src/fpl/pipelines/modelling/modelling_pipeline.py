@@ -1,12 +1,9 @@
 from kedro.pipeline import Pipeline, node, pipeline
 
-from fpl.pipelines.model_pipeline.experiment_helpers import (
-    init_experiment,
-    run_housekeeping,
-)
-from fpl.pipelines.model_pipeline.modelling.ensemble import model_selection
-from fpl.pipelines.model_pipeline.modelling.evaluation import evaluate_model_holdout
-from fpl.pipelines.model_pipeline.modelling.training import (
+from fpl.pipelines.modelling.experiment_helpers import init_experiment, run_housekeeping
+from fpl.pipelines.modelling.modelling.ensemble import model_selection
+from fpl.pipelines.modelling.modelling.evaluation import evaluate_model_holdout
+from fpl.pipelines.modelling.modelling.training import (
     create_sklearn_pipeline,
     cross_validation,
     feature_selection,
@@ -21,19 +18,19 @@ def create_feature_selection_pipeline() -> Pipeline:
         [
             node(
                 func=create_sklearn_pipeline,
-                inputs=["TRAIN_VAL_DATA", "params:model"],
+                inputs=["TRAIN_VAL_DATA", "params:modelling"],
                 outputs="sklearn_pipeline",
                 name="create_sklearn_pipeline",
             ),
             node(
                 func=feature_selection,
-                inputs=["TRAIN_VAL_DATA", "sklearn_pipeline", "params:model"],
+                inputs=["TRAIN_VAL_DATA", "sklearn_pipeline", "params:modelling"],
                 outputs=["FEATURE_SELECTION_SUMMARY", "FEATURE_SELECTION_PLOTS"],
                 name="feature_selection",
             ),
             node(
                 func=pca_elbow_method,
-                inputs=["TRAIN_VAL_DATA", "params:model"],
+                inputs=["TRAIN_VAL_DATA", "params:modelling"],
                 outputs="PCA_ELBOW_METHOD_OUTPUT",
                 name="pca_elbow_method",
             ),
@@ -46,13 +43,13 @@ def create_compare_model_pipeline() -> Pipeline:
         [
             node(
                 func=create_sklearn_pipeline,
-                inputs=["TRAIN_VAL_DATA", "params:model"],
+                inputs=["TRAIN_VAL_DATA", "params:modelling"],
                 outputs="sklearn_pipeline",
                 name="create_sklearn_pipeline",
             ),
             node(
                 func=pycaret_compare_models,
-                inputs=["TRAIN_VAL_DATA", "sklearn_pipeline", "params:model"],
+                inputs=["TRAIN_VAL_DATA", "sklearn_pipeline", "params:modelling"],
                 outputs="PYCARET_RESULT",
                 name="pycaret_compare_models",
             ),
@@ -71,19 +68,19 @@ def create_hypertuning_pipeline() -> Pipeline:
             ),
             node(
                 func=init_experiment,
-                inputs="params:model",
+                inputs="params:modelling",
                 outputs=["experiment_id", "start_time", "EXPERIMENT_RECORD"],
                 name="init_experiment",
             ),
             node(
                 func=create_sklearn_pipeline,
-                inputs=["TRAIN_VAL_DATA", "params:model"],
+                inputs=["TRAIN_VAL_DATA", "params:modelling"],
                 outputs="sklearn_pipeline",
                 name="create_sklearn_pipeline",
             ),
             node(
                 func=model_selection,
-                inputs="params:model",
+                inputs="params:modelling",
                 outputs="model",
                 name="model_selection",
             ),
@@ -95,7 +92,7 @@ def create_hypertuning_pipeline() -> Pipeline:
                     "sklearn_pipeline",
                     "experiment_id",
                     "start_time",
-                    "params:model",
+                    "params:modelling",
                 ],
                 outputs=[
                     "val_score",
@@ -113,13 +110,13 @@ def create_training_pipeline() -> Pipeline:
         [
             node(
                 func=create_sklearn_pipeline,
-                inputs=["TRAIN_VAL_DATA", "params:model"],
+                inputs=["TRAIN_VAL_DATA", "params:modelling"],
                 outputs="sklearn_pipeline",
                 name="create_sklearn_pipeline",
             ),
             node(
                 func=model_selection,
-                inputs="params:model",
+                inputs="params:modelling",
                 outputs="model",
                 name="model_selection",
             ),
@@ -129,7 +126,7 @@ def create_training_pipeline() -> Pipeline:
                     "TRAIN_VAL_DATA",
                     "model",
                     "sklearn_pipeline",
-                    "params:model",
+                    "params:modelling",
                 ],
                 outputs=["FITTED_MODEL", "FITTED_SKLEARN_PIPELINE"],
                 name="train_model",
@@ -149,7 +146,7 @@ def create_inference_evaluation_pipeline() -> Pipeline:
             ),
             node(
                 func=init_experiment,
-                inputs="params:model",
+                inputs="params:modelling",
                 outputs=["experiment_id", "start_time", "EXPERIMENT_RECORD"],
                 name="init_experiment",
             ),
@@ -162,7 +159,7 @@ def create_inference_evaluation_pipeline() -> Pipeline:
                     "FITTED_SKLEARN_PIPELINE",
                     "experiment_id",
                     "start_time",
-                    "params:model",
+                    "params:modelling",
                 ],
                 outputs=[
                     "INFERENCE_RESULTS",

@@ -7,11 +7,11 @@ import pandas as pd
 from tqdm import tqdm
 
 # from fpl.pipelines.scraping_pipeline.OddsPortalDriver import OddsPortalDriver
-from fpl.pipelines.optimization_pipeline.fpl_api import (
+from fpl.pipelines.optimization.fpl_api import (
     get_current_season_fpl_data,
     get_most_recent_fpl_game,
 )
-from fpl.pipelines.scraping_pipeline.FBRefDriver import FBRefDriver
+from fpl.pipelines.scraping.FBRefDriver import FBRefDriver
 
 logger = logging.getLogger(__name__)
 

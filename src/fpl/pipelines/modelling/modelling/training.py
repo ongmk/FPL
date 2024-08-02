@@ -14,8 +14,8 @@ from sklearn.model_selection import GroupKFold
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler, OneHotEncoder, StandardScaler
 
-from fpl.pipelines.model_pipeline.modelling.ensemble import EnsembleModel
-from fpl.pipelines.model_pipeline.modelling.evaluation import evaluate_model
+from fpl.pipelines.modelling.modelling.ensemble import EnsembleModel
+from fpl.pipelines.modelling.modelling.evaluation import evaluate_model
 
 matplotlib.use("Agg")
 logger = logging.getLogger(__name__)

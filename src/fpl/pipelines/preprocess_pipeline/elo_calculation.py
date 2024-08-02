@@ -221,7 +221,6 @@ def is_first_match_after_promotion(
 
 
 def calculate_elo_score(
-    data_check_complete,
     team_match_log: pd.DataFrame,
     fpl_data: pd.DataFrame,
     read_elo_data: pd.DataFrame,

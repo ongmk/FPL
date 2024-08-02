@@ -1,12 +1,12 @@
 from kedro.pipeline import Pipeline, node, pipeline
 
+from fpl.pipelines.preprocess_pipeline.data_test import data_tests
 from fpl.pipelines.preprocess_pipeline.elo_calculation import calculate_elo_score
 from fpl.pipelines.preprocess_pipeline.feature_engineering import feature_engineering
 from fpl.pipelines.preprocess_pipeline.imputer import impute_missing_values
 from fpl.pipelines.preprocess_pipeline.preprocessor import (
     align_data_structure,
     combine_data,
-    data_checks,
     split_data,
 )
 
@@ -15,8 +15,13 @@ def create_preprocess_pipeline() -> Pipeline:
     return pipeline(
         [
             node(
-                func=data_checks,
-                inputs=["PLAYER_NAME_MAPPING", "FPL_DATA", "FPL2FBREF_TEAM_MAPPING"],
+                func=data_tests,
+                inputs=[
+                    "PLAYER_NAME_MAPPING",
+                    "FPL_DATA",
+                    "FPL2FBREF_TEAM_MAPPING",
+                    "TEAM_MATCH_LOG",
+                ],
                 outputs="check_complete",
             ),
             node(
@@ -38,7 +43,6 @@ def create_preprocess_pipeline() -> Pipeline:
             node(
                 func=calculate_elo_score,
                 inputs=[
-                    "check_complete",
                     "aligned_team_match_log",
                     "aligned_fpl_data",
                     "READ_ELO_DATA",

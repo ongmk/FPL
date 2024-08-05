@@ -71,6 +71,23 @@ def filter_data(
         ],
     ].reset_index(drop=True)
 
+    fpl_data = fpl_data[
+        [
+            "season",
+            "round",
+            "element",
+            "full_name",
+            "team",
+            "opponent_team_name",
+            "team_h_score",
+            "team_a_score",
+            "was_home",
+            "position",
+            "total_points",
+            "value" "kickoff_time",
+        ]
+    ]
+
     return player_match_log, team_match_log, fpl_data
 
 
@@ -254,32 +271,44 @@ def split_data(processed_data, data_params, model_params):
     categorical_features = model_params["categorical_features"]
     numerical_features = model_params["numerical_features"]
 
-    original_len = len(processed_data)
-    processed_data.loc[processed_data["cached"] == True] = processed_data.loc[
-        processed_data["cached"] == True
-    ].dropna()
-
-    filtered_len = original_len - len(processed_data)
-
-    if filtered_len / original_len > 0.3:
-        raise RuntimeError(
-            f"Too many rows ({filtered_len}/{original_len}) have been filtered out"
-        )
-    logger.info(
-        f"{filtered_len}/{original_len} rows are filtered out because they contain NaN."
-    )
     useful_cols = [group_by] + categorical_features + numerical_features + [target]
-    processed_data = processed_data[
-        [c for c in processed_data.columns if c not in useful_cols] + useful_cols
-    ]
 
-    train_val_data = processed_data[
+    train_val_data = processed_data.loc[
         (processed_data["season"] >= train_start_year)
-        & (processed_data["season"] < holdout_year)
+        & (processed_data["season"] < holdout_year),
+        useful_cols,
     ]
-    holdout_data = processed_data[processed_data["season"] >= holdout_year]
+    train_val_data = drop_incomplete_data(train_val_data, useful_cols, "train_val")
+
+    holdout_data = processed_data.loc[
+        processed_data["season"] >= holdout_year, useful_cols
+    ]
+    holdout_data = drop_incomplete_data(
+        holdout_data,
+        [group_by] + categorical_features + numerical_features,
+        "holdout",
+    )
 
     return train_val_data, holdout_data
+
+
+def drop_incomplete_data(
+    data: pd.DataFrame, feature_columns: list[str], split: str
+) -> pd.DataFrame:
+    original_len = len(data)
+    data = data.dropna(subset=feature_columns)
+
+    filtered_len = original_len - len(data)
+    filtered_percentage = filtered_len / original_len * 100
+
+    if filtered_percentage > 30:
+        raise RuntimeError(
+            f"[{split}] Too many rows {filtered_len}/{original_len}({filtered_percentage:.2f}%) have been filtered out"
+        )
+    logger.info(
+        f"[{split}] {filtered_len}/{original_len}({filtered_percentage:.2f}%) rows are filtered out because they contain NaN."
+    )
+    return data
 
 
 if __name__ == "__main__":
@@ -314,15 +343,3 @@ if __name__ == "__main__":
         fpl_2_fbref_team_mapping = yaml.safe_load(file)
 
     parameters = {"debug_run": False}
-
-    df = clean_data(
-        player_match_log,
-        team_match_log,
-        elo_data,
-        fpl_data,
-        player_name_mapping,
-        fpl_2_fbref_team_mapping,
-        parameters,
-    )
-    assert len(df) > 0
-    pass

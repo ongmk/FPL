@@ -138,8 +138,9 @@ def get_current_season_fpl_data(current_season: str) -> pd.DataFrame:
     element_data, team_data, _, _ = get_fpl_base_data()
 
     current_season_data = []
-    for id in tqdm(element_data["id"], desc="Fetching player history"):
-        player_fixtures = fetch_player_fixtures(id, current_season)
+    for idx, row in tqdm(element_data.iterrows(), desc="Fetching player history"):
+        player_fixtures = fetch_player_fixtures(row["id"], current_season)
+        player_fixtures["value"] = player_fixtures["value"].fillna(row["now_cost"])
         current_season_data.append(player_fixtures)
     current_season_data = pd.concat(current_season_data, ignore_index=True)
     current_season_data = pd.merge(

@@ -1,18 +1,32 @@
 import logging
 import multiprocessing as mp
-import re
 import sqlite3
-import statistics
-from typing import Any, Callable
+from typing import Any, Literal
 
 import pandas as pd
+from pandas.core.indexing import _LocIndexer
 from sklearn.neighbors import KNeighborsClassifier, KNeighborsRegressor
 from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
 
-def impute_with_knn(missing_data, existing_data, col, column_type):
+KNN_FEATURES = [
+    "value",
+    "home_total_att_elo",
+    "away_total_att_elo",
+    "total_def_elo",
+    "home_total_def_elo",
+    "away_total_def_elo",
+]
+
+
+def impute_with_knn(
+    missing_data: pd.DataFrame,
+    existing_data: pd.DataFrame,
+    col: str,
+    column_type: Literal["categorical", "numerical"],
+):
     if len(missing_data) > 0 and len(existing_data) > 0:
         model = (
             KNeighborsClassifier
@@ -20,44 +34,26 @@ def impute_with_knn(missing_data, existing_data, col, column_type):
             else KNeighborsRegressor
         )
         predictor = model(n_neighbors=min(5, len(existing_data)))
+
         predictor.fit(
-            existing_data[
-                [
-                    "value",
-                    "home_total_att_elo",
-                    "away_total_att_elo",
-                    "total_def_elo",
-                    "home_total_def_elo",
-                    "away_total_def_elo",
-                ]
-            ],
+            existing_data[KNN_FEATURES],
             existing_data[col],
         )
-        return predictor.predict(missing_data[["value"]])
+        return predictor.predict(missing_data[KNN_FEATURES])
     else:
         return None
 
 
-def impute_with_all_seasons(
-    data,
-    season_round_pos_filter,
-    categorical_columns,
-    numerical_columns,
-    season,
-    pos,
-    _round,
+def impute_columns(
+    data: pd.DataFrame,
+    season_round_pos_filter: _LocIndexer,
+    columns: list[str],
+    column_type: Literal["categorical", "numerical"],
+    season: int,
+    pos: str,
+    _round: int,
 ):
-    for col in categorical_columns:
-        missing = data[col].isnull()
-        if (season_round_pos_filter & missing).sum() > 0:
-            data.loc[season_round_pos_filter & missing, col] = impute_with_knn(
-                data.loc[season_round_pos_filter & missing],
-                data.loc[season_round_pos_filter & ~missing],
-                col,
-                "categorical",
-            )
-
-    for col in numerical_columns:
+    for col in columns:
         missing = data[col].isnull()
         if (season_round_pos_filter & missing).sum() == 0:
             continue
@@ -65,88 +61,45 @@ def impute_with_all_seasons(
             data.loc[season_round_pos_filter & missing],
             data.loc[season_round_pos_filter & ~missing],
             col,
-            "numerical",
+            column_type,
         )
-    impute_with_other_rounds(
-        data,
-        season_round_pos_filter,
-        categorical_columns,
-        numerical_columns,
-        season,
-        _round,
-    )
-    impute_with_other_seasons(
-        data,
-        season_round_pos_filter,
-        categorical_columns,
-        numerical_columns,
-        season,
-        pos,
-        _round,
-    )
-    return None
-
-
-def impute_with_other_rounds(
-    data,
-    season_round_pos_filter,
-    categorical_columns,
-    numerical_columns,
-    season,
-    _round,
-):
-    other_rounds_filter = (data["season"] == season) & (data["round"] != _round)
-    for col in categorical_columns:
-        missing = data[col].isnull()
-        if (season_round_pos_filter & missing).sum() > 0:
-            data.loc[season_round_pos_filter & missing, col] = impute_with_knn(
-                data.loc[other_rounds_filter & missing],
-                data.loc[other_rounds_filter & ~missing],
-                col,
-                "categorical",
+        if (season_round_pos_filter & missing).sum() == 0:
+            logger.info(
+                f"Imputed {col} for {season} {pos} {_round} with same SEASON ROUND POS"
             )
+            continue
 
-    for col in numerical_columns:
+        other_rounds_filter = (data["season"] == season) & (data["round"] != _round)
         missing = data[col].isnull()
-        if (season_round_pos_filter & missing).sum() > 0:
-            data.loc[season_round_pos_filter & missing, col] = impute_with_knn(
-                data.loc[season_round_pos_filter & missing],
-                data.loc[other_rounds_filter & ~missing],
-                col,
-                "numerical",
+        data.loc[season_round_pos_filter & missing, col] = impute_with_knn(
+            data.loc[season_round_pos_filter & missing],
+            data.loc[other_rounds_filter & ~missing],
+            col,
+            column_type,
+        )
+        if (season_round_pos_filter & missing).sum() == 0:
+            logger.info(
+                f"Imputed {col} for {season} {pos} {_round} with same SEASON POS different ROUND"
             )
-    return None
+            continue
 
-
-def impute_with_other_seasons(
-    data,
-    season_round_pos_filter,
-    categorical_columns,
-    numerical_columns,
-    season,
-    pos,
-):
-    other_seasons_filter = (data["season"] != season) & (data["pos"] == pos)
-    for col in categorical_columns:
+        other_seasons_filter = (data["season"] != season) & (data["pos"] == pos)
         missing = data[col].isnull()
-        if (season_round_pos_filter & missing).sum() > 0:
-            data.loc[season_round_pos_filter & missing, col] = impute_with_knn(
-                data.loc[other_seasons_filter & missing],
-                data.loc[other_seasons_filter & ~missing],
-                col,
-                "categorical",
+        data.loc[season_round_pos_filter & missing, col] = impute_with_knn(
+            data.loc[season_round_pos_filter & missing],
+            data.loc[other_seasons_filter & ~missing],
+            col,
+            column_type,
+        )
+        if (season_round_pos_filter & missing).sum() == 0:
+            logger.info(
+                f"Imputed {col} for {season} {pos} {_round} with same POS different SEASON"
             )
+            continue
+        else:
+            logger.warn(f"Could not impute {col} for {season} {pos} {_round}")
 
-    for col in numerical_columns:
-        missing = data[col].isnull()
-        if (season_round_pos_filter & missing).sum() > 0:
-            data.loc[season_round_pos_filter & missing, col] = impute_with_knn(
-                data.loc[season_round_pos_filter & missing],
-                data.loc[other_seasons_filter & ~missing],
-                col,
-                "numerical",
-            )
-    return None
+    return data.loc[season_round_pos_filter]
 
 
 GK_ONLY_COLS = [
@@ -174,22 +127,22 @@ OUTFIELD_ONLY_COLS = [
 
 def parallel_impute_handler(
     data: pd.DataFrame,
-    impute_func: Callable,
     n_cores: int,
-    ma_lag: int,
-    excluded: list[str],
+    categorical_columns: list[str],
+    numerical_columns: list[str],
 ) -> pd.DataFrame:
     data = data.copy()
-    excluded, numerical_columns, categorical_columns = split_columns(
-        data, ma_lag, excluded
-    )
 
     with mp.Pool(n_cores) as pool:
-        total = len(data.groupby(["season", "round", "pos"]).size().reset_index())
-
-        inputs = []
         for season in data["season"].dropna().unique():
             season_filter = data["season"] == season
+            total = len(
+                data.loc[season_filter]
+                .groupby(["season", "round", "pos"])
+                .size()
+                .reset_index()
+            )
+            inputs = []
             for _round in data.loc[season_filter, "round"].dropna().unique():
                 season_round_filter = season_filter & (data["round"] == _round)
                 for pos in data.loc[season_round_filter, "pos"].dropna().unique():
@@ -199,38 +152,63 @@ def parallel_impute_handler(
                             data,
                             season_round_pos_filter,
                             categorical_columns,
-                            numerical_columns,
+                            "categorical",
                             season,
                             pos,
                             _round,
                         )
                     )
-        _ = pool.starmap(impute_func, tqdm(inputs, total=total))
+                    inputs.append(
+                        (
+                            data,
+                            season_round_pos_filter,
+                            numerical_columns,
+                            "numerical",
+                            season,
+                            pos,
+                            _round,
+                        )
+                    )
+            values = pool.starmap(
+                impute_columns, tqdm(inputs, total=total * 2, desc=f"Imputing {season}")
+            )
+            for f, v in tqdm(
+                zip([i[1] for i in inputs], values),
+                total=total * 2,
+                desc=f"Mapping {season}",
+            ):
+                data.loc[f] = v
     return data
 
 
 def sequential_impute_handler(
     data: pd.DataFrame,
-    impute_func: Callable,
-    ma_lag: int,
-    excluded: list[str],
+    n_cores: int,
+    categorical_columns: list[str],
+    numerical_columns: list[str],
 ) -> pd.DataFrame:
     data = data.copy()
-    excluded, numerical_columns, categorical_columns = split_columns(
-        data, ma_lag, excluded
-    )
 
-    for season in data["season"].dropna().unique():
+    for season in data["season"].dropna().unique()[-1:]:
         season_filter = data["season"] == season
-        for _round in data.loc[season_filter, "round"].dropna().unique():
+        for _round in data.loc[season_filter, "round"].dropna().unique()[:10]:
             season_round_filter = season_filter & (data["round"] == _round)
             for pos in data.loc[season_round_filter, "pos"].dropna().unique():
                 season_round_pos_filter = season_round_filter & (data["pos"] == pos)
-                impute_func(
+                impute_columns(
                     data,
                     season_round_pos_filter,
                     categorical_columns,
+                    "categorical",
+                    season,
+                    pos,
+                    _round,
+                )
+                impute_columns(
+                    data,
+                    season_round_pos_filter,
                     numerical_columns,
+                    "numerical",
                     season,
                     pos,
                     _round,
@@ -238,9 +216,18 @@ def sequential_impute_handler(
     return data
 
 
-def split_columns(
-    data: pd.DataFrame, ma_lag: int, excluded: list[str]
-) -> tuple[list[str], list[str], list[str]]:
+def impute_missing_values(
+    data: pd.DataFrame, data_params: dict[str, Any], model_params: dict[str, Any]
+) -> pd.DataFrame:
+    n_cores = data_params["n_cores"]
+    ma_lag = data_params["ma_lag"]
+    categorical_features = model_params["categorical_features"]
+    numerical_features = model_params["numerical_features"]
+    excluded = KNN_FEATURES + ["pos"]
+
+    data = data.sort_values(["date", "fpl_name"])
+    data[KNN_FEATURES] = data.groupby("fpl_name")[KNN_FEATURES].fillna(method="ffill")
+
     gk_only_plus_ma_cols = GK_ONLY_COLS + [f"{col}_ma{ma_lag}" for col in GK_ONLY_COLS]
     outfield_only_plus_ma_cols = OUTFIELD_ONLY_COLS + [
         f"{col}_ma{ma_lag}" for col in OUTFIELD_ONLY_COLS
@@ -251,36 +238,12 @@ def split_columns(
     data.loc[data["pos"] != "GK", gk_only_plus_ma_cols] = data.loc[
         data["pos"] != "GK", gk_only_plus_ma_cols
     ].fillna(-1)
-    excluded = excluded + gk_only_plus_ma_cols + outfield_only_plus_ma_cols
-
-    numerical_columns, categorical_columns = [], []
-    for col in data.columns:
-        if col in excluded:
-            continue
-
-        if data[col].dtype in [int, float]:
-            numerical_columns.append(col)
-        else:
-            categorical_columns.append(col)
-    return excluded, numerical_columns, categorical_columns
-
-
-def impute_missing_values(
-    data: pd.DataFrame, parameters: dict[str, Any]
-) -> pd.DataFrame:
-    n_cores = parameters["n_cores"]
-    excluded = parameters["do_not_impute"]
-    ma_lag = parameters["ma_lag"]
-
-    data = data.sort_values(["date", "fpl_name"])
-    data["value"] = data.groupby("fpl_name")["value"].fillna(method="ffill")
 
     data = parallel_impute_handler(
         data,
-        impute_with_all_seasons,
         n_cores=n_cores,
-        ma_lag=ma_lag,
-        excluded=excluded,
+        categorical_columns=[c for c in categorical_features if c not in excluded],
+        numerical_columns=[n for n in numerical_features if n not in excluded],
     )
     return data
 

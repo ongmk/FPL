@@ -56,14 +56,14 @@ def solve_lp(
     solution_path = parameters["solution_path"]
     solution_init_path = f"init_{solution_path}"
 
-    t0 = time.time()
+    start = time.time()
     command = f"cbc/bin/cbc.exe {mps_path} cost column ratio 1 solve solu {solution_init_path}"
     process = Popen(command, shell=False)
     process.wait()
     command = f"cbc/bin/cbc.exe {mps_path} mips {solution_init_path} cost column solve solu {solution_path}"
     process = Popen(command, shell=False)
     process.wait()
-    solution_time = time.time() - t0
+    solution_time = time.time() - start
     print(f"Solved in {solution_time:.1f} seconds.")
 
     _, model = LpProblem.fromMPS(mps_path)
@@ -102,7 +102,7 @@ def generate_picks_df(
         for p in lp_keys.players:
             if (
                 lp_variables.squad[p, w].value()
-                + lp_variables.squad_fh[p, w].value()
+                + lp_variables.squad_free_hit[p, w].value()
                 + lp_variables.transfer_out[p, w].value()
                 > 0.5
             ):
@@ -111,12 +111,12 @@ def generate_picks_df(
                 is_squad = (
                     1
                     if (
-                        lp_variables.use_fh[w].value() < 0.5
+                        lp_variables.use_free_hit[w].value() < 0.5
                         and lp_variables.squad[p, w].value() > 0.5
                     )
                     or (
-                        lp_variables.use_fh[w].value() > 0.5
-                        and lp_variables.squad_fh[p, w].value() > 0.5
+                        lp_variables.use_free_hit[w].value() > 0.5
+                        and lp_variables.squad_free_hit[p, w].value() > 0.5
                     )
                     else 0
                 )
@@ -218,11 +218,11 @@ def generate_summary(
                 gw_out.loc[len(gw_out)] = [name, xp, pos]
         gw_in = gw_in.sort_values("Pos").drop("Pos", axis=1).reset_index(drop=True)
         gw_out = gw_out.sort_values("Pos").drop("Pos", axis=1).reset_index(drop=True)
-        if lp_variables.use_wc[w].value() > 0.5:
+        if lp_variables.use_wildcard[w].value() > 0.5:
             chip_summary = "[🃏 Wildcard Active]\n"
-        elif lp_variables.use_fh[w].value() > 0.5:
+        elif lp_variables.use_free_hit[w].value() > 0.5:
             chip_summary = "[🆓 Free Hit Active]\n"
-        elif lp_variables.use_bb[w].value() > 0.5:
+        elif lp_variables.use_bench_boost[w].value() > 0.5:
             chip_summary = "[🚀 Bench Boost Active]\n"
         else:
             chip_summary = ""
@@ -271,11 +271,11 @@ def generate_summary(
         )
         summary_of_actions.append(gw_summary)
         if w == lp_params.next_gw:
-            if lp_variables.use_wc[w].value() > 0.5:
+            if lp_variables.use_wildcard[w].value() > 0.5:
                 chip_used = "wc"
-            elif lp_variables.use_fh[w].value() > 0.5:
+            elif lp_variables.use_free_hit[w].value() > 0.5:
                 chip_used = "fh"
-            elif lp_variables.use_bb[w].value() > 0.5:
+            elif lp_variables.use_bench_boost[w].value() > 0.5:
                 chip_used = "bb"
             else:
                 chip_used = None

@@ -89,16 +89,16 @@ class TransferConstraints(BaseConstraints):
             model += (
                 lp_variables.free_transfers[gameweek - 1]
                 - variable_sums.number_of_transfers[gameweek - 1]
-                - 2 * lp_variables.use_wc[gameweek - 1]
-                - 2 * lp_variables.use_fh[gameweek - 1]
+                - 2 * lp_variables.use_wildcard[gameweek - 1]
+                - 2 * lp_variables.use_free_hit[gameweek - 1]
                 <= 2 * lp_variables.aux[gameweek],
                 f"force_aux_1_{gameweek}",
             )
             model += (
                 lp_variables.free_transfers[gameweek - 1]
                 - variable_sums.number_of_transfers[gameweek - 1]
-                - 2 * lp_variables.use_wc[gameweek - 1]
-                - 2 * lp_variables.use_fh[gameweek - 1]
+                - 2 * lp_variables.use_wildcard[gameweek - 1]
+                - 2 * lp_variables.use_free_hit[gameweek - 1]
                 >= lp_variables.aux[gameweek]
                 + (-14) * (1 - lp_variables.aux[gameweek]),
                 f"force_aux_2_{gameweek}",
@@ -123,7 +123,8 @@ class TransferConstraints(BaseConstraints):
             )
             + lp_variables.in_the_bank[gameweek - 1]
             >= lpSum(
-                variable_sums.fh_sell_price[p] * lp_variables.squad_fh[p, gameweek]
+                variable_sums.fh_sell_price[p]
+                * lp_variables.squad_free_hit[p, gameweek]
                 for p in lp_keys.players
             ),
             f"fh_budget_{gameweek}",
@@ -148,12 +149,12 @@ class TransferConstraints(BaseConstraints):
         )
         model += (
             lp_variables.transfer_in[player, gameweek]
-            <= 1 - lp_variables.use_fh[gameweek],
+            <= 1 - lp_variables.use_free_hit[gameweek],
             f"no_tr_in_fh_{player}_{gameweek}",
         )
         model += (
             lp_variables.transfer_out[player, gameweek]
-            <= 1 - lp_variables.use_fh[gameweek],
+            <= 1 - lp_variables.use_free_hit[gameweek],
             f"no_tr_out_fh_{player}_{gameweek}",
         )
 

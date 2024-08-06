@@ -42,13 +42,13 @@ class SquadConstraints(BaseConstraints):
     ) -> None:
         model += variable_sums.squad_count[gameweek] == 15, f"squad_count_{gameweek}"
         model += (
-            variable_sums.squad_fh_count[gameweek]
-            == 15 * lp_variables.use_fh[gameweek],
-            f"squad_fh_count_{gameweek}",
+            variable_sums.squad_free_hit_count[gameweek]
+            == 15 * lp_variables.use_free_hit[gameweek],
+            f"squad_free_hit_count_{gameweek}",
         )
         model += (
             lpSum([lp_variables.lineup[p, gameweek] for p in lp_keys.players])
-            == 11 + 4 * lp_variables.use_bb[gameweek],
+            == 11 + 4 * lp_variables.use_bench_boost[gameweek],
             f"lineup_count_{gameweek}",
         )
         model += (
@@ -57,13 +57,13 @@ class SquadConstraints(BaseConstraints):
                 for p in lp_keys.players
                 if lp_keys.player_type[p] == 1
             )
-            == 1 - lp_variables.use_bb[gameweek],
+            == 1 - lp_variables.use_bench_boost[gameweek],
             f"bench_gk_{gameweek}",
         )
         for o in [1, 2, 3]:
             model += (
                 lpSum(lp_variables.bench[p, gameweek, o] for p in lp_keys.players)
-                == 1 - lp_variables.use_bb[gameweek],
+                == 1 - lp_variables.use_bench_boost[gameweek],
                 f"bench_count_{gameweek}_{o}",
             )
         model += (
@@ -93,7 +93,7 @@ class SquadConstraints(BaseConstraints):
         model += (
             variable_sums.lineup_type_count[_type, gameweek]
             <= fpl_data.type_data.loc[_type, "squad_max_play"]
-            + lp_variables.use_bb[gameweek],
+            + lp_variables.use_bench_boost[gameweek],
             f"valid_formation_ub_{_type}_{gameweek}",
         )
         model += (
@@ -102,10 +102,10 @@ class SquadConstraints(BaseConstraints):
             f"valid_squad_{_type}_{gameweek}",
         )
         model += (
-            variable_sums.squad_fh_type_count[_type, gameweek]
+            variable_sums.squad_free_hit_type_count[_type, gameweek]
             == fpl_data.type_data.loc[_type, "squad_select"]
-            * lp_variables.use_fh[gameweek],
-            f"valid_squad_fh_{_type}_{gameweek}",
+            * lp_variables.use_free_hit[gameweek],
+            f"valid_squad_free_hit_{_type}_{gameweek}",
         )
 
     def team_gameweek_level(
@@ -129,7 +129,7 @@ class SquadConstraints(BaseConstraints):
         )
         model += (
             lpSum(
-                lp_variables.squad_fh[p, gameweek]
+                lp_variables.squad_free_hit[p, gameweek]
                 for p in lp_keys.players
                 if fpl_data.merged_data.loc[p, "team"] == team
             )
@@ -149,28 +149,30 @@ class SquadConstraints(BaseConstraints):
     ) -> None:
         model += (
             lp_variables.lineup[player, gameweek]
-            <= lp_variables.squad[player, gameweek] + lp_variables.use_fh[gameweek],
+            <= lp_variables.squad[player, gameweek]
+            + lp_variables.use_free_hit[gameweek],
             f"lineup_squad_rel_{player}_{gameweek}",
         )
         model += (
             lp_variables.lineup[player, gameweek]
-            <= lp_variables.squad_fh[player, gameweek]
+            <= lp_variables.squad_free_hit[player, gameweek]
             + 1
-            - lp_variables.use_fh[gameweek],
-            f"lineup_squad_fh_rel_{player}_{gameweek}",
+            - lp_variables.use_free_hit[gameweek],
+            f"lineup_squad_free_hit_rel_{player}_{gameweek}",
         )
         for o in lp_keys.order:
             model += (
                 lp_variables.bench[player, gameweek, o]
-                <= lp_variables.squad[player, gameweek] + lp_variables.use_fh[gameweek],
+                <= lp_variables.squad[player, gameweek]
+                + lp_variables.use_free_hit[gameweek],
                 f"bench_squad_rel_{player}_{gameweek}_{o}",
             )
             model += (
                 lp_variables.bench[player, gameweek, o]
-                <= lp_variables.squad_fh[player, gameweek]
+                <= lp_variables.squad_free_hit[player, gameweek]
                 + 1
-                - lp_variables.use_fh[gameweek],
-                f"bench_squad_fh_rel_{player}_{gameweek}_{o}",
+                - lp_variables.use_free_hit[gameweek],
+                f"bench_squad_free_hit_rel_{player}_{gameweek}_{o}",
             )
         model += (
             lp_variables.captain[player, gameweek]

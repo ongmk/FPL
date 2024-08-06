@@ -19,27 +19,42 @@ class ChipConstraints(BaseConstraints):
         lp_variables: LpVariables,
         variable_sums: VariableSums,
     ) -> None:
+        # Do not let LP decide when to use chips
+        wildcard_limit = bench_boost_limit = free_hit_limit = 0
+        if lp_params.wildcard_week in fpl_data.gameweeks:
+            wildcard_limit = 1
+            model += (
+                lp_variables.use_wildcard[lp_params.wildcard_week] == 1,
+                "force_wildcard",
+            )
+        if lp_params.bench_boost_week in fpl_data.gameweeks:
+            bench_boost_limit = 1
+            model += (
+                lp_variables.use_bench_boost[lp_params.bench_boost_week] == 1,
+                "force_bench_boost",
+            )
+        if lp_params.free_hit_week in fpl_data.gameweeks:
+            free_hit_limit = 1
+            model += (
+                lp_variables.use_free_hit[lp_params.free_hit_week] == 1,
+                "force_free_hit",
+            )
+
         model += (
-            lpSum(lp_variables.use_wc[w] for w in fpl_data.gameweeks)
-            <= lp_params.wc_limit,
-            "use_wc_limit",
+            lpSum(lp_variables.use_wildcard[w] for w in fpl_data.gameweeks)
+            <= wildcard_limit,
+            "wildcard_limit",
         )
         model += (
-            lpSum(lp_variables.use_bb[w] for w in fpl_data.gameweeks)
-            <= lp_params.bb_limit,
-            "use_bb_limit",
+            lpSum(lp_variables.use_bench_boost[w] for w in fpl_data.gameweeks)
+            <= bench_boost_limit,
+            "bench_boost_limit",
         )
         model += (
-            lpSum(lp_variables.use_fh[w] for w in fpl_data.gameweeks)
-            <= lp_params.fh_limit,
-            "use_fh_limit",
+            lpSum(lp_variables.use_free_hit[w] for w in fpl_data.gameweeks)
+            <= free_hit_limit,
+            "free_hit_limit",
         )
-        if lp_params.wc_on is not None:
-            model += lp_variables.use_wc[lp_params.wc_on] == 1, "force_wc"
-        if lp_params.bb_on is not None:
-            model += lp_variables.use_bb[lp_params.bb_on] == 1, "force_bb"
-        if lp_params.fh_on is not None:
-            model += lp_variables.use_fh[lp_params.fh_on] == 1, "force_fh"
 
     def gameweek_level(
         gameweek: int,
@@ -51,19 +66,21 @@ class ChipConstraints(BaseConstraints):
         variable_sums: VariableSums,
     ) -> None:
         model += (
-            lp_variables.use_wc[gameweek]
-            + lp_variables.use_fh[gameweek]
-            + lp_variables.use_bb[gameweek]
+            lp_variables.use_wildcard[gameweek]
+            + lp_variables.use_free_hit[gameweek]
+            + lp_variables.use_bench_boost[gameweek]
             <= 1,
             f"single_chip_{gameweek}",
         )
         if gameweek > lp_params.next_gw:
             model += (
-                lp_variables.aux[gameweek] <= 1 - lp_variables.use_wc[gameweek - 1],
+                lp_variables.aux[gameweek]
+                <= 1 - lp_variables.use_wildcard[gameweek - 1],
                 f"ft_after_wc_{gameweek}",
             )
             model += (
-                lp_variables.aux[gameweek] <= 1 - lp_variables.use_fh[gameweek - 1],
+                lp_variables.aux[gameweek]
+                <= 1 - lp_variables.use_free_hit[gameweek - 1],
                 f"ft_after_fh_{gameweek}",
             )
 
@@ -78,6 +95,7 @@ class ChipConstraints(BaseConstraints):
         variable_sums: VariableSums,
     ) -> None:
         model += (
-            lp_variables.squad_fh[player, gameweek] <= lp_variables.use_fh[gameweek],
+            lp_variables.squad_free_hit[player, gameweek]
+            <= lp_variables.use_free_hit[gameweek],
             f"fh_squad_logic_{player}_{gameweek}",
         )

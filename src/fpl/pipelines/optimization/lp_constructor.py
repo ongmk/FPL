@@ -29,9 +29,9 @@ from fpl.utils import backup_latest_n
 
 
 def prepare_lp_params(fpl_data: FplData, parameters: dict[str, Any]) -> LpParams:
-    wc_on = parameters["wc_on"]
-    bb_on = parameters["bb_on"]
-    fh_on = parameters["fh_on"]
+    wildcard_week = parameters["wildcard_week"]
+    bench_boost_week = parameters["bench_boost_week"]
+    free_hit_week = parameters["free_hit_week"]
     tr_horizon = parameters["tr_horizon"]
     next_gw = fpl_data.gameweeks[0]
     transfer_gws = fpl_data.gameweeks[:tr_horizon]
@@ -42,12 +42,9 @@ def prepare_lp_params(fpl_data: FplData, parameters: dict[str, Any]) -> LpParams
         threshold_gw=2 if next_gw == 1 else next_gw,
         ft=parameters["ft"],
         horizon=parameters["horizon"],
-        wc_on=wc_on if wc_on in transfer_gws else None,
-        bb_on=bb_on if bb_on in transfer_gws else None,
-        fh_on=fh_on if fh_on in transfer_gws else None,
-        wc_limit=1 if wc_on else 0,
-        bb_limit=1 if bb_on else 0,
-        fh_limit=1 if fh_on else 0,
+        wildcard_week=wildcard_week if wildcard_week in transfer_gws else None,
+        bench_boost_week=bench_boost_week if bench_boost_week in transfer_gws else None,
+        free_hit_week=free_hit_week if free_hit_week in transfer_gws else None,
         decay=parameters["decay"],
         ft_bonus=parameters["ft_bonus"],
         itb_bonus=parameters["itb_bonus"],
@@ -86,7 +83,9 @@ def prepare_lp_keys(fpl_data: FplData, lp_params: LpParams) -> LpKeys:
 
 def initialize_variables(fpl_data: FplData, lp_keys: LpKeys) -> LpVariables:
     squad = LpVariable.dicts("squad", lp_keys.player_all_gws, cat=LpBinary)
-    squad_fh = LpVariable.dicts("squad_fh", lp_keys.player_gameweeks, cat=LpBinary)
+    squad_free_hit = LpVariable.dicts(
+        "squad_free_hit", lp_keys.player_gameweeks, cat=LpBinary
+    )
     lineup = LpVariable.dicts("lineup", lp_keys.player_gameweeks, cat=LpBinary)
     captain = LpVariable.dicts("captain", lp_keys.player_gameweeks, cat=LpBinary)
     vicecap = LpVariable.dicts("vicecap", lp_keys.player_gameweeks, cat=LpBinary)
@@ -117,12 +116,14 @@ def initialize_variables(fpl_data: FplData, lp_keys: LpKeys) -> LpVariables:
     )
     aux = LpVariable.dicts("aux", fpl_data.gameweeks, cat=LpBinary)
 
-    use_wc = LpVariable.dicts("use_wc", fpl_data.gameweeks, cat=LpBinary)
-    use_bb = LpVariable.dicts("use_bb", fpl_data.gameweeks, cat=LpBinary)
-    use_fh = LpVariable.dicts("use_fh", fpl_data.gameweeks, cat=LpBinary)
+    use_wildcard = LpVariable.dicts("use_wildcard", fpl_data.gameweeks, cat=LpBinary)
+    use_bench_boost = LpVariable.dicts(
+        "use_bench_boost", fpl_data.gameweeks, cat=LpBinary
+    )
+    use_free_hit = LpVariable.dicts("use_free_hit", fpl_data.gameweeks, cat=LpBinary)
     return LpVariables(
         squad=squad,
-        squad_fh=squad_fh,
+        squad_free_hit=squad_free_hit,
         lineup=lineup,
         captain=captain,
         vicecap=vicecap,
@@ -135,9 +136,9 @@ def initialize_variables(fpl_data: FplData, lp_keys: LpKeys) -> LpVariables:
         free_transfers=free_transfers,
         penalized_transfers=penalized_transfers,
         aux=aux,
-        use_wc=use_wc,
-        use_bb=use_bb,
-        use_fh=use_fh,
+        use_wildcard=use_wildcard,
+        use_bench_boost=use_bench_boost,
+        use_free_hit=use_free_hit,
     )
 
 
@@ -162,9 +163,9 @@ def sum_lp_variables(
         for t in lp_keys.element_types
         for w in fpl_data.gameweeks
     }
-    squad_fh_type_count = {
+    squad_free_hit_type_count = {
         (t, w): lpSum(
-            lp_variables.squad_fh[p, w]
+            lp_variables.squad_free_hit[p, w]
             for p in lp_keys.players
             if fpl_data.merged_data.loc[p, "element_type"] == t
         )
@@ -212,8 +213,8 @@ def sum_lp_variables(
         w: lpSum(lp_variables.squad[p, w] for p in lp_keys.players)
         for w in fpl_data.gameweeks
     }
-    squad_fh_count = {
-        w: lpSum(lp_variables.squad_fh[p, w] for p in lp_keys.players)
+    squad_free_hit_count = {
+        w: lpSum(lp_variables.squad_free_hit[p, w] for p in lp_keys.players)
         for w in fpl_data.gameweeks
     }
     number_of_transfers = {
@@ -224,20 +225,20 @@ def sum_lp_variables(
     transfer_diff = {
         w: number_of_transfers[w]
         - lp_variables.free_transfers[w]
-        - 15 * lp_variables.use_wc[w]
+        - 15 * lp_variables.use_wildcard[w]
         for w in fpl_data.gameweeks
     }
 
     return VariableSums(
         lineup_type_count=lineup_type_count,
         squad_type_count=squad_type_count,
-        squad_fh_type_count=squad_fh_type_count,
+        squad_free_hit_type_count=squad_free_hit_type_count,
         sold_amount=sold_amount,
         fh_sell_price=fh_sell_price,
         bought_amount=bought_amount,
         points_player_week=points_player_week,
         squad_count=squad_count,
-        squad_fh_count=squad_fh_count,
+        squad_free_hit_count=squad_free_hit_count,
         number_of_transfers=number_of_transfers,
         transfer_diff=transfer_diff,
     )

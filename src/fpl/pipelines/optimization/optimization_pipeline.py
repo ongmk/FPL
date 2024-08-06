@@ -17,15 +17,6 @@ from fpl.pipelines.optimization.optimizer import (
 logger = logging.getLogger(__name__)
 
 
-# def live_run(inference_results, parameters: dict) -> tuple[str, pd.DataFrame]:
-#     fpl_data = get_live_data(inference_results, parameters)
-#     logger.info(f"Solved in {next_gw_dict['solve_time']}")
-#     for s in summary:
-#         logger.info(s)
-#     summary = "\n".join(summary)
-#     return summary, picks
-
-
 def backtest(parameters):
     start_time = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     players = parameters["backtest_players"]

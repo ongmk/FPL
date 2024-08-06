@@ -7,9 +7,9 @@ optimization:
   ft: 1
   horizon: 3
   tr_horizon: 2
-  wc_on: 8
-  bb_on: null
-  fh_on: null
+  wildcard_week: null
+  bench_boost_week: null
+  free_hit_week: null
 
   decay: 0.5
   ft_bonus: 1.5

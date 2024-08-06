@@ -11,13 +11,9 @@ class LpParams:
 
     ft: int
     horizon: int
-    wc_on: int
-    bb_on: int
-    fh_on: int
-
-    wc_limit: int
-    bb_limit: int
-    fh_limit: int
+    wildcard_week: int
+    bench_boost_week: int
+    free_hit_week: int
 
     decay: float
     ft_bonus: float
@@ -45,7 +41,7 @@ class LpKeys:
 @dataclass
 class LpVariables:
     squad: dict[tuple[int, int], LpVariable]
-    squad_fh: dict[tuple[int, int], LpVariable]
+    squad_free_hit: dict[tuple[int, int], LpVariable]
     lineup: dict[tuple[int, int], LpVariable]
     captain: dict[tuple[int, int], LpVariable]
     vicecap: dict[tuple[int, int], LpVariable]
@@ -58,21 +54,21 @@ class LpVariables:
     free_transfers: dict[int, LpVariable]
     penalized_transfers: dict[int, LpVariable]
     aux: dict[int, LpVariable]
-    use_wc: dict[int, LpVariable]
-    use_bb: dict[int, LpVariable]
-    use_fh: dict[int, LpVariable]
+    use_wildcard: dict[int, LpVariable]
+    use_bench_boost: dict[int, LpVariable]
+    use_free_hit: dict[int, LpVariable]
 
 
 @dataclass
 class VariableSums:
     lineup_type_count: dict[tuple[int], lpSum]
     squad_type_count: dict[tuple[int], lpSum]
-    squad_fh_type_count: dict[tuple[int], lpSum]
+    squad_free_hit_type_count: dict[tuple[int], lpSum]
     sold_amount: dict[int, lpSum]
     fh_sell_price: dict[int, lpSum]
     bought_amount: dict[int, lpSum]
     points_player_week: dict[tuple[int], lpSum]
     squad_count: dict[int, lpSum]
-    squad_fh_count: dict[int, lpSum]
+    squad_free_hit_count: dict[int, lpSum]
     number_of_transfers: dict[int, lpSum]
     transfer_diff: dict[int, lpSum]

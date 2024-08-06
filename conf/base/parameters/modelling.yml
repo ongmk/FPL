@@ -4,8 +4,7 @@ modelling:
   f_test_threshold: 0.15
   target: fpl_points
   baseline_columns: [fpl_points_ma5]
-  not_features:
-    - id
+  info_columns:
     - fpl_name
     - date
     - player

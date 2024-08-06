@@ -13,7 +13,9 @@ from fpl.utils import PydanticDataFrame
 logger = logging.getLogger(__name__)
 
 
-def get_fpl_base_data() -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict]:
+def get_fpl_base_data() -> (
+    tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict[str, Any]]
+):
     r = requests.get("https://fantasy.premierleague.com/api/bootstrap-static/")
     fpl_data = r.json()
 
@@ -114,6 +116,9 @@ def fetch_player_fixtures(
             ~history["fixture"].isin(fixtures["id"])
         ]  # sometimes the same fixture appears in history and fixtures
     fixtures["element"] = player_id
+    fixtures["team"] = fixtures.apply(
+        lambda row: row["team_h"] if row["is_home"] else row["team_a"], axis=1
+    )
     fixtures["opponent_team"] = fixtures.apply(
         lambda row: row["team_a"] if row["is_home"] else row["team_h"], axis=1
     )
@@ -138,17 +143,25 @@ def get_current_season_fpl_data(current_season: str) -> pd.DataFrame:
     element_data, team_data, _, _ = get_fpl_base_data()
 
     current_season_data = []
-    for idx, row in tqdm(element_data.iterrows(), desc="Fetching player history"):
+    for idx, row in tqdm(
+        element_data.iterrows(), desc="Fetching player history", total=len(element_data)
+    ):
         player_fixtures = fetch_player_fixtures(row["id"], current_season)
         player_fixtures["value"] = player_fixtures["value"].fillna(row["now_cost"])
         current_season_data.append(player_fixtures)
     current_season_data = pd.concat(current_season_data, ignore_index=True)
     current_season_data = pd.merge(
-        element_data, current_season_data, left_on="id", right_on="element"
+        element_data.drop(columns=["team"]),
+        current_season_data,
+        left_on="id",
+        right_on="element",
     )
     current_season_data["opponent_team_name"] = current_season_data[
         "opponent_team"
     ].map(team_data["name"].to_dict())
+    current_season_data["team_name"] = current_season_data["team"].map(
+        team_data["name"].to_dict()
+    )
     current_season_data = current_season_data[
         [
             "season",
@@ -156,6 +169,7 @@ def get_current_season_fpl_data(current_season: str) -> pd.DataFrame:
             "element",
             "full_name",
             "team",
+            "team_name",
             "position",
             "fixture",
             "starts",
@@ -234,7 +248,7 @@ def get_fpl_team_data(team_id: int, gw: int) -> list[dict]:
 
 def get_live_data(
     inference_results: pd.DataFrame, parameters: dict[str, Any]
-) -> list[pd.DataFrame, pd.DataFrame, pd.DataFrame, list[int], pd.DataFrame, float]:
+) -> FplData:
     team_id = parameters["team_id"]
     horizon = parameters["horizon"]
     current_season = parameters["current_season"]
@@ -324,7 +338,8 @@ def get_backtest_data(latest_elements_team, gw):
     backtest_data["team"] = backtest_data.groupby("name")["team"].ffill()
     backtest_data["xP"] = backtest_data["xP"].fillna(0)
     gw_data = backtest_data.loc[backtest_data["GW"] == gw, :]
-    elements_team = latest_elements_team.merge(
+    elements_team = pd.merge(
+        latest_elements_team,
         gw_data,
         left_on=["full_name", "name"],
         right_on=["name", "team"],

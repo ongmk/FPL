@@ -75,16 +75,18 @@ def filter_data(
         [
             "season",
             "round",
+            "date",
             "element",
-            "full_name",
+            "fpl_name",
             "team",
-            "opponent_team_name",
-            "team_h_score",
-            "team_a_score",
-            "was_home",
-            "position",
-            "total_points",
-            "value" "kickoff_time",
+            "opponent",
+            "fpl_points",
+            "value",
+            "kickoff_time",
+            "venue",
+            "team_ga",
+            "team_gf",
+            "pos",
         ]
     ]
 
@@ -102,7 +104,7 @@ def combine_data(
         player_match_log,
         team_match_log,
         on=["team", "opponent", "date"],
-        how="inner",
+        how="left",
     )
     combined_data = pd.merge(
         combined_data,
@@ -166,7 +168,7 @@ def align_data_structure(
     team_match_log: pd.DataFrame,
     fpl_data: pd.DataFrame,
     player_name_mapping: pd.DataFrame,
-    fpl_2_fbref_team_mapping: pd.DataFrame,
+    fpl_2_fbref_team_mapping: dict[str, str],
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     player_match_log, team_match_log, fpl_data = convert_to_datetime(
         player_match_log, team_match_log, fpl_data
@@ -190,7 +192,7 @@ def align_data_structure(
         errors="raise",
     )
 
-    fpl_data["team"] = fpl_data["team"].map(fpl_2_fbref_team_mapping)
+    fpl_data["team"] = fpl_data["team_name"].map(fpl_2_fbref_team_mapping)
     fpl_data["opponent"] = fpl_data["opponent_team_name"].map(fpl_2_fbref_team_mapping)
     fpl_data["team_gf"] = np.where(
         fpl_data["was_home"], fpl_data["team_h_score"], fpl_data["team_a_score"]
@@ -212,7 +214,14 @@ def align_data_structure(
         columns={"full_name": "fpl_name", "total_points": "fpl_points"}
     )
     fpl_data = fpl_data.drop(
-        ["opponent_team_name", "was_home", "position", "team_a_score", "team_h_score"],
+        [
+            "team_name",
+            "opponent_team_name",
+            "was_home",
+            "position",
+            "team_a_score",
+            "team_h_score",
+        ],
         axis=1,
     )
     fpl_data = fpl_data.sort_values(["date", "fpl_name"]).reset_index(drop=True)
@@ -270,22 +279,29 @@ def split_data(processed_data, data_params, model_params):
     target = model_params["target"]
     categorical_features = model_params["categorical_features"]
     numerical_features = model_params["numerical_features"]
+    info_columns = model_params["info_columns"]
 
-    useful_cols = [group_by] + categorical_features + numerical_features + [target]
+    features = categorical_features + numerical_features
+    features_labels = features + [target]
+    useful_cols = [group_by] + info_columns + features_labels
 
     train_val_data = processed_data.loc[
         (processed_data["season"] >= train_start_year)
         & (processed_data["season"] < holdout_year),
         useful_cols,
     ]
-    train_val_data = drop_incomplete_data(train_val_data, useful_cols, "train_val")
+    train_val_data = drop_incomplete_data(
+        train_val_data,
+        features_labels,
+        "train_val",
+    )
 
     holdout_data = processed_data.loc[
         processed_data["season"] >= holdout_year, useful_cols
     ]
     holdout_data = drop_incomplete_data(
         holdout_data,
-        [group_by] + categorical_features + numerical_features,
+        features,
         "holdout",
     )
 

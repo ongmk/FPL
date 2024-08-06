@@ -2,7 +2,7 @@ optimization:
   mps_path: data/optimization/models/fpl_model.mps
   solution_path: data/optimization/solutions/fpl_model_solution.sol
 
-  current_season: 2023-2024
+  current_season: 2024-2025
   team_id: 1792016
   ft: 1
   horizon: 3

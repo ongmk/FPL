@@ -27,7 +27,7 @@ def data_tests(
 
 def align_format(fpl_data, fpl_2_fbref_team_mapping, team_match_log):
     fpl_data["date"] = pd.to_datetime(fpl_data["kickoff_time"].str[:10])
-    fpl_data["team"] = fpl_data["team"].map(fpl_2_fbref_team_mapping)
+    fpl_data["team"] = fpl_data["team_name"].map(fpl_2_fbref_team_mapping)
     fpl_data["opponent"] = fpl_data["opponent_team_name"].map(fpl_2_fbref_team_mapping)
     team_match_log = team_match_log.loc[team_match_log["comp"] == "Premier League"]
     team_match_log["date"] = pd.to_datetime(team_match_log["date"])
@@ -45,10 +45,10 @@ def get_week_number(round_str: str) -> int:
 def check_dates(fpl_data, team_match_log):
     # date_fpl = fpl_data.loc[
     #     fpl_data["total_points"].notna(),
-    #     ["season", "round", "team", "opponent", "kickoff_time", "date"],
+    #     ["season", "round", "team_name", "opponent", "kickoff_time", "date"],
     # ].drop_duplicates()
     # date_fbref = team_match_log[
-    #     ["season", "round", "team", "opponent", "date"]
+    #     ["season", "round", "team_name", "opponent", "date"]
     # ].drop_duplicates()
 
     # combined = pd.merge(
@@ -69,8 +69,8 @@ def check_dates(fpl_data, team_match_log):
 
 
 def check_team_name_mapping(fpl_data, fpl_2_fbref_team_mapping):
-    teams = fpl_data[["season", "team"]].drop_duplicates()
-    teams["fbref_team"] = teams["team"].map(fpl_2_fbref_team_mapping)
+    teams = fpl_data[["season", "team_name"]].drop_duplicates()
+    teams["fbref_team"] = teams["team_name"].map(fpl_2_fbref_team_mapping)
     assert (
         teams["fbref_team"].isna().sum() == 0
     ), "Some FPL teams are not mapped to FBRef."

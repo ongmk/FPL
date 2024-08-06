@@ -9,7 +9,7 @@
             "type": "debugpy",
             "request": "launch",
             "env": {
-                "PYTHONPATH": "${workspaceFolder}",
+                "PYTHONPATH": "${workspaceFolder};${workspaceFolder}/src",
             },
             "cwd": "${workspaceFolder}",
             "program": "${file}",

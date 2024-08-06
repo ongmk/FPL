@@ -9,15 +9,15 @@ class LpParams:
     transfer_gws: int
     threshold_gw: int
 
-    ft: int
+    remaining_free_transfers: int
     horizon: int
     wildcard_week: int
     bench_boost_week: int
     free_hit_week: int
 
     decay: float
-    ft_bonus: float
-    itb_bonus: float
+    free_transfer_bonus: float
+    in_the_bank_bonus: float
     bench_weights: dict[int, float]
 
 
@@ -65,7 +65,7 @@ class VariableSums:
     squad_type_count: dict[tuple[int], lpSum]
     squad_free_hit_type_count: dict[tuple[int], lpSum]
     sold_amount: dict[int, lpSum]
-    fh_sell_price: dict[int, lpSum]
+    free_hit_sell_price: dict[int, lpSum]
     bought_amount: dict[int, lpSum]
     points_player_week: dict[tuple[int], lpSum]
     squad_count: dict[int, lpSum]

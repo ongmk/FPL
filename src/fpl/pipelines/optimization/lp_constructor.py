@@ -32,22 +32,22 @@ def prepare_lp_params(fpl_data: FplData, parameters: dict[str, Any]) -> LpParams
     wildcard_week = parameters["wildcard_week"]
     bench_boost_week = parameters["bench_boost_week"]
     free_hit_week = parameters["free_hit_week"]
-    tr_horizon = parameters["tr_horizon"]
+    transfer_horizon = parameters["transfer_horizon"]
     next_gw = fpl_data.gameweeks[0]
-    transfer_gws = fpl_data.gameweeks[:tr_horizon]
+    transfer_gws = fpl_data.gameweeks[:transfer_horizon]
 
     return LpParams(
         next_gw=next_gw,
         transfer_gws=transfer_gws,
         threshold_gw=2 if next_gw == 1 else next_gw,
-        ft=parameters["ft"],
+        remaining_free_transfers=parameters["remaining_free_transfers"],
         horizon=parameters["horizon"],
         wildcard_week=wildcard_week if wildcard_week in transfer_gws else None,
         bench_boost_week=bench_boost_week if bench_boost_week in transfer_gws else None,
         free_hit_week=free_hit_week if free_hit_week in transfer_gws else None,
         decay=parameters["decay"],
-        ft_bonus=parameters["ft_bonus"],
-        itb_bonus=parameters["itb_bonus"],
+        free_transfer_bonus=parameters["free_transfer_bonus"],
+        in_the_bank_bonus=parameters["in_the_bank_bonus"],
         bench_weights=parameters["bench_weights"],
     )
 
@@ -187,7 +187,7 @@ def sum_lp_variables(
         )
         for w in fpl_data.gameweeks
     }
-    fh_sell_price = {
+    free_hit_sell_price = {
         p: (
             lp_keys.sell_price[p]
             if p in lp_keys.price_modified_players
@@ -234,7 +234,7 @@ def sum_lp_variables(
         squad_type_count=squad_type_count,
         squad_free_hit_type_count=squad_free_hit_type_count,
         sold_amount=sold_amount,
-        fh_sell_price=fh_sell_price,
+        free_hit_sell_price=free_hit_sell_price,
         bought_amount=bought_amount,
         points_player_week=points_player_week,
         squad_count=squad_count,
@@ -318,8 +318,8 @@ def add_objective_function(
     gw_total = {
         w: gw_xp[w]
         - 4 * lp_variables.penalized_transfers[w]
-        + lp_params.ft_bonus * lp_variables.free_transfers[w]
-        + lp_params.itb_bonus * lp_variables.in_the_bank[w]
+        + lp_params.free_transfer_bonus * lp_variables.free_transfers[w]
+        + lp_params.in_the_bank_bonus * lp_variables.in_the_bank[w]
         for w in fpl_data.gameweeks
     }
 

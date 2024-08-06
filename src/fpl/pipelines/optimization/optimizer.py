@@ -191,64 +191,16 @@ def generate_summary(
     parameters: dict,
     solution_time: float,
 ) -> tuple[list[str], dict]:
-    summary_of_actions = []
+    summary = []
     total_xp = 0
     for w in fpl_data.gameweeks:
         header = f" GW {w} "
-        gw_in = pd.DataFrame([], columns=["", "In", "xP", "Pos"])
-        gw_out = pd.DataFrame([], columns=["Out", "xP", "Pos"])
-        net_cost = 0
-        net_xp = 0
-        for p in lp_keys.players:
-            if lp_variables.transfer_in[p, w].value() > 0.5:
-                price = fpl_data.merged_data["now_cost"][p] / 10
-                name = f'{fpl_data.merged_data["web_name"][p]} ({price})'
-                pos = fpl_data.merged_data["element_type"][p]
-                xp = round(variable_sums.points_player_week[p, w], 2)
-                net_cost += price
-                net_xp += xp
-                gw_in.loc[len(gw_in)] = ["👉", name, xp, pos]
-            if lp_variables.transfer_out[p, w].value() > 0.5:
-                price = fpl_data.merged_data["sell_price"][p] / 10
-                name = f'{fpl_data.merged_data["web_name"][p]} ({price})'
-                pos = fpl_data.merged_data["element_type"][p]
-                xp = round(variable_sums.points_player_week[p, w], 2)
-                net_cost -= price
-                net_xp -= xp
-                gw_out.loc[len(gw_out)] = [name, xp, pos]
-        gw_in = gw_in.sort_values("Pos").drop("Pos", axis=1).reset_index(drop=True)
-        gw_out = gw_out.sort_values("Pos").drop("Pos", axis=1).reset_index(drop=True)
-        if lp_variables.use_wildcard[w].value() > 0.5:
-            chip_summary = "[🃏 Wildcard Active]\n"
-        elif lp_variables.use_free_hit[w].value() > 0.5:
-            chip_summary = "[🆓 Free Hit Active]\n"
-        elif lp_variables.use_bench_boost[w].value() > 0.5:
-            chip_summary = "[🚀 Bench Boost Active]\n"
-        else:
-            chip_summary = ""
-        if w in lp_params.transfer_gws:
-            transfer_summary = (
-                f"Free Transfers = {lp_variables.free_transfers[w].value()}    Hits = {lp_variables.penalized_transfers[w].value()}\n"
-                f"Cost = {net_cost:.1f}    ITB = {lp_variables.in_the_bank[w].value():.2f}   xP Gain = {net_xp:.2f}.\n\n"
-                f"{str(gw_in) if gw_out.empty else str(pd.concat([gw_out, gw_in], axis=1, join='inner'))}\n\n"
-            )
-        else:
-            transfer_summary = "\n"
+        transfer_summary = get_transfer_summary(
+            fpl_data, lp_keys, lp_variables, variable_sums, w
+        )
+        chip_summary = get_chip_summary(lp_variables, w)
+        lineup = get_lineup(picks_df, w)
 
-        gw_squad = picks_df.loc[picks_df["week"] == w, :].copy()
-        gw_squad.loc[:, "name"] = gw_squad.agg(lambda x: get_name(x), axis=1)
-        gw_lineup = gw_squad.loc[gw_squad["lineup"] == 1]
-        lineup_str = []
-        for p_type in [1, 2, 3, 4]:
-            lineup_str.append(
-                (gw_lineup.loc[gw_lineup["type"] == p_type, "name"]).str.cat(sep="    ")
-            )
-        lineup_str.append("")
-        gw_bench = gw_squad.loc[gw_squad["bench"] != -1].sort_values("bench")
-        lineup_str.append(f'Bench: {gw_bench["name"].str.cat(sep="    ")}')
-        length = max([len(s) for s in lineup_str])
-        lineup_str = [f"{s:^{length}}" for s in lineup_str]
-        lineup_str = "\n".join(lineup_str)
         gw_xp = (
             lpSum(
                 [
@@ -266,22 +218,22 @@ def generate_summary(
             f"{header:{'*'}^80}\n\n"
             f"{chip_summary}"
             f"{transfer_summary}"
-            f"{lineup_str}\n\n"
+            f"{lineup}\n\n"
             f"Gameweek xP = {gw_xp:.2f} {hit_str}\n"
         )
-        summary_of_actions.append(gw_summary)
+        summary.append(gw_summary)
         if w == lp_params.next_gw:
             if lp_variables.use_wildcard[w].value() > 0.5:
-                chip_used = "wc"
+                chip_used = "wildcard"
             elif lp_variables.use_free_hit[w].value() > 0.5:
-                chip_used = "fh"
+                chip_used = "free hit"
             elif lp_variables.use_bench_boost[w].value() > 0.5:
-                chip_used = "bb"
+                chip_used = "bench boost"
             else:
                 chip_used = None
             next_gw_dict = {
-                "itb": round(lp_variables.in_the_bank[w].value(), 1),
-                "ft": (
+                "in_the_bank": round(lp_variables.in_the_bank[w].value(), 1),
+                "remaining_free_transfers": (
                     round(lp_variables.free_transfers[w + 1].value())
                     if w + 1 <= 38
                     else 0
@@ -296,12 +248,82 @@ def generate_summary(
                 "chip_used": chip_used,
             }
     overall_summary = (
-        f"{'':{'='}^80}\n" f"{parameters['horizon']} weeks total xP = {total_xp:.2f}"
+        "=" * 80 + "\n" + f"{parameters['horizon']} weeks total xP = {total_xp:.2f}"
     )
-    summary_of_actions.append(overall_summary)
-    summary_of_actions = "\n".join(summary_of_actions)
-    logger.info(summary_of_actions)
-    return summary_of_actions, next_gw_dict
+    summary.append(overall_summary)
+    summary = "\n".join(summary)
+    logger.info(summary)
+    return summary, next_gw_dict
+
+
+def get_lineup(picks_df, w):
+    gw_squad = picks_df.loc[picks_df["week"] == w, :].copy()
+    gw_squad.loc[:, "name"] = gw_squad.agg(lambda x: get_name(x), axis=1)
+    gw_lineup = gw_squad.loc[gw_squad["lineup"] == 1]
+    lineup_str = []
+    for p_type in [1, 2, 3, 4]:
+        lineup_str.append(
+            (gw_lineup.loc[gw_lineup["type"] == p_type, "name"]).str.cat(sep="    ")
+        )
+    lineup_str.append("")
+    gw_bench = gw_squad.loc[gw_squad["bench"] != -1].sort_values("bench")
+    lineup_str.append(f'Bench: {gw_bench["name"].str.cat(sep="    ")}')
+    length = max([len(s) for s in lineup_str])
+    lineup_str = [f"{s:^{length}}" for s in lineup_str]
+    lineup_str = "\n".join(lineup_str)
+    return lineup_str
+
+
+def get_transfer_summary(fpl_data, lp_keys, lp_variables, variable_sums, w):
+    gw_in = pd.DataFrame([], columns=["", "In", "xP", "Pos"])
+    gw_out = pd.DataFrame([], columns=["Out", "xP", "Pos"])
+    net_cost = 0
+    net_xp = 0
+    for p in lp_keys.players:
+        if lp_variables.transfer_in[p, w].value() > 0.5:
+            price = fpl_data.merged_data["now_cost"][p] / 10
+            name = f'{fpl_data.merged_data["web_name"][p]} ({price})'
+            pos = fpl_data.merged_data["element_type"][p]
+            xp = round(variable_sums.points_player_week[p, w], 2)
+            net_cost += price
+            net_xp += xp
+            gw_in.loc[len(gw_in)] = ["👉", name, xp, pos]
+        if lp_variables.transfer_out[p, w].value() > 0.5:
+            price = fpl_data.merged_data["sell_price"][p] / 10
+            name = f'{fpl_data.merged_data["web_name"][p]} ({price})'
+            pos = fpl_data.merged_data["element_type"][p]
+            xp = round(variable_sums.points_player_week[p, w], 2)
+            net_cost -= price
+            net_xp -= xp
+            gw_out.loc[len(gw_out)] = [name, xp, pos]
+    gw_in = gw_in.sort_values("Pos").drop("Pos", axis=1).reset_index(drop=True)
+    gw_out = gw_out.sort_values("Pos").drop("Pos", axis=1).reset_index(drop=True)
+    if gw_in.empty:
+        transfer_summary = "No transfer made."
+    elif gw_out.empty:
+        transfer_summary = str(gw_in)
+    else:
+        transfer_summary = str(pd.concat([gw_out, gw_in], axis=1, join="inner"))
+    transfer_summary = (
+        f"Transfers made = {variable_sums.number_of_transfers[w].value()}     xP Gain = {net_xp:.2f}\n"
+        f"Free Transfers = {lp_variables.free_transfers[w].value()}    Hits = {lp_variables.penalized_transfers[w].value()}\n"
+        f"Cost = {net_cost:.1f}    ITB = {lp_variables.in_the_bank[w].value():.2f}  .\n\n"
+        f"{transfer_summary}\n\n"
+    )
+
+    return transfer_summary
+
+
+def get_chip_summary(lp_variables, w):
+    if lp_variables.use_wildcard[w].value() > 0.5:
+        chip_summary = "[🃏 Wildcard Active]\n"
+    elif lp_variables.use_free_hit[w].value() > 0.5:
+        chip_summary = "[🆓 Free Hit Active]\n"
+    elif lp_variables.use_bench_boost[w].value() > 0.5:
+        chip_summary = "[🚀 Bench Boost Active]\n"
+    else:
+        chip_summary = ""
+    return chip_summary
 
 
 def generate_outputs(
@@ -316,7 +338,7 @@ def generate_outputs(
     picks_df = generate_picks_df(
         fpl_data, lp_params, lp_keys, lp_variables, variable_sums
     )
-    summary_of_actions, next_gw_dict = generate_summary(
+    summary, next_gw_dict = generate_summary(
         fpl_data,
         lp_params,
         lp_keys,
@@ -326,7 +348,7 @@ def generate_outputs(
         parameters,
         solution_time,
     )
-    return summary_of_actions, picks_df, next_gw_dict
+    return summary, picks_df, next_gw_dict
 
 
 def get_historical_picks(team_id, next_gw, merged_data):
@@ -346,7 +368,7 @@ def get_historical_picks(team_id, next_gw, merged_data):
     next_gw_dict = {
         "hits": 0,
         "itb": 0,
-        "ft": 0,
+        "remaining_free_transfers": 0,
         "solve_time": 0,
         "n_transfers": 0,
         "chip_used": None,
@@ -365,7 +387,7 @@ def backtest_single_player(parameters: dict, title: str = "Backtest Result"):
     latest_elements_team = latest_elements_team.drop("now_cost", axis=1)
     itb = 100
     initial_squad = []
-    parameters["ft"] = 1
+    parameters["remaining_free_transfers"] = 1
     total_predicted_xp = 0
     total_xp = 0
 
@@ -378,7 +400,7 @@ def backtest_single_player(parameters: dict, title: str = "Backtest Result"):
         gameweeks = [i for i in range(next_gw, next_gw + horizon)]
         logger.info(80 * "=")
         logger.info(
-            f"Backtesting GW {next_gw}. ITB = {itb:.1f}. FT = {parameters['ft']}. {gameweeks}"
+            f"Backtesting GW {next_gw}. ITB = {itb:.1f}. remaining_free_transfers = {parameters['remaining_free_transfers']}. {gameweeks}"
         )
         logger.info(80 * "=")
         elements_team = get_backtest_data(latest_elements_team, next_gw)
@@ -444,14 +466,25 @@ def backtest_single_player(parameters: dict, title: str = "Backtest Result"):
 
             if not backtest_player_history:
                 if next_gw_dict["chip_used"] not in ("fh", "wc") and next_gw != 1:
-                    assert next_gw_dict["ft"] == min(
-                        2, max(1, parameters["ft"] - next_gw_dict["n_transfers"] + 1)
+                    assert next_gw_dict["remaining_free_transfers"] == min(
+                        2,
+                        max(
+                            1,
+                            parameters["remaining_free_transfers"]
+                            - next_gw_dict["n_transfers"]
+                            + 1,
+                        ),
                     )
                 else:
-                    assert next_gw_dict["ft"] == parameters["ft"]
+                    assert (
+                        next_gw_dict["remaining_free_transfers"]
+                        == parameters["remaining_free_transfers"]
+                    )
 
             itb = next_gw_dict["itb"]
-            parameters["ft"] = next_gw_dict["ft"]
+            parameters["remaining_free_transfers"] = next_gw_dict[
+                "remaining_free_transfers"
+            ]
             initial_squad = squad.index.to_list()
 
         result_gw.append(next_gw)

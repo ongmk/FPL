@@ -81,7 +81,7 @@ class ChipConstraints(BaseConstraints):
             model += (
                 lp_variables.aux[gameweek]
                 <= 1 - lp_variables.use_free_hit[gameweek - 1],
-                f"ft_after_fh_{gameweek}",
+                f"ft_after_free_hit_{gameweek}",
             )
 
     def player_gameweek_level(
@@ -97,5 +97,5 @@ class ChipConstraints(BaseConstraints):
         model += (
             lp_variables.squad_free_hit[player, gameweek]
             <= lp_variables.use_free_hit[gameweek],
-            f"fh_squad_logic_{player}_{gameweek}",
+            f"free_hit_squad_logic_{player}_{gameweek}",
         )

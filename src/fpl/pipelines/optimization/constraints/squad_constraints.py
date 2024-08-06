@@ -134,7 +134,7 @@ class SquadConstraints(BaseConstraints):
                 if fpl_data.merged_data.loc[p, "team"] == team
             )
             <= 3,
-            f"team_limit_fh_{team}_{gameweek}",
+            f"team_limit_free_hit_{team}_{gameweek}",
         )
 
     def player_gameweek_level(
@@ -151,48 +151,48 @@ class SquadConstraints(BaseConstraints):
             lp_variables.lineup[player, gameweek]
             <= lp_variables.squad[player, gameweek]
             + lp_variables.use_free_hit[gameweek],
-            f"lineup_squad_rel_{player}_{gameweek}",
+            f"lineup_squad_relation_{player}_{gameweek}",
         )
         model += (
             lp_variables.lineup[player, gameweek]
             <= lp_variables.squad_free_hit[player, gameweek]
             + 1
             - lp_variables.use_free_hit[gameweek],
-            f"lineup_squad_free_hit_rel_{player}_{gameweek}",
+            f"lineup_squad_free_hit_relation_{player}_{gameweek}",
         )
         for o in lp_keys.order:
             model += (
                 lp_variables.bench[player, gameweek, o]
                 <= lp_variables.squad[player, gameweek]
                 + lp_variables.use_free_hit[gameweek],
-                f"bench_squad_rel_{player}_{gameweek}_{o}",
+                f"bench_squad_relation_{player}_{gameweek}_{o}",
             )
             model += (
                 lp_variables.bench[player, gameweek, o]
                 <= lp_variables.squad_free_hit[player, gameweek]
                 + 1
                 - lp_variables.use_free_hit[gameweek],
-                f"bench_squad_free_hit_rel_{player}_{gameweek}_{o}",
+                f"bench_squad_free_hit_relation_{player}_{gameweek}_{o}",
             )
         model += (
             lp_variables.captain[player, gameweek]
             <= lp_variables.lineup[player, gameweek],
-            f"captain_lineup_rel_{player}_{gameweek}",
+            f"captain_lineup_relation_{player}_{gameweek}",
         )
         model += (
             lp_variables.vicecap[player, gameweek]
             <= lp_variables.lineup[player, gameweek],
-            f"vicecap_lineup_rel_{player}_{gameweek}",
+            f"vicecap_lineup_relation_{player}_{gameweek}",
         )
         model += (
             lp_variables.captain[player, gameweek]
             + lp_variables.vicecap[player, gameweek]
             <= 1,
-            f"cap_vc_rel_{player}_{gameweek}",
+            f"cap_vc_relation_{player}_{gameweek}",
         )
         model += (
             lp_variables.lineup[player, gameweek]
             + lpSum(lp_variables.bench[player, gameweek, o] for o in lp_keys.order)
             <= 1,
-            f"lineup_bench_rel_{player}_{gameweek}_{o}",
+            f"lineup_bench_relation_{player}_{gameweek}_{o}",
         )

@@ -22,17 +22,19 @@ class TransferConstraints(BaseConstraints):
     ) -> None:
         model += (
             lp_variables.in_the_bank[lp_params.next_gw - 1] == fpl_data.itb,
-            "initial_itb",
+            "initial_in_the_bank",
         )
         model += (
-            lp_variables.free_transfers[lp_params.next_gw] == lp_params.ft,
-            "initial_ft",
+            lp_variables.free_transfers[lp_params.next_gw]
+            == lp_params.remaining_free_transfers,
+            "initial_free_transfers",
         )
 
         if lp_params.next_gw == 1 and lp_params.threshold_gw in fpl_data.gameweeks:
             model += (
-                lp_variables.free_transfers[lp_params.threshold_gw] == lp_params.ft,
-                "ps_initial_ft",
+                lp_variables.free_transfers[lp_params.threshold_gw]
+                == lp_params.remaining_free_transfers,
+                "preseason_initial_free_transfers",
             )
         model += (
             lpSum(
@@ -84,7 +86,7 @@ class TransferConstraints(BaseConstraints):
         if gameweek > lp_params.threshold_gw:
             model += (
                 lp_variables.free_transfers[gameweek] == lp_variables.aux[gameweek] + 1,
-                f"aux_ft_rel_{gameweek}",
+                f"aux_ft_relation_{gameweek}",
             )
             model += (
                 lp_variables.free_transfers[gameweek - 1]
@@ -106,7 +108,7 @@ class TransferConstraints(BaseConstraints):
         model += (
             lp_variables.penalized_transfers[gameweek]
             >= variable_sums.transfer_diff[gameweek],
-            f"pen_transfer_rel_{gameweek}",
+            f"penalized_transfers_relation_{gameweek}",
         )
         # Transfer constraints
         model += (
@@ -114,20 +116,21 @@ class TransferConstraints(BaseConstraints):
             == lp_variables.in_the_bank[gameweek - 1]
             + variable_sums.sold_amount[gameweek]
             - variable_sums.bought_amount[gameweek],
-            f"cont_budget_{gameweek}",
+            f"continuous_budget_{gameweek}",
         )
         model += (
             lpSum(
-                variable_sums.fh_sell_price[p] * lp_variables.squad[p, gameweek - 1]
+                variable_sums.free_hit_sell_price[p]
+                * lp_variables.squad[p, gameweek - 1]
                 for p in lp_keys.players
             )
             + lp_variables.in_the_bank[gameweek - 1]
             >= lpSum(
-                variable_sums.fh_sell_price[p]
+                variable_sums.free_hit_sell_price[p]
                 * lp_variables.squad_free_hit[p, gameweek]
                 for p in lp_keys.players
             ),
-            f"fh_budget_{gameweek}",
+            f"free_hit_budget_{gameweek}",
         )
 
     def player_gameweek_level(
@@ -145,17 +148,17 @@ class TransferConstraints(BaseConstraints):
             == lp_variables.squad[player, gameweek - 1]
             + lp_variables.transfer_in[player, gameweek]
             - lp_variables.transfer_out[player, gameweek],
-            f"squad_transfer_rel_{player}_{gameweek}",
+            f"squad_transfer_relation_{player}_{gameweek}",
         )
         model += (
             lp_variables.transfer_in[player, gameweek]
             <= 1 - lp_variables.use_free_hit[gameweek],
-            f"no_tr_in_fh_{player}_{gameweek}",
+            f"no_transfer_in_free_hit_{player}_{gameweek}",
         )
         model += (
             lp_variables.transfer_out[player, gameweek]
             <= 1 - lp_variables.use_free_hit[gameweek],
-            f"no_tr_out_fh_{player}_{gameweek}",
+            f"no_transfer_out_free_hit_{player}_{gameweek}",
         )
 
         # Multiple-sell fix
@@ -186,5 +189,5 @@ class TransferConstraints(BaseConstraints):
             lp_variables.transfer_in[player, gameweek]
             + lp_variables.transfer_out[player, gameweek]
             <= 1,
-            f"tr_in_out_limit_{player}_{gameweek}",
+            f"transfer_in_out_limit_{player}_{gameweek}",
         )

@@ -109,12 +109,15 @@ def initialize_variables(fpl_data: FplData, lp_keys: LpKeys) -> LpVariables:
         "in_the_bank", lp_keys.all_gws, cat=LpContinuous, lowBound=0
     )
     free_transfers = LpVariable.dicts(
-        "free_transfers", lp_keys.all_gws, cat=LpInteger, lowBound=0, upBound=2
+        "free_transfers",
+        lp_keys.all_gws + [lp_keys.all_gws[-1] + 1],
+        cat=LpInteger,
+        lowBound=0,
+        upBound=2,
     )
     penalized_transfers = LpVariable.dicts(
         "penalized_transfers", fpl_data.gameweeks, cat=LpInteger, lowBound=0
     )
-    aux = LpVariable.dicts("aux", fpl_data.gameweeks, cat=LpBinary)
 
     use_wildcard = LpVariable.dicts("use_wildcard", fpl_data.gameweeks, cat=LpBinary)
     use_bench_boost = LpVariable.dicts(
@@ -135,7 +138,6 @@ def initialize_variables(fpl_data: FplData, lp_keys: LpKeys) -> LpVariables:
         in_the_bank=in_the_bank,
         free_transfers=free_transfers,
         penalized_transfers=penalized_transfers,
-        aux=aux,
         use_wildcard=use_wildcard,
         use_bench_boost=use_bench_boost,
         use_free_hit=use_free_hit,

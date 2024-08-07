@@ -1,4 +1,4 @@
-from pulp import LpProblem, lpSum
+from pulp import LpBinary, LpInteger, LpProblem, LpVariable, lpSum
 
 from fpl.pipelines.optimization.constraints.base_constraints import BaseConstraints
 from fpl.pipelines.optimization.data_classes import (
@@ -8,6 +8,93 @@ from fpl.pipelines.optimization.data_classes import (
     VariableSums,
 )
 from fpl.pipelines.optimization.fpl_api import FplData
+
+
+def linearize_min_function(X, x1, x2, M, idx):
+    """
+    X = min(x1, x2)
+    Let M be a constant such that x1,x2 <= M in any "reasonable" solution to the problem.
+    """
+    aux = LpVariable(f"min_aux_{idx}", cat=LpBinary)
+
+    constraints = []
+
+    constraints.append(X <= x1)
+    constraints.append(X <= x2)
+    constraints.append(X >= x1 - M * (1 - aux))
+    constraints.append(X >= x2 - M * aux)
+    return constraints
+
+
+def linearize_max_function(X, x1, x2, M, idx):
+    """
+    X = max(x1, x2)
+    Let M be a constant such that x1,x2 <= M in any "reasonable" solution to the problem.
+    """
+    aux = LpVariable(f"max_aux_{idx}", cat=LpBinary)
+
+    constraints = []
+    constraints.append(X >= x1)
+    constraints.append(X >= x2)
+    constraints.append(X <= x1 + M * (1 - aux))
+    constraints.append(X <= x2 + M * aux)
+    return constraints
+
+
+def linearize_if_else_function(X, x1, x2, M, flag):
+    """
+    X = x1 if flag = 1 else x2
+    """
+
+    constraints = []
+    constraints.append(x1 - M * (1 - flag) <= X <= x1 + M * (1 - flag))
+    constraints.append(x2 - M * flag <= X <= x2 + M * flag)
+    return constraints
+
+
+def add_free_transfer_constraints(
+    week: int, lp_variables: LpVariables, variable_sums: VariableSums, model: LpProblem
+):
+    """
+    F2 = min(max(F1-T+1, 1), 5)
+    """
+
+    tmp = LpVariable(f"tmp_{week}", cat=LpInteger, lowBound=1, upBound=6)
+    non_chip_transfers = LpVariable(
+        f"non_chip_transfers_{week}", cat=LpInteger, lowBound=0, upBound=15
+    )
+    if_else_constraints = linearize_if_else_function(
+        X=non_chip_transfers,
+        x1=1,
+        x2=variable_sums.number_of_transfers[week],
+        M=15,
+        flag=lp_variables.use_free_hit[week]
+        + lp_variables.use_wildcard[week]
+        + lp_variables.use_bench_boost[week],
+    )
+    for idx, constraint in enumerate(if_else_constraints):
+        model += constraint, f"if_else_constraint{idx}_{week}"
+
+    max_constraints = linearize_max_function(
+        X=tmp,
+        x1=(lp_variables.free_transfers[week] - non_chip_transfers + 1),
+        x2=1,
+        M=6,
+        idx=week,
+    )
+    for idx, constraint in enumerate(max_constraints):
+        model += constraint, f"max_constraint{idx}_{week}"
+
+    min_constraints = linearize_min_function(
+        X=lp_variables.free_transfers[week + 1],
+        x1=tmp,
+        x2=5,
+        M=6,
+        idx=week,
+    )
+    for idx, constraint in enumerate(min_constraints):
+        model += constraint, f"min_constraint{idx}_{week}"
+    return None
 
 
 class TransferConstraints(BaseConstraints):
@@ -30,10 +117,9 @@ class TransferConstraints(BaseConstraints):
             "initial_free_transfers",
         )
 
-        if lp_params.next_gw == 1 and lp_params.threshold_gw in fpl_data.gameweeks:
+        if lp_params.next_gw == 1:
             model += (
-                lp_variables.free_transfers[lp_params.threshold_gw]
-                == lp_params.remaining_free_transfers,
+                lp_variables.free_transfers[lp_params.threshold_gw] == 1,
                 "preseason_initial_free_transfers",
             )
         model += (
@@ -83,28 +169,8 @@ class TransferConstraints(BaseConstraints):
                 f"future_ft_limit_{gameweek}",
             )
         # Free transfer constraints
-        if gameweek > lp_params.threshold_gw:
-            model += (
-                lp_variables.free_transfers[gameweek] == lp_variables.aux[gameweek] + 1,
-                f"aux_ft_relation_{gameweek}",
-            )
-            model += (
-                lp_variables.free_transfers[gameweek - 1]
-                - variable_sums.number_of_transfers[gameweek - 1]
-                - 2 * lp_variables.use_wildcard[gameweek - 1]
-                - 2 * lp_variables.use_free_hit[gameweek - 1]
-                <= 2 * lp_variables.aux[gameweek],
-                f"aux_relation1_{gameweek}",
-            )
-            model += (
-                lp_variables.free_transfers[gameweek - 1]
-                - variable_sums.number_of_transfers[gameweek - 1]
-                - 2 * lp_variables.use_wildcard[gameweek - 1]
-                - 2 * lp_variables.use_free_hit[gameweek - 1]
-                >= lp_variables.aux[gameweek]
-                + (-14) * (1 - lp_variables.aux[gameweek]),
-                f"aux_relation2_{gameweek}",
-            )
+        if gameweek >= lp_params.threshold_gw:
+            add_free_transfer_constraints(gameweek, lp_variables, variable_sums, model)
         model += (
             lp_variables.penalized_transfers[gameweek]
             >= variable_sums.transfer_diff[gameweek],

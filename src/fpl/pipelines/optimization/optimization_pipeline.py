@@ -2,17 +2,13 @@ import logging
 from datetime import datetime
 
 import matplotlib.pyplot as plt
-import pandas as pd
 from kedro.pipeline import Pipeline, node
 from tqdm import tqdm
 
 from fpl.pipelines.optimization.fpl_api import get_live_data
 from fpl.pipelines.optimization.lp_constructor import construct_lp
-from fpl.pipelines.optimization.optimizer import (
-    backtest_single_player,
-    generate_outputs,
-    solve_lp,
-)
+from fpl.pipelines.optimization.optimizer import backtest_single_player, solve_lp
+from fpl.pipelines.optimization.output_formatting import generate_outputs
 
 logger = logging.getLogger(__name__)
 
@@ -61,10 +57,7 @@ def create_live_pipeline():
                 func=generate_outputs,
                 inputs=[
                     "LP_DATA",
-                    "lp_params",
-                    "lp_keys",
                     "solved_lp_variables",
-                    "solved_variable_sums",
                     "solution_time",
                     "params:optimization",
                 ],

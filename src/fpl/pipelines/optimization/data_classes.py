@@ -53,7 +53,6 @@ class LpVariables:
     in_the_bank: dict[int, LpVariable]
     free_transfers: dict[int, LpVariable]
     penalized_transfers: dict[int, LpVariable]
-    aux: dict[int, LpVariable]
     use_wildcard: dict[int, LpVariable]
     use_bench_boost: dict[int, LpVariable]
     use_free_hit: dict[int, LpVariable]

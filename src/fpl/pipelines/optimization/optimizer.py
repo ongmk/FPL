@@ -70,9 +70,9 @@ def solve_lp(
 
     backup_latest_n(solution_path, 5)
 
-    for variable in model.variables():
-        name, key = split_name_key(variable.name)
-        getattr(lp_variables, name)[key].varValue = 0
+    for name, variable in lp_variables.__dict__.items():
+        for key in variable:
+            variable[key].varValue = 0
 
     with open(f"{solution_path}", "r") as f:
         for line in f:
@@ -305,9 +305,9 @@ def get_transfer_summary(fpl_data, lp_keys, lp_variables, variable_sums, w):
     else:
         transfer_summary = str(pd.concat([gw_out, gw_in], axis=1, join="inner"))
     transfer_summary = (
-        f"Transfers made = {variable_sums.number_of_transfers[w].value()}     xP Gain = {net_xp:.2f}\n"
-        f"Free Transfers = {lp_variables.free_transfers[w].value()}    Hits = {lp_variables.penalized_transfers[w].value()}\n"
-        f"Cost = {net_cost:.1f}    ITB = {lp_variables.in_the_bank[w].value():.2f}  .\n\n"
+        f"xP Gain = {net_xp:.2f}    Transfers made = {variable_sums.number_of_transfers[w].value()}\n"
+        f"Hits = {lp_variables.penalized_transfers[w].value()}    Total Cost = {net_cost:.1f}\n"
+        f"Free Transfers = {lp_variables.free_transfers[w].value()}    In the bank = {lp_variables.in_the_bank[w].value():.2f}\n\n"
         f"{transfer_summary}\n\n"
     )
 

@@ -94,7 +94,7 @@ class TransferConstraints(BaseConstraints):
                 - 2 * lp_variables.use_wildcard[gameweek - 1]
                 - 2 * lp_variables.use_free_hit[gameweek - 1]
                 <= 2 * lp_variables.aux[gameweek],
-                f"force_aux_1_{gameweek}",
+                f"aux_relation1_{gameweek}",
             )
             model += (
                 lp_variables.free_transfers[gameweek - 1]
@@ -103,7 +103,7 @@ class TransferConstraints(BaseConstraints):
                 - 2 * lp_variables.use_free_hit[gameweek - 1]
                 >= lp_variables.aux[gameweek]
                 + (-14) * (1 - lp_variables.aux[gameweek]),
-                f"force_aux_2_{gameweek}",
+                f"aux_relation2_{gameweek}",
             )
         model += (
             lp_variables.penalized_transfers[gameweek]

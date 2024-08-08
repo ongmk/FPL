@@ -8,6 +8,7 @@ optimization:
   wildcard_week: null
   bench_boost_week: null
   free_hit_week: null
+  triple_captain_week: null
 
   horizon: 3
   transfer_horizon: 2

@@ -20,7 +20,7 @@ class ChipConstraints(BaseConstraints):
         variable_sums: VariableSums,
     ) -> None:
         # Do not let LP decide when to use chips
-        wildcard_limit = bench_boost_limit = free_hit_limit = 0
+        wildcard_limit = bench_boost_limit = free_hit_limit = triple_captain_limit = 0
         if lp_params.wildcard_week in fpl_data.gameweeks:
             wildcard_limit = 1
             model += (
@@ -39,6 +39,13 @@ class ChipConstraints(BaseConstraints):
                 lp_variables.use_free_hit[lp_params.free_hit_week] == 1,
                 "force_free_hit",
             )
+        if lp_params.triple_captain_week in fpl_data.gameweeks:
+            triple_captain_limit = 1
+            model += (
+                variable_sums.use_triple_captain_week[lp_params.triple_captain_week]
+                == 1,
+                "force_triple_captain",
+            )
 
         model += (
             lpSum(lp_variables.use_wildcard[w] for w in fpl_data.gameweeks)
@@ -55,6 +62,11 @@ class ChipConstraints(BaseConstraints):
             <= free_hit_limit,
             "free_hit_limit",
         )
+        model += (
+            lpSum(variable_sums.use_triple_captain_week[w] for w in fpl_data.gameweeks)
+            <= triple_captain_limit,
+            "triple_captain_limit",
+        )
 
     def gameweek_level(
         gameweek: int,
@@ -69,6 +81,7 @@ class ChipConstraints(BaseConstraints):
             lp_variables.use_wildcard[gameweek]
             + lp_variables.use_free_hit[gameweek]
             + lp_variables.use_bench_boost[gameweek]
+            + lp_variables.use_triple_captain[gameweek]
             <= 1,
             f"single_chip_{gameweek}",
         )

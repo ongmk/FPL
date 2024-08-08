@@ -13,6 +13,7 @@ class LpParams:
     wildcard_week: int
     bench_boost_week: int
     free_hit_week: int
+    triple_captain_week: int
 
     decay: float
     free_transfer_bonus: float
@@ -55,6 +56,7 @@ class LpVariables:
     use_wildcard: dict[int, LpVariable]
     use_bench_boost: dict[int, LpVariable]
     use_free_hit: dict[int, LpVariable]
+    use_triple_captain: dict[tuple[int, int], LpVariable]
 
 
 @dataclass
@@ -70,3 +72,4 @@ class VariableSums:
     squad_free_hit_count: dict[int, lpSum]
     number_of_transfers: dict[int, lpSum]
     transfer_diff: dict[int, lpSum]
+    use_triple_captain_week: dict[int, lpSum]

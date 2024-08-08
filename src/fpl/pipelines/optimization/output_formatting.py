@@ -129,13 +129,13 @@ def generate_summary(
     solution_time: float,
 ) -> tuple[list[str], dict]:
     summary = [
-        "=" * 50,
+        "=" * 80,
         (
             f"Team: {fpl_data.team_name}.\n"
             f"In the bank = {fpl_data.in_the_bank:.1f}    Free transfers = {fpl_data.free_transfers}\n"
-            f"Optimizing for gameweeks :{', '.join([str(w) for w in fpl_data.gameweeks])}"
+            f"Optimizing for gameweeks : {', '.join([str(w) for w in fpl_data.gameweeks])}"
         ),
-        "=" * 50,
+        "=" * 80,
     ]
     total_xp = 0
     for w in fpl_data.gameweeks:
@@ -143,13 +143,17 @@ def generate_summary(
         transfer_summary = get_transfer_summary(
             fpl_data, lp_keys, lp_variables, variable_sums, w
         )
-        chip_summary = get_chip_summary(lp_variables, w)
+        chip_summary = get_chip_summary(lp_variables, variable_sums, w)
         lineup = get_lineup(picks_df, w)
 
         gw_xp = (
             lpSum(
                 [
-                    (lp_variables.lineup[p, w] + lp_variables.captain[p, w])
+                    (
+                        lp_variables.lineup[p, w]
+                        + lp_variables.captain[p, w]
+                        + lp_variables.use_triple_captain[p, w]
+                    )
                     * variable_sums.points_player_week[p, w]
                     for p in lp_keys.players
                 ]
@@ -161,8 +165,8 @@ def generate_summary(
         hit_str = f"({hits} hits)" if hits > 0 else ""
         gw_summary = (
             f"\n{header:{'*'}^80}\n\n"
+            f"{chip_summary}\n"
             f"Gameweek xP = {gw_xp:.2f} {hit_str}\n\n"
-            f"{chip_summary}"
             f"{transfer_summary}"
             f"{lineup}\n"
         )
@@ -230,12 +234,13 @@ def get_transfer_summary(
     gw_out = pd.DataFrame([], columns=["Out", "xP", "Pos"])
     net_cost = 0
     net_xp = 0
+    lpSum(lp_variables.use_triple_captain[p, w] for p in lp_keys.players)
     for p in lp_keys.players:
         if lp_variables.transfer_in[p, w].value() > 0.5:
             price = fpl_data.merged_data["now_cost"][p] / 10
             name = f'{fpl_data.merged_data["web_name"][p]} ({price})'
             pos = fpl_data.merged_data["element_type"][p]
-            xp = round(variable_sums.points_player_week[p, w], 2)
+            xp = variable_sums.points_player_week[p, w]
             net_cost += price
             net_xp += xp
             gw_in.loc[len(gw_in)] = ["👉", name, xp, pos]
@@ -243,7 +248,7 @@ def get_transfer_summary(
             price = fpl_data.merged_data["sell_price"][p] / 10
             name = f'{fpl_data.merged_data["web_name"][p]} ({price})'
             pos = fpl_data.merged_data["element_type"][p]
-            xp = round(variable_sums.points_player_week[p, w], 2)
+            xp = variable_sums.points_player_week[p, w]
             net_cost -= price
             net_xp -= xp
             gw_out.loc[len(gw_out)] = [name, xp, pos]
@@ -256,22 +261,26 @@ def get_transfer_summary(
     else:
         transfer_summary = str(pd.concat([gw_out, gw_in], axis=1, join="inner"))
     transfer_summary = (
-        f"xP Gain = {net_xp:.2f}    Transfers made = {variable_sums.number_of_transfers[w].value()}\n"
-        f"Hits = {lp_variables.penalized_transfers[w].value()}    Total Cost = {net_cost:.1f}\n"
-        f"Rem. Free Transfers = {lp_variables.free_transfers[w+1].value()}    In the bank = {lp_variables.in_the_bank[w].value():.2f}\n\n"
+        f"xP Gain = {net_xp:.2f}    Transfers made = {int(variable_sums.number_of_transfers[w].value())}\n"
+        f"Hits = {int(lp_variables.penalized_transfers[w].value())}    Total Cost = {net_cost:.1f}\n"
+        f"Rem. Free Transfers = {int(lp_variables.free_transfers[w+1].value())}    In the bank = {lp_variables.in_the_bank[w].value():.1f}\n\n"
         f"{transfer_summary}\n\n"
     )
 
     return transfer_summary
 
 
-def get_chip_summary(lp_variables, w):
+def get_chip_summary(lp_variables: LpVariables, variable_sums: VariableSums, w: int):
     if lp_variables.use_wildcard[w].value() > 0.5:
-        chip_summary = "🃏🃏🃏 WILDCARD ACTIVEive🃏🃏🃏\n"
+        # fmt: off
+        chip_summary = "🃏🃏🃏 WILDCARD ACTIVEive🃏🃏🃏\n"  # fmt: skip
     elif lp_variables.use_free_hit[w].value() > 0.5:
-        chip_summary = "🆓🆓🆓 FREE HIT ACTIVE 🆓🆓🆓\n"
+        chip_summary = "🆓🆓🆓 FREE HIT ACTIVE 🆓🆓🆓\n"  # fmt: skip
     elif lp_variables.use_bench_boost[w].value() > 0.5:
-        chip_summary = "🚀🚀🚀 BENCH BOOST ACTIVE🚀🚀🚀\n"
+        chip_summary = "🚀🚀🚀 BENCH BOOST ACTIVE 🚀🚀🚀\n"  # fmt: skip
+    elif variable_sums.use_triple_captain_week[w].value() > 0.5:
+        chip_summary = "👑👑👑 TRIPLE CAPTAIN ACTIVE 👑👑👑\n"  # fmt: skip
+
     else:
         chip_summary = ""
     return chip_summary

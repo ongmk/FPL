@@ -1,1 +1,1 @@
-- add triple captain
+- xP Gain Calculation rethink

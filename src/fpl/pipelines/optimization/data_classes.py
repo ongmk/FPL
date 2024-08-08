@@ -9,7 +9,6 @@ class LpParams:
     transfer_gws: int
     threshold_gw: int
 
-    remaining_free_transfers: int
     horizon: int
     wildcard_week: int
     bench_boost_week: int

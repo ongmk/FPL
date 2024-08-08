@@ -40,7 +40,6 @@ def prepare_lp_params(fpl_data: FplData, parameters: dict[str, Any]) -> LpParams
         next_gw=next_gw,
         transfer_gws=transfer_gws,
         threshold_gw=2 if next_gw == 1 else next_gw,
-        remaining_free_transfers=parameters["remaining_free_transfers"],
         horizon=parameters["horizon"],
         wildcard_week=wildcard_week if wildcard_week in transfer_gws else None,
         bench_boost_week=bench_boost_week if bench_boost_week in transfer_gws else None,

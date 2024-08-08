@@ -4,13 +4,13 @@ optimization:
 
   current_season: 2024-2025
   team_id: 1792016
-  remaining_free_transfers: 1
-  horizon: 3
-  transfer_horizon: 2
+
   wildcard_week: null
   bench_boost_week: null
   free_hit_week: null
 
+  horizon: 3
+  transfer_horizon: 2
   decay: 0.5
   free_transfer_bonus: 1.5
   in_the_bank_bonus: 0.08

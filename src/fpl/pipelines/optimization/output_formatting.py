@@ -128,7 +128,15 @@ def generate_summary(
     parameters: dict,
     solution_time: float,
 ) -> tuple[list[str], dict]:
-    summary = []
+    summary = [
+        "=" * 50,
+        (
+            f"Team: {fpl_data.team_name}.\n"
+            f"In the bank = {fpl_data.in_the_bank:.1f}    Free transfers = {fpl_data.free_transfers}\n"
+            f"Optimizing for gameweeks :{', '.join([str(w) for w in fpl_data.gameweeks])}"
+        ),
+        "=" * 50,
+    ]
     total_xp = 0
     for w in fpl_data.gameweeks:
         header = f" GW {w} "
@@ -170,7 +178,7 @@ def generate_summary(
                 chip_used = None
             next_gw_dict = {
                 "in_the_bank": round(lp_variables.in_the_bank[w].value(), 1),
-                "remaining_free_transfers": (
+                "free_transfers": (
                     round(lp_variables.free_transfers[w + 1].value())
                     if w + 1 <= 38
                     else 0

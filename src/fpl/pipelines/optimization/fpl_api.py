@@ -1,5 +1,6 @@
 import itertools
 import logging
+from collections import defaultdict
 from typing import Any
 
 import numpy as np
@@ -217,7 +218,9 @@ class FplData(BaseModel):
     type_data: PydanticDataFrame
     gameweeks: list[int]
     initial_squad: list[int]
-    itb: float
+    team_name: str
+    in_the_bank: float
+    free_transfers: int
 
     class Config:
         arbitrary_types_allowed = True
@@ -232,6 +235,10 @@ def get_fpl_team_data(team_id: int, gw: int) -> list[dict]:
         f"https://fantasy.premierleague.com/api/entry/{team_id}/transfers/"
     )
     transfer_data = reversed(transfer_request.json())
+    history_request = requests.get(
+        f"https://fantasy.premierleague.com/api/entry/{team_id}/history/"
+    )
+    history_data = history_request.json()
     picks_request = requests.get(
         f"https://fantasy.premierleague.com/api/entry/{team_id}/event/{gw}/picks/"
     )
@@ -243,7 +250,28 @@ def get_fpl_team_data(team_id: int, gw: int) -> list[dict]:
         initial_squad = []
     else:
         initial_squad = picks_data["picks"]
-    return general_data, transfer_data, initial_squad
+    return general_data, transfer_data, initial_squad, history_data
+
+
+def get_free_transfers(
+    transfer_data: dict, history_data: dict, current_gameweek: int
+) -> int:
+    free_transfers = 1
+    if current_gameweek <= 2:
+        return free_transfers
+
+    transfer_count = defaultdict(int)
+
+    for transfer in transfer_data:
+        transfer_count[transfer["event"]] += 1
+    for chip in history_data["chips"]:
+        if chip["name"] in ["wildcard", "bboost"]:
+            transfer_count[chip["event"]] = 1
+
+    # F2 = min(max(F1-T+1, 1), 5)
+    for week in range(2, current_gameweek):
+        free_transfers = min(max(free_transfers - transfer_count[week] + 1, 1), 5)
+    return free_transfers
 
 
 def get_live_data(
@@ -281,8 +309,12 @@ def get_live_data(
         logger.warn(
             f"More than 20% of the rows were dropped. ({percentage_dropped:.2f}%)"
         )
-    general_data, transfer_data, initial_squad = get_fpl_team_data(team_id, current_gw)
-    itb = (general_data["last_deadline_bank"] or 1000) / 10
+    general_data, transfer_data, initial_squad, history_data = get_fpl_team_data(
+        team_id, current_gw
+    )
+    in_the_bank = (general_data["last_deadline_bank"] or 1000) / 10
+    free_transfers = get_free_transfers(transfer_data, history_data, current_gw)
+
     initial_squad = [p["element"] for p in initial_squad]
     merged_data["sell_price"] = merged_data["now_cost"]
     for t in transfer_data:
@@ -300,10 +332,9 @@ def get_live_data(
     merged_data["total_ev"] = merged_data[keys].sum(axis=1)
     merged_data = merged_data.sort_values(by=["total_ev"], ascending=[False])
 
-    logger.info("=" * 50)
-    logger.info(f"Team: {general_data['name']}. Current week: {current_gw}")
+    logger.info(f"Team: {general_data['name']}.")
+    logger.info(f"Current week: {current_gw}")
     logger.info(f"Optimizing for {horizon} weeks. {gameweeks}")
-    logger.info("=" * 50 + "\n")
 
     return FplData(
         merged_data=merged_data,
@@ -311,7 +342,9 @@ def get_live_data(
         type_data=type_data,
         gameweeks=gameweeks,
         initial_squad=initial_squad,
-        itb=itb,
+        team_name=general_data["name"],
+        in_the_bank=in_the_bank,
+        free_transfers=free_transfers,
     )
 
 

@@ -87,8 +87,8 @@ def get_historical_picks(team_id, next_gw, merged_data):
     summary = [picks_df]
     next_gw_dict = {
         "hits": 0,
-        "itb": 0,
-        "remaining_free_transfers": 0,
+        "in_the_bank": 0,
+        "free_transfers": 0,
         "solve_time": 0,
         "n_transfers": 0,
         "chip_used": None,
@@ -105,9 +105,9 @@ def backtest_single_player(parameters: dict, title: str = "Backtest Result"):
     # Pre season
     latest_elements_team, team_data, type_data, all_gws = 0  # TODO use historical data
     latest_elements_team = latest_elements_team.drop("now_cost", axis=1)
-    itb = 100
+    in_the_bank = 100
     initial_squad = []
-    parameters["remaining_free_transfers"] = 1
+    parameters["free_transfers"] = 1
     total_predicted_xp = 0
     total_xp = 0
 
@@ -120,7 +120,7 @@ def backtest_single_player(parameters: dict, title: str = "Backtest Result"):
         gameweeks = [i for i in range(next_gw, next_gw + horizon)]
         logger.info(80 * "=")
         logger.info(
-            f"Backtesting GW {next_gw}. ITB = {itb:.1f}. remaining_free_transfers = {parameters['remaining_free_transfers']}. {gameweeks}"
+            f"Backtesting GW {next_gw}. in_the_bank = {in_the_bank:.1f}. free_transfers = {parameters['free_transfers']}. {gameweeks}"
         )
         logger.info(80 * "=")
         elements_team = get_backtest_data(latest_elements_team, next_gw)
@@ -159,7 +159,7 @@ def backtest_single_player(parameters: dict, title: str = "Backtest Result"):
                         "type_data": type_data,
                         "gameweeks": gameweeks,
                         "initial_squad": initial_squad,
-                        "itb": itb,
+                        "in_the_bank": in_the_bank,
                     },
                     parameters,
                 )
@@ -186,25 +186,22 @@ def backtest_single_player(parameters: dict, title: str = "Backtest Result"):
 
             if not backtest_player_history:
                 if next_gw_dict["chip_used"] not in ("fh", "wc") and next_gw != 1:
-                    assert next_gw_dict["remaining_free_transfers"] == min(
+                    assert next_gw_dict["free_transfers"] == min(
                         2,
                         max(
                             1,
-                            parameters["remaining_free_transfers"]
+                            parameters["free_transfers"]
                             - next_gw_dict["n_transfers"]
                             + 1,
                         ),
                     )
                 else:
                     assert (
-                        next_gw_dict["remaining_free_transfers"]
-                        == parameters["remaining_free_transfers"]
+                        next_gw_dict["free_transfers"] == parameters["free_transfers"]
                     )
 
-            itb = next_gw_dict["itb"]
-            parameters["remaining_free_transfers"] = next_gw_dict[
-                "remaining_free_transfers"
-            ]
+            in_the_bank = next_gw_dict["in_the_bank"]
+            parameters["free_transfers"] = next_gw_dict["free_transfers"]
             initial_squad = squad.index.to_list()
 
         result_gw.append(next_gw)

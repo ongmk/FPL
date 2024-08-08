@@ -108,12 +108,11 @@ class TransferConstraints(BaseConstraints):
         variable_sums: VariableSums,
     ) -> None:
         model += (
-            lp_variables.in_the_bank[lp_params.next_gw - 1] == fpl_data.itb,
+            lp_variables.in_the_bank[lp_params.next_gw - 1] == fpl_data.in_the_bank,
             "initial_in_the_bank",
         )
         model += (
-            lp_variables.free_transfers[lp_params.next_gw]
-            == lp_params.remaining_free_transfers,
+            lp_variables.free_transfers[lp_params.next_gw] == fpl_data.free_transfers,
             "initial_free_transfers",
         )
 

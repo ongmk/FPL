@@ -14,8 +14,21 @@ from fpl.utils import PydanticDataFrame
 logger = logging.getLogger(__name__)
 
 
+def get_current_season_str(events_data: list[dict]) -> str:
+    year_fixture_count = defaultdict(int)
+
+    for fixture in events_data:
+        year = fixture["deadline_time"].split("-")[0]
+        year_fixture_count[year] += 1
+
+    top_years = sorted(year_fixture_count, key=year_fixture_count.get, reverse=True)[:2]
+    top_years_sorted = sorted(top_years)
+
+    return f"{top_years_sorted[0]}-{top_years_sorted[1]}"
+
+
 def get_fpl_base_data() -> (
-    tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict[str, Any]]
+    tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict[str, Any], str]
 ):
     r = requests.get("https://fantasy.premierleague.com/api/bootstrap-static/")
     fpl_data = r.json()
@@ -53,8 +66,9 @@ def get_fpl_base_data() -> (
             "now_cost",
         ]
     ]
+    current_season = get_current_season_str(fpl_data["events"])
 
-    return element_data, team_data, type_data, all_gws
+    return element_data, team_data, type_data, all_gws, current_season
 
 
 def fetch_player_fixtures(
@@ -140,8 +154,8 @@ def get_most_recent_fpl_game() -> dict:
     return most_recent_fixture
 
 
-def get_current_season_fpl_data(current_season: str) -> pd.DataFrame:
-    element_data, team_data, _, _ = get_fpl_base_data()
+def get_current_season_fpl_data() -> pd.DataFrame:
+    element_data, team_data, _, _, current_season = get_fpl_base_data()
 
     current_season_data = []
     for idx, row in tqdm(
@@ -221,6 +235,7 @@ class FplData(BaseModel):
     team_name: str
     in_the_bank: float
     free_transfers: int
+    current_season: str
 
     class Config:
         arbitrary_types_allowed = True
@@ -279,36 +294,14 @@ def get_live_data(
 ) -> FplData:
     team_id = parameters["team_id"]
     horizon = parameters["horizon"]
-    current_season = parameters["current_season"]
 
-    elements_team, team_data, type_data, all_gws = get_fpl_base_data()
+    elements_team, team_data, type_data, all_gws, current_season = get_fpl_base_data()
     gameweeks = all_gws["future"][:horizon]
     current_gw = all_gws["current"]
 
-    pred_pts_data = inference_results.loc[
-        (inference_results["season"] == current_season)
-        & inference_results["round"].isin(gameweeks)
-    ]
-    pred_pts_data = pred_pts_data.pivot_table(
-        index="fpl_name", columns="round", values="prediction", aggfunc="first"
-    ).fillna(0)
-    pred_pts_data.columns = [f"xPts_{int(col)}" for col in pred_pts_data.columns]
+    pred_pts_data = get_pred_pts_data(inference_results, current_season, gameweeks)
+    merged_data = merge_data(elements_team, pred_pts_data)
 
-    merged_data = elements_team.merge(
-        pred_pts_data,
-        left_on="full_name",
-        right_index=True,
-        how="left",
-    ).set_index("id")
-
-    initial_num_rows = len(merged_data)
-    merged_data = merged_data.dropna(subset=pred_pts_data.columns)
-    final_num_rows = len(merged_data)
-    percentage_dropped = (initial_num_rows - final_num_rows) / initial_num_rows * 100
-    if percentage_dropped > 20:
-        logger.warn(
-            f"More than 20% of the rows were dropped. ({percentage_dropped:.2f}%)"
-        )
     general_data, transfer_data, initial_squad, history_data = get_fpl_team_data(
         team_id, current_gw
     )
@@ -345,7 +338,40 @@ def get_live_data(
         team_name=general_data["name"],
         in_the_bank=in_the_bank,
         free_transfers=free_transfers,
+        current_season=current_season,
     )
+
+
+def merge_data(elements_team, pred_pts_data):
+    merged_data = elements_team.merge(
+        pred_pts_data,
+        left_on="full_name",
+        right_index=True,
+        how="left",
+    ).set_index("id")
+
+    initial_num_rows = len(merged_data)
+    merged_data = merged_data.dropna(subset=pred_pts_data.columns)
+    final_num_rows = len(merged_data)
+    percentage_dropped = (initial_num_rows - final_num_rows) / initial_num_rows * 100
+    if percentage_dropped > 20:
+        logger.warn(
+            f"More than 20% of the rows were dropped. ({percentage_dropped:.2f}%)"
+        )
+
+    return merged_data
+
+
+def get_pred_pts_data(inference_results, current_season, gameweeks):
+    pred_pts_data = inference_results.loc[
+        (inference_results["season"] == current_season)
+        & inference_results["round"].isin(gameweeks)
+    ]
+    pred_pts_data = pred_pts_data.pivot_table(
+        index="fpl_name", columns="round", values="prediction", aggfunc="first"
+    ).fillna(0)
+    pred_pts_data.columns = [f"xPts_{int(col)}" for col in pred_pts_data.columns]
+    return pred_pts_data
 
 
 def get_backtest_data(latest_elements_team, gw):

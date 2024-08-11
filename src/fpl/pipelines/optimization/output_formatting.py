@@ -1,9 +1,11 @@
 import logging
+from typing import Any
 
+import numpy as np
 import pandas as pd
 from pulp import lpSum
 
-from fpl.pipelines.optimization.fpl_api import FplData
+from fpl.pipelines.optimization.data_classes import LpData
 from fpl.pipelines.optimization.lp_constructor import (
     LpKeys,
     LpParams,
@@ -28,14 +30,14 @@ def get_name(row):
 
 
 def generate_picks_df(
-    fpl_data: FplData,
+    lp_data: LpData,
     lp_params: LpParams,
     lp_keys: LpKeys,
     lp_variables: LpVariables,
     variable_sums: VariableSums,
 ) -> pd.DataFrame:
     picks = []
-    for w in fpl_data.gameweeks:
+    for w in lp_data.gameweeks:
         for p in lp_keys.players:
             if (
                 lp_variables.squad[p, w].value()
@@ -43,7 +45,7 @@ def generate_picks_df(
                 + lp_variables.transfer_out[p, w].value()
                 > 0.5
             ):
-                player_data = fpl_data.merged_data.loc[p]
+                player_data = lp_data.merged_data.loc[p]
                 is_captain = 1 if lp_variables.captain[p, w].value() > 0.5 else 0
                 is_squad = (
                     1
@@ -82,7 +84,7 @@ def generate_picks_df(
                 )
                 multiplier = 1 * (is_lineup == 1) + 1 * (is_captain == 1)
                 xp_cont = variable_sums.points_player_week[p, w] * multiplier
-                position = fpl_data.type_data.loc[
+                position = lp_data.type_data.loc[
                     player_data["element_type"], "singular_name_short"
                 ]
                 picks.append(
@@ -118,8 +120,33 @@ def generate_picks_df(
     return picks_df
 
 
+def get_gameweek_xp(
+    lp_keys: LpKeys,
+    lp_variables: LpVariables,
+    variable_sums: VariableSums,
+    gameweek: int,
+) -> float:
+    xp = (
+        lpSum(
+            [
+                (
+                    lp_variables.lineup[p, gameweek]
+                    + lp_variables.captain[p, gameweek]
+                    + lp_variables.use_triple_captain[p, gameweek]
+                )
+                * variable_sums.points_player_week[p, gameweek]
+                for p in lp_keys.players
+            ]
+        ).value()
+        - lp_variables.penalized_transfers[gameweek].value() * 4
+    )
+    if np.isnan(xp):
+        raise ValueError("xP is NaN")
+    return xp
+
+
 def generate_summary(
-    fpl_data: FplData,
+    lp_data: LpData,
     lp_params: LpParams,
     lp_keys: LpKeys,
     lp_variables: LpVariables,
@@ -131,35 +158,22 @@ def generate_summary(
     summary = [
         "=" * 80,
         (
-            f"Team: {fpl_data.team_name}.\n"
-            f"In the bank = {fpl_data.in_the_bank:.1f}    Free transfers = {fpl_data.free_transfers}\n"
-            f"Optimizing for gameweeks : {', '.join([str(w) for w in fpl_data.gameweeks])}"
+            f"Team: {lp_data.team_name}.\n"
+            f"In the bank = {lp_data.in_the_bank:.1f}    Free transfers = {lp_data.free_transfers}\n"
+            f"Optimizing for gameweeks : {', '.join([str(w) for w in lp_data.gameweeks])}"
         ),
         "=" * 80,
     ]
     total_xp = 0
-    for w in fpl_data.gameweeks:
+    for w in lp_data.gameweeks:
         header = f" GW {w} "
         transfer_summary = get_transfer_summary(
-            fpl_data, lp_keys, lp_variables, variable_sums, w
+            lp_data, lp_keys, lp_variables, variable_sums, w
         )
         chip_summary = get_chip_summary(lp_variables, variable_sums, w)
         lineup = get_lineup(picks_df, w)
 
-        gw_xp = (
-            lpSum(
-                [
-                    (
-                        lp_variables.lineup[p, w]
-                        + lp_variables.captain[p, w]
-                        + lp_variables.use_triple_captain[p, w]
-                    )
-                    * variable_sums.points_player_week[p, w]
-                    for p in lp_keys.players
-                ]
-            ).value()
-            - lp_variables.penalized_transfers[w].value() * 4
-        )
+        gw_xp = get_gameweek_xp(lp_keys, lp_variables, variable_sums, w)
         total_xp += gw_xp
         hits = int(lp_variables.penalized_transfers[w].value())
         hit_str = f"({hits} hits)" if hits > 0 else ""
@@ -171,38 +185,82 @@ def generate_summary(
             f"{lineup}\n"
         )
         summary.append(gw_summary)
-        if w == lp_params.next_gw:
-            if lp_variables.use_wildcard[w].value() > 0.5:
-                chip_used = "wildcard"
-            elif lp_variables.use_free_hit[w].value() > 0.5:
-                chip_used = "free hit"
-            elif lp_variables.use_bench_boost[w].value() > 0.5:
-                chip_used = "bench boost"
-            else:
-                chip_used = None
-            next_gw_dict = {
-                "in_the_bank": round(lp_variables.in_the_bank[w].value(), 1),
-                "free_transfers": (
-                    round(lp_variables.free_transfers[w + 1].value())
-                    if w + 1 <= 38
-                    else 0
-                ),
-                "hits": round(lp_variables.penalized_transfers[w].value()),
-                "solve_time": solution_time,
-                "n_transfers": round(
-                    lpSum(
-                        [lp_variables.transfer_out[p, w] for p in lp_keys.players]
-                    ).value()
-                ),
-                "chip_used": chip_used,
-            }
+    summary.append("=" * 80)
     overall_summary = (
-        "=" * 80 + "\n" + f"{parameters['horizon']} weeks total xP = {total_xp:.2f}"
+        f"{parameters['horizon']} weeks total xP = {total_xp:.2f}\n"
+        f"Optimization time = {solution_time:.2f} seconds\n"
     )
     summary.append(overall_summary)
     summary = "\n".join(summary) + "\n\n"
     logger.info(summary)
-    return summary, next_gw_dict
+    return summary
+
+
+def get_results_dict(
+    lp_data: LpData,
+    lp_params: LpParams,
+    lp_keys: LpKeys,
+    lp_variables: LpVariables,
+    variable_sums: VariableSums,
+    solution_time: int,
+) -> dict[str, Any]:
+    current_gw = lp_params.next_gw
+
+    if lp_variables.use_wildcard[current_gw].value() > 0.5:
+        chip_used = "wildcard"
+    elif lp_variables.use_free_hit[current_gw].value() > 0.5:
+        chip_used = "free hit"
+    elif lp_variables.use_bench_boost[current_gw].value() > 0.5:
+        chip_used = "bench boost"
+    elif variable_sums.use_triple_captain_week[current_gw].value() > 0.5:
+        chip_used = "triple captain"
+    else:
+        chip_used = None
+    squad = []
+    transfer_data = []
+    for p in lp_keys.players:
+        if (
+            lp_variables.lineup[p, current_gw].value()
+            + sum(lp_variables.bench[p, current_gw, o].value() for o in lp_keys.order)
+            > 0.5
+        ):
+            squad.append(p)
+    in_players = [player for player in squad if player not in lp_data.initial_squad]
+    out_players = [player for player in lp_data.initial_squad if player not in squad]
+    out_players = out_players + (len(in_players) - len(out_players)) * [None]
+    for in_player, out_player in zip(in_players, out_players):
+        transfer_data.append(
+            {
+                "element_in": in_player,
+                "element_in_cost": lp_data.merged_data.loc[in_player, "now_cost"],
+                "element_out": out_player,
+                "entry": current_gw,
+            }
+        )
+
+    next_week_results = {
+        "in_the_bank": round(lp_variables.in_the_bank[current_gw + 1].value(), 1),
+        "free_transfers": (
+            round(lp_variables.free_transfers[current_gw + 1].value())
+            if current_gw + 1 <= 38
+            else 0
+        ),
+        "hits": round(lp_variables.penalized_transfers[current_gw].value()),
+        "solve_time": solution_time,
+        "n_transfers": round(
+            lpSum(
+                [lp_variables.transfer_in[p, current_gw] for p in lp_keys.players]
+            ).value()
+        ),
+        "chip_used": chip_used,
+        "initial_squad": squad,
+        "transfer_data": transfer_data,
+        "gameweek_xp": get_gameweek_xp(
+            lp_keys, lp_variables, variable_sums, current_gw
+        ),
+    }
+
+    return next_week_results
 
 
 def get_lineup(picks_df, w):
@@ -224,7 +282,7 @@ def get_lineup(picks_df, w):
 
 
 def get_transfer_summary(
-    fpl_data: FplData,
+    lp_data: LpData,
     lp_keys: LpKeys,
     lp_variables: LpVariables,
     variable_sums: VariableSums,
@@ -237,17 +295,17 @@ def get_transfer_summary(
     lpSum(lp_variables.use_triple_captain[p, w] for p in lp_keys.players)
     for p in lp_keys.players:
         if lp_variables.transfer_in[p, w].value() > 0.5:
-            price = fpl_data.merged_data["now_cost"][p] / 10
-            name = f'{fpl_data.merged_data["web_name"][p]} ({price})'
-            pos = fpl_data.merged_data["element_type"][p]
+            price = lp_data.merged_data["now_cost"][p] / 10
+            name = f'{lp_data.merged_data["web_name"][p]} ({price})'
+            pos = lp_data.merged_data["element_type"][p]
             xp = variable_sums.points_player_week[p, w]
             net_cost += price
             net_xp += xp
             gw_in.loc[len(gw_in)] = ["👉", name, xp, pos]
         if lp_variables.transfer_out[p, w].value() > 0.5:
-            price = fpl_data.merged_data["sell_price"][p] / 10
-            name = f'{fpl_data.merged_data["web_name"][p]} ({price})'
-            pos = fpl_data.merged_data["element_type"][p]
+            price = lp_data.merged_data["sell_price"][p] / 10
+            name = f'{lp_data.merged_data["web_name"][p]} ({price})'
+            pos = lp_data.merged_data["element_type"][p]
             xp = variable_sums.points_player_week[p, w]
             net_cost -= price
             net_xp -= xp
@@ -287,20 +345,20 @@ def get_chip_summary(lp_variables: LpVariables, variable_sums: VariableSums, w: 
 
 
 def generate_outputs(
-    fpl_data: FplData,
+    lp_data: LpData,
     lp_variables: LpVariables,
     solution_time: float,
     parameters: dict,
 ) -> tuple[pd.DataFrame, list[str], dict]:
-    lp_params = prepare_lp_params(fpl_data, parameters)
-    lp_keys = prepare_lp_keys(fpl_data, lp_params)
-    variable_sums = sum_lp_variables(fpl_data, lp_params, lp_keys, lp_variables)
+    lp_params = prepare_lp_params(lp_data, parameters)
+    lp_keys = prepare_lp_keys(lp_data, lp_params)
+    variable_sums = sum_lp_variables(lp_data, lp_params, lp_keys, lp_variables)
 
     picks_df = generate_picks_df(
-        fpl_data, lp_params, lp_keys, lp_variables, variable_sums
+        lp_data, lp_params, lp_keys, lp_variables, variable_sums
     )
-    summary, next_gw_dict = generate_summary(
-        fpl_data,
+    summary = generate_summary(
+        lp_data,
         lp_params,
         lp_keys,
         lp_variables,
@@ -309,4 +367,4 @@ def generate_outputs(
         parameters,
         solution_time,
     )
-    return summary, picks_df, next_gw_dict
+    return summary, picks_df

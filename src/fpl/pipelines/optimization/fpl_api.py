@@ -1,15 +1,10 @@
-import itertools
 import logging
 from collections import defaultdict
 from typing import Any
 
-import numpy as np
 import pandas as pd
 import requests
-from pydantic import BaseModel
 from tqdm import tqdm
-
-from fpl.utils import PydanticDataFrame
 
 logger = logging.getLogger(__name__)
 
@@ -226,21 +221,6 @@ def get_current_season_fpl_data() -> pd.DataFrame:
     return current_season_data
 
 
-class FplData(BaseModel):
-    merged_data: PydanticDataFrame
-    team_data: PydanticDataFrame
-    type_data: PydanticDataFrame
-    gameweeks: list[int]
-    initial_squad: list[int]
-    team_name: str
-    in_the_bank: float
-    free_transfers: int
-    current_season: str
-
-    class Config:
-        arbitrary_types_allowed = True
-
-
 def get_fpl_team_data(team_id: int, gw: int) -> list[dict]:
     general_request = requests.get(
         f"https://fantasy.premierleague.com/api/entry/{team_id}/"
@@ -265,151 +245,8 @@ def get_fpl_team_data(team_id: int, gw: int) -> list[dict]:
         initial_squad = []
     else:
         initial_squad = picks_data["picks"]
+        initial_squad = [p["element"] for p in initial_squad]
     return general_data, transfer_data, initial_squad, history_data
-
-
-def get_free_transfers(
-    transfer_data: dict, history_data: dict, current_gameweek: int
-) -> int:
-    free_transfers = 1
-    if current_gameweek <= 2:
-        return free_transfers
-
-    transfer_count = defaultdict(int)
-
-    for transfer in transfer_data:
-        transfer_count[transfer["event"]] += 1
-    for chip in history_data["chips"]:
-        if chip["name"] in ["wildcard", "bboost"]:
-            transfer_count[chip["event"]] = 1
-
-    # F2 = min(max(F1-T+1, 1), 5)
-    for week in range(2, current_gameweek):
-        free_transfers = min(max(free_transfers - transfer_count[week] + 1, 1), 5)
-    return free_transfers
-
-
-def get_live_data(
-    inference_results: pd.DataFrame, parameters: dict[str, Any]
-) -> FplData:
-    team_id = parameters["team_id"]
-    horizon = parameters["horizon"]
-
-    elements_team, team_data, type_data, all_gws, current_season = get_fpl_base_data()
-    gameweeks = all_gws["future"][:horizon]
-    current_gw = all_gws["current"]
-
-    pred_pts_data = get_pred_pts_data(inference_results, current_season, gameweeks)
-    merged_data = merge_data(elements_team, pred_pts_data)
-
-    general_data, transfer_data, initial_squad, history_data = get_fpl_team_data(
-        team_id, current_gw
-    )
-    in_the_bank = (general_data["last_deadline_bank"] or 1000) / 10
-    free_transfers = get_free_transfers(transfer_data, history_data, current_gw)
-
-    initial_squad = [p["element"] for p in initial_squad]
-    merged_data["sell_price"] = merged_data["now_cost"]
-    for t in transfer_data:
-        if t["element_in"] not in initial_squad:
-            continue
-        bought_price = t["element_in_cost"]
-        merged_data.loc[t["element_in"], "bought_price"] = bought_price
-        current_price = merged_data.loc[t["element_in"], "now_cost"]
-        if current_price <= bought_price:
-            continue
-        sell_price = np.floor(np.mean([current_price, bought_price]))
-        merged_data.loc[t["element_in"], "sell_price"] = sell_price
-
-    keys = [k for k in merged_data.columns.to_list() if "xPts_" in k]
-    merged_data["total_ev"] = merged_data[keys].sum(axis=1)
-    merged_data = merged_data.sort_values(by=["total_ev"], ascending=[False])
-
-    logger.info(f"Team: {general_data['name']}.")
-    logger.info(f"Current week: {current_gw}")
-    logger.info(f"Optimizing for {horizon} weeks. {gameweeks}")
-
-    return FplData(
-        merged_data=merged_data,
-        team_data=team_data,
-        type_data=type_data,
-        gameweeks=gameweeks,
-        initial_squad=initial_squad,
-        team_name=general_data["name"],
-        in_the_bank=in_the_bank,
-        free_transfers=free_transfers,
-        current_season=current_season,
-    )
-
-
-def merge_data(elements_team, pred_pts_data):
-    merged_data = elements_team.merge(
-        pred_pts_data,
-        left_on="full_name",
-        right_index=True,
-        how="left",
-    ).set_index("id")
-
-    initial_num_rows = len(merged_data)
-    merged_data = merged_data.dropna(subset=pred_pts_data.columns)
-    final_num_rows = len(merged_data)
-    percentage_dropped = (initial_num_rows - final_num_rows) / initial_num_rows * 100
-    if percentage_dropped > 20:
-        logger.warn(
-            f"More than 20% of the rows were dropped. ({percentage_dropped:.2f}%)"
-        )
-
-    return merged_data
-
-
-def get_pred_pts_data(inference_results, current_season, gameweeks):
-    pred_pts_data = inference_results.loc[
-        (inference_results["season"] == current_season)
-        & inference_results["round"].isin(gameweeks)
-    ]
-    pred_pts_data = pred_pts_data.pivot_table(
-        index="fpl_name", columns="round", values="prediction", aggfunc="first"
-    ).fillna(0)
-    pred_pts_data.columns = [f"xPts_{int(col)}" for col in pred_pts_data.columns]
-    return pred_pts_data
-
-
-def get_backtest_data(latest_elements_team, gw):
-    backtest_data = pd.read_csv("data/raw/backtest_data/merged_gw.csv")[
-        ["name", "position", "team", "xP", "GW", "value"]
-    ]
-    backtest_data = backtest_data[~backtest_data["GW"].isna()]
-    backtest_data = backtest_data.sort_values(by="xP")
-    backtest_data = backtest_data.drop_duplicates(subset=["name", "GW"])
-
-    player_gw = pd.DataFrame(
-        list(
-            itertools.product(
-                backtest_data["name"].unique(),
-                backtest_data["GW"].unique(),
-            )
-        ),
-        columns=["name", "GW"],
-    )
-    backtest_data = player_gw.merge(backtest_data, how="left", on=["name", "GW"])
-    backtest_data["value"] = backtest_data.groupby("name")["value"].ffill()
-    backtest_data["position"] = backtest_data.groupby("name")["position"].ffill()
-    backtest_data["team"] = backtest_data.groupby("name")["team"].ffill()
-    backtest_data["xP"] = backtest_data["xP"].fillna(0)
-    gw_data = backtest_data.loc[backtest_data["GW"] == gw, :]
-    elements_team = pd.merge(
-        latest_elements_team,
-        gw_data,
-        left_on=["full_name", "name"],
-        right_on=["name", "team"],
-        suffixes=("", "_y"),
-    )
-    elements_team = (
-        elements_team.drop(elements_team.filter(regex="_y$").columns, axis=1)
-        .drop("GW", axis=1)
-        .rename({"value": "now_cost"}, axis=1)
-    )
-    return elements_team
 
 
 if __name__ == "__main__":

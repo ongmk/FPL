@@ -63,7 +63,7 @@ def backup_latest_n(current_file, n=5):
     )
 
     files_with_timestamps = sorted(
-        [f for f in dir.glob("*") if f.is_file() and f.suffix == ".bak"],
+        [f for f in dir.glob(f"{current_file.stem}*.bak") if f.is_file()],
         key=lambda f: "".join(f.stem.split("_")[-2:]),
         reverse=True,
     )

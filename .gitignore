@@ -167,5 +167,6 @@ cbc/*
 *.mps
 *.bak
 *.sol
+*.sol.init
 lp_data.json
 summary.txt

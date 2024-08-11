@@ -2,12 +2,12 @@ from pulp import LpBinary, LpInteger, LpProblem, LpVariable, lpSum
 
 from fpl.pipelines.optimization.constraints.base_constraints import BaseConstraints
 from fpl.pipelines.optimization.data_classes import (
+    LpData,
     LpKeys,
     LpParams,
     LpVariables,
     VariableSums,
 )
-from fpl.pipelines.optimization.fpl_api import FplData
 
 
 def linearize_min_function(X, x1, x2, M, idx):
@@ -100,7 +100,7 @@ def add_free_transfer_constraints(
 class TransferConstraints(BaseConstraints):
 
     def global_level(
-        fpl_data: FplData,
+        lp_data: LpData,
         model: LpProblem,
         lp_params: LpParams,
         lp_keys: LpKeys,
@@ -108,11 +108,11 @@ class TransferConstraints(BaseConstraints):
         variable_sums: VariableSums,
     ) -> None:
         model += (
-            lp_variables.in_the_bank[lp_params.next_gw - 1] == fpl_data.in_the_bank,
+            lp_variables.in_the_bank[lp_params.next_gw - 1] == lp_data.in_the_bank,
             "initial_in_the_bank",
         )
         model += (
-            lp_variables.free_transfers[lp_params.next_gw] == fpl_data.free_transfers,
+            lp_variables.free_transfers[lp_params.next_gw] == lp_data.free_transfers,
             "initial_free_transfers",
         )
 
@@ -125,7 +125,7 @@ class TransferConstraints(BaseConstraints):
             lpSum(
                 lp_variables.transfer_in[p, w] + lp_variables.transfer_out[p, w]
                 for p in lp_keys.players
-                for w in fpl_data.gameweeks
+                for w in lp_data.gameweeks
                 if w not in lp_params.transfer_gws
             )
             == 0,
@@ -134,7 +134,7 @@ class TransferConstraints(BaseConstraints):
 
     def player_level(
         player: int,
-        fpl_data: FplData,
+        lp_data: LpData,
         model: LpProblem,
         lp_params: LpParams,
         lp_keys: LpKeys,
@@ -146,7 +146,7 @@ class TransferConstraints(BaseConstraints):
             model += (
                 lpSum(
                     lp_variables.transfer_out_first[player, w]
-                    for w in fpl_data.gameweeks
+                    for w in lp_data.gameweeks
                 )
                 <= 1,
                 f"multi_sell_3_{player}",
@@ -154,7 +154,7 @@ class TransferConstraints(BaseConstraints):
 
     def gameweek_level(
         gameweek: int,
-        fpl_data: FplData,
+        lp_data: LpData,
         model: LpProblem,
         lp_params: LpParams,
         lp_keys: LpKeys,
@@ -201,7 +201,7 @@ class TransferConstraints(BaseConstraints):
     def player_gameweek_level(
         player: int,
         gameweek: int,
-        fpl_data: FplData,
+        lp_data: LpData,
         model: LpProblem,
         lp_params: LpParams,
         lp_keys: LpKeys,
@@ -238,12 +238,12 @@ class TransferConstraints(BaseConstraints):
                 lp_params.horizon
                 * lpSum(
                     lp_variables.transfer_out_first[player, wbar]
-                    for wbar in fpl_data.gameweeks
+                    for wbar in lp_data.gameweeks
                     if wbar <= gameweek
                 )
                 >= lpSum(
                     lp_variables.transfer_out_regular[player, wbar]
-                    for wbar in fpl_data.gameweeks
+                    for wbar in lp_data.gameweeks
                     if wbar >= gameweek
                 ),
                 f"multi_sell_2_{player}_{gameweek}",

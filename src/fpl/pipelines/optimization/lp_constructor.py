@@ -19,23 +19,23 @@ from fpl.pipelines.optimization.constraints import (
     TransferConstraints,
 )
 from fpl.pipelines.optimization.data_classes import (
+    LpData,
     LpKeys,
     LpParams,
     LpVariables,
     VariableSums,
 )
-from fpl.pipelines.optimization.fpl_api import FplData
 from fpl.utils import backup_latest_n
 
 
-def prepare_lp_params(fpl_data: FplData, parameters: dict[str, Any]) -> LpParams:
+def prepare_lp_params(lp_data: LpData, parameters: dict[str, Any]) -> LpParams:
     wildcard_week = parameters["wildcard_week"]
     bench_boost_week = parameters["bench_boost_week"]
     free_hit_week = parameters["free_hit_week"]
     triple_captain_week = parameters["triple_captain_week"]
     transfer_horizon = parameters["transfer_horizon"]
-    next_gw = fpl_data.gameweeks[0]
-    transfer_gws = fpl_data.gameweeks[:transfer_horizon]
+    next_gw = lp_data.gameweeks[0]
+    transfer_gws = lp_data.gameweeks[:transfer_horizon]
 
     return LpParams(
         next_gw=next_gw,
@@ -55,36 +55,36 @@ def prepare_lp_params(fpl_data: FplData, parameters: dict[str, Any]) -> LpParams
     )
 
 
-def prepare_lp_keys(fpl_data: FplData, lp_params: LpParams) -> LpKeys:
-    players = fpl_data.merged_data.index.to_list()
-    all_gws = [lp_params.next_gw - 1] + fpl_data.gameweeks
+def prepare_lp_keys(lp_data: LpData, lp_params: LpParams) -> LpKeys:
+    players = lp_data.merged_data.index.to_list()
+    all_gws = [lp_params.next_gw - 1] + lp_data.gameweeks
     order = [0, 1, 2, 3]
-    price_modified_players = fpl_data.merged_data.loc[
-        fpl_data.merged_data["sell_price"] != fpl_data.merged_data["now_cost"]
+    price_modified_players = lp_data.merged_data.loc[
+        lp_data.merged_data["sell_price"] != lp_data.merged_data["now_cost"]
     ].index.to_list()
 
     return LpKeys(
-        element_types=fpl_data.type_data.index.to_list(),
-        teams=fpl_data.team_data["name"].to_list(),
+        element_types=lp_data.type_data.index.to_list(),
+        teams=lp_data.team_data["name"].to_list(),
         players=players,
         price_modified_players=price_modified_players,
         all_gws=all_gws,
         player_all_gws=list(itertools.product(players, all_gws)),
-        player_gameweeks=list(itertools.product(players, fpl_data.gameweeks)),
+        player_gameweeks=list(itertools.product(players, lp_data.gameweeks)),
         order=order,
         player_gameweeks_order=list(
-            itertools.product(players, fpl_data.gameweeks, order)
+            itertools.product(players, lp_data.gameweeks, order)
         ),
         price_modified_players_gameweeks=list(
-            itertools.product(price_modified_players, fpl_data.gameweeks)
+            itertools.product(price_modified_players, lp_data.gameweeks)
         ),
-        player_type=fpl_data.merged_data["element_type"].to_dict(),
-        sell_price=(fpl_data.merged_data["sell_price"] / 10).to_dict(),
-        buy_price=(fpl_data.merged_data["now_cost"] / 10).to_dict(),
+        player_type=lp_data.merged_data["element_type"].to_dict(),
+        sell_price=(lp_data.merged_data["sell_price"] / 10).to_dict(),
+        buy_price=(lp_data.merged_data["now_cost"] / 10).to_dict(),
     )
 
 
-def initialize_variables(fpl_data: FplData, lp_keys: LpKeys) -> LpVariables:
+def initialize_variables(lp_data: LpData, lp_keys: LpKeys) -> LpVariables:
     squad = LpVariable.dicts("squad", lp_keys.player_all_gws, cat=LpBinary)
     squad_free_hit = LpVariable.dicts(
         "squad_free_hit", lp_keys.player_gameweeks, cat=LpBinary
@@ -106,7 +106,7 @@ def initialize_variables(fpl_data: FplData, lp_keys: LpKeys) -> LpVariables:
         (p, w): transfer_out_regular[p, w]
         + (transfer_out_first[p, w] if p in lp_keys.price_modified_players else 0)
         for p in lp_keys.players
-        for w in fpl_data.gameweeks
+        for w in lp_data.gameweeks
     }
     in_the_bank = LpVariable.dicts(
         "in_the_bank", lp_keys.all_gws, cat=LpContinuous, lowBound=0
@@ -119,17 +119,17 @@ def initialize_variables(fpl_data: FplData, lp_keys: LpKeys) -> LpVariables:
         upBound=2,
     )
     penalized_transfers = LpVariable.dicts(
-        "penalized_transfers", fpl_data.gameweeks, cat=LpInteger, lowBound=0
+        "penalized_transfers", lp_data.gameweeks, cat=LpInteger, lowBound=0
     )
 
-    use_wildcard = LpVariable.dicts("use_wildcard", fpl_data.gameweeks, cat=LpBinary)
+    use_wildcard = LpVariable.dicts("use_wildcard", lp_data.gameweeks, cat=LpBinary)
     use_bench_boost = LpVariable.dicts(
-        "use_bench_boost", fpl_data.gameweeks, cat=LpBinary
+        "use_bench_boost", lp_data.gameweeks, cat=LpBinary
     )
     use_triple_captain = LpVariable.dicts(
         "use_triple_captain", lp_keys.player_gameweeks, cat=LpBinary
     )
-    use_free_hit = LpVariable.dicts("use_free_hit", fpl_data.gameweeks, cat=LpBinary)
+    use_free_hit = LpVariable.dicts("use_free_hit", lp_data.gameweeks, cat=LpBinary)
     return LpVariables(
         squad=squad,
         squad_free_hit=squad_free_hit,
@@ -152,34 +152,34 @@ def initialize_variables(fpl_data: FplData, lp_keys: LpKeys) -> LpVariables:
 
 
 def sum_lp_variables(
-    fpl_data: FplData, lp_params: LpParams, lp_keys: LpKeys, lp_variables: LpVariables
+    lp_data: LpData, lp_params: LpParams, lp_keys: LpKeys, lp_variables: LpVariables
 ) -> VariableSums:
     lineup_type_count = {
         (t, w): lpSum(
             lp_variables.lineup[p, w]
             for p in lp_keys.players
-            if fpl_data.merged_data.loc[p, "element_type"] == t
+            if lp_data.merged_data.loc[p, "element_type"] == t
         )
         for t in lp_keys.element_types
-        for w in fpl_data.gameweeks
+        for w in lp_data.gameweeks
     }
     squad_type_count = {
         (t, w): lpSum(
             lp_variables.squad[p, w]
             for p in lp_keys.players
-            if fpl_data.merged_data.loc[p, "element_type"] == t
+            if lp_data.merged_data.loc[p, "element_type"] == t
         )
         for t in lp_keys.element_types
-        for w in fpl_data.gameweeks
+        for w in lp_data.gameweeks
     }
     squad_free_hit_type_count = {
         (t, w): lpSum(
             lp_variables.squad_free_hit[p, w]
             for p in lp_keys.players
-            if fpl_data.merged_data.loc[p, "element_type"] == t
+            if lp_data.merged_data.loc[p, "element_type"] == t
         )
         for t in lp_keys.element_types
-        for w in fpl_data.gameweeks
+        for w in lp_data.gameweeks
     }
     sold_amount = {
         w: lpSum(
@@ -194,7 +194,7 @@ def sum_lp_variables(
                 for p in lp_keys.players
             ]
         )
-        for w in fpl_data.gameweeks
+        for w in lp_data.gameweeks
     }
     free_hit_sell_price = {
         p: (
@@ -211,35 +211,35 @@ def sum_lp_variables(
                 for p in lp_keys.players
             ]
         )
-        for w in fpl_data.gameweeks
+        for w in lp_data.gameweeks
     }
     points_player_week = {
-        (p, w): fpl_data.merged_data.loc[p, f"xPts_{w}"]
+        (p, w): lp_data.merged_data.loc[p, f"xPts_{w}"]
         for p in lp_keys.players
-        for w in fpl_data.gameweeks
+        for w in lp_data.gameweeks
     }
     squad_count = {
         w: lpSum(lp_variables.squad[p, w] for p in lp_keys.players)
-        for w in fpl_data.gameweeks
+        for w in lp_data.gameweeks
     }
     squad_free_hit_count = {
         w: lpSum(lp_variables.squad_free_hit[p, w] for p in lp_keys.players)
-        for w in fpl_data.gameweeks
+        for w in lp_data.gameweeks
     }
     number_of_transfers = {
         w: lpSum([lp_variables.transfer_out[p, w] for p in lp_keys.players])
-        for w in fpl_data.gameweeks
+        for w in lp_data.gameweeks
     }
     number_of_transfers[lp_params.next_gw - 1] = 1
     transfer_diff = {
         w: number_of_transfers[w]
         - lp_variables.free_transfers[w]
         - 15 * lp_variables.use_wildcard[w]
-        for w in fpl_data.gameweeks
+        for w in lp_data.gameweeks
     }
     use_triple_captain_week = {
         w: lpSum(lp_variables.use_triple_captain[p, w] for p in lp_keys.players)
-        for w in fpl_data.gameweeks
+        for w in lp_data.gameweeks
     }
 
     return VariableSums(
@@ -258,53 +258,53 @@ def sum_lp_variables(
     )
 
 
-def add_constraints(fpl_data, model, lp_params, lp_keys, lp_variables, variable_sums):
+def add_constraints(lp_data, model, lp_params, lp_keys, lp_variables, variable_sums):
     ChipConstraints.global_level(
-        fpl_data, model, lp_params, lp_keys, lp_variables, variable_sums
+        lp_data, model, lp_params, lp_keys, lp_variables, variable_sums
     )
     TransferConstraints.global_level(
-        fpl_data, model, lp_params, lp_keys, lp_variables, variable_sums
+        lp_data, model, lp_params, lp_keys, lp_variables, variable_sums
     )
     for p in lp_keys.players:
         SquadConstraints.player_level(
-            p, fpl_data, model, lp_params, lp_keys, lp_variables, variable_sums
+            p, lp_data, model, lp_params, lp_keys, lp_variables, variable_sums
         )
         TransferConstraints.player_level(
-            p, fpl_data, model, lp_params, lp_keys, lp_variables, variable_sums
+            p, lp_data, model, lp_params, lp_keys, lp_variables, variable_sums
         )
 
-    for w in fpl_data.gameweeks:
+    for w in lp_data.gameweeks:
         SquadConstraints.gameweek_level(
-            w, fpl_data, model, lp_params, lp_keys, lp_variables, variable_sums
+            w, lp_data, model, lp_params, lp_keys, lp_variables, variable_sums
         )
         TransferConstraints.gameweek_level(
-            w, fpl_data, model, lp_params, lp_keys, lp_variables, variable_sums
+            w, lp_data, model, lp_params, lp_keys, lp_variables, variable_sums
         )
 
         for t in lp_keys.element_types:
             SquadConstraints.type_gameweek_level(
-                t, w, fpl_data, model, lp_params, lp_keys, lp_variables, variable_sums
+                t, w, lp_data, model, lp_params, lp_keys, lp_variables, variable_sums
             )
 
         for t in lp_keys.teams:
             SquadConstraints.team_gameweek_level(
-                t, w, fpl_data, model, lp_params, lp_keys, lp_variables, variable_sums
+                t, w, lp_data, model, lp_params, lp_keys, lp_variables, variable_sums
             )
 
         for p in lp_keys.players:
             SquadConstraints.player_gameweek_level(
-                p, w, fpl_data, model, lp_params, lp_keys, lp_variables, variable_sums
+                p, w, lp_data, model, lp_params, lp_keys, lp_variables, variable_sums
             )
             TransferConstraints.player_gameweek_level(
-                p, w, fpl_data, model, lp_params, lp_keys, lp_variables, variable_sums
+                p, w, lp_data, model, lp_params, lp_keys, lp_variables, variable_sums
             )
             ChipConstraints.player_gameweek_level(
-                p, w, fpl_data, model, lp_params, lp_keys, lp_variables, variable_sums
+                p, w, lp_data, model, lp_params, lp_keys, lp_variables, variable_sums
             )
 
 
 def add_objective_function(
-    fpl_data: FplData,
+    lp_data: LpData,
     model: LpProblem,
     lp_params: LpParams,
     lp_keys: LpKeys,
@@ -328,41 +328,38 @@ def add_objective_function(
                 for p in lp_keys.players
             ]
         )
-        for w in fpl_data.gameweeks
+        for w in lp_data.gameweeks
     }
     gw_total = {
         w: gw_xp[w]
         - 4 * lp_variables.penalized_transfers[w]
-        + lp_params.free_transfer_bonus * lp_variables.free_transfers[w]
-        + lp_params.in_the_bank_bonus * lp_variables.in_the_bank[w]
-        for w in fpl_data.gameweeks
+        + lp_params.free_transfer_bonus * lp_variables.free_transfers[w] * int(w != 38)
+        + lp_params.in_the_bank_bonus * lp_variables.in_the_bank[w] * int(w != 38)
+        for w in lp_data.gameweeks
     }
 
     decay_objective = lpSum(
-        [
-            gw_total[w] * pow(lp_params.decay, i)
-            for i, w in enumerate(fpl_data.gameweeks)
-        ]
+        [gw_total[w] * pow(lp_params.decay, i) for i, w in enumerate(lp_data.gameweeks)]
     )
     model += -decay_objective, "total_decay_xp"
 
     return None
 
 
-def construct_lp(
-    fpl_data: FplData, parameters: dict
-) -> tuple[LpParams, LpVariables, LpKeys, VariableSums]:
-    mps_path = parameters["mps_path"]
+def construct_lp(lp_data: LpData, parameters: dict) -> tuple[LpVariables, VariableSums]:
+    model_name = parameters["model_name"]
+    mps_dir = parameters["mps_dir"]
+    mps_path = f"{mps_dir}/{model_name}.mps"
 
-    lp_params = prepare_lp_params(fpl_data, parameters)
-    lp_keys = prepare_lp_keys(fpl_data, lp_params)
-    lp_variables = initialize_variables(fpl_data, lp_keys)
-    variable_sums = sum_lp_variables(fpl_data, lp_params, lp_keys, lp_variables)
+    lp_params = prepare_lp_params(lp_data, parameters)
+    lp_keys = prepare_lp_keys(lp_data, lp_params)
+    lp_variables = initialize_variables(lp_data, lp_keys)
+    variable_sums = sum_lp_variables(lp_data, lp_params, lp_keys, lp_variables)
 
-    model = LpProblem(name="fpl_model", sense=LpMinimize)
-    add_constraints(fpl_data, model, lp_params, lp_keys, lp_variables, variable_sums)
+    model = LpProblem(name=model_name, sense=LpMinimize)
+    add_constraints(lp_data, model, lp_params, lp_keys, lp_variables, variable_sums)
     add_objective_function(
-        fpl_data, model, lp_params, lp_keys, lp_variables, variable_sums
+        lp_data, model, lp_params, lp_keys, lp_variables, variable_sums
     )
 
     model.writeMPS(mps_path)

@@ -2,25 +2,25 @@ from pulp import LpProblem, lpSum
 
 from fpl.pipelines.optimization.constraints.base_constraints import BaseConstraints
 from fpl.pipelines.optimization.data_classes import (
+    LpData,
     LpKeys,
     LpParams,
     LpVariables,
     VariableSums,
 )
-from fpl.pipelines.optimization.fpl_api import FplData
 
 
 class SquadConstraints(BaseConstraints):
     def player_level(
         player: int,
-        fpl_data: FplData,
+        lp_data: LpData,
         model: LpProblem,
         lp_params: LpParams,
         lp_keys: LpKeys,
         lp_variables: LpVariables,
         variable_sums: VariableSums,
     ) -> None:
-        if player in fpl_data.initial_squad:
+        if player in lp_data.initial_squad:
             model += (
                 lp_variables.squad[player, lp_params.next_gw - 1] == 1,
                 f"initial_squad_players_{player}",
@@ -33,7 +33,7 @@ class SquadConstraints(BaseConstraints):
 
     def gameweek_level(
         gameweek: int,
-        fpl_data: FplData,
+        lp_data: LpData,
         model: LpProblem,
         lp_params: LpParams,
         lp_keys: LpKeys,
@@ -78,7 +78,7 @@ class SquadConstraints(BaseConstraints):
     def type_gameweek_level(
         _type: int,
         gameweek: int,
-        fpl_data: FplData,
+        lp_data: LpData,
         model: LpProblem,
         lp_params: LpParams,
         lp_keys: LpKeys,
@@ -87,23 +87,23 @@ class SquadConstraints(BaseConstraints):
     ) -> None:
         model += (
             variable_sums.lineup_type_count[_type, gameweek]
-            >= fpl_data.type_data.loc[_type, "squad_min_play"],
+            >= lp_data.type_data.loc[_type, "squad_min_play"],
             f"valid_formation_lb_{_type}_{gameweek}",
         )
         model += (
             variable_sums.lineup_type_count[_type, gameweek]
-            <= fpl_data.type_data.loc[_type, "squad_max_play"]
+            <= lp_data.type_data.loc[_type, "squad_max_play"]
             + lp_variables.use_bench_boost[gameweek],
             f"valid_formation_ub_{_type}_{gameweek}",
         )
         model += (
             variable_sums.squad_type_count[_type, gameweek]
-            == fpl_data.type_data.loc[_type, "squad_select"],
+            == lp_data.type_data.loc[_type, "squad_select"],
             f"valid_squad_{_type}_{gameweek}",
         )
         model += (
             variable_sums.squad_free_hit_type_count[_type, gameweek]
-            == fpl_data.type_data.loc[_type, "squad_select"]
+            == lp_data.type_data.loc[_type, "squad_select"]
             * lp_variables.use_free_hit[gameweek],
             f"valid_squad_free_hit_{_type}_{gameweek}",
         )
@@ -111,7 +111,7 @@ class SquadConstraints(BaseConstraints):
     def team_gameweek_level(
         team: int,
         gameweek: int,
-        fpl_data: FplData,
+        lp_data: LpData,
         model: LpProblem,
         lp_params: LpParams,
         lp_keys: LpKeys,
@@ -122,7 +122,7 @@ class SquadConstraints(BaseConstraints):
             lpSum(
                 lp_variables.squad[p, gameweek]
                 for p in lp_keys.players
-                if fpl_data.merged_data.loc[p, "team"] == team
+                if lp_data.merged_data.loc[p, "team"] == team
             )
             <= 3,
             f"team_limit_{team}_{gameweek}",
@@ -131,7 +131,7 @@ class SquadConstraints(BaseConstraints):
             lpSum(
                 lp_variables.squad_free_hit[p, gameweek]
                 for p in lp_keys.players
-                if fpl_data.merged_data.loc[p, "team"] == team
+                if lp_data.merged_data.loc[p, "team"] == team
             )
             <= 3,
             f"team_limit_free_hit_{team}_{gameweek}",
@@ -140,7 +140,7 @@ class SquadConstraints(BaseConstraints):
     def player_gameweek_level(
         player: int,
         gameweek: int,
-        fpl_data: FplData,
+        lp_data: LpData,
         model: LpProblem,
         lp_params: LpParams,
         lp_keys: LpKeys,

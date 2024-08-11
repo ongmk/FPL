@@ -1,1 +1,6 @@
 - xP Gain Calculation rethink
+- 2023-2024 duplicated week 1 data
+- inference results missing unplayed players
+  - Should they be inferenced?
+    - Yes. If picked by mistake, they would score 0.
+  - Where are they dropped?

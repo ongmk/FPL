@@ -1,6 +1,9 @@
 from dataclasses import dataclass
 
 from pulp import LpVariable, lpSum
+from pydantic import BaseModel
+
+from fpl.utils import PydanticDataFrame
 
 
 @dataclass
@@ -73,3 +76,18 @@ class VariableSums:
     number_of_transfers: dict[int, lpSum]
     transfer_diff: dict[int, lpSum]
     use_triple_captain_week: dict[int, lpSum]
+
+
+class LpData(BaseModel):
+    merged_data: PydanticDataFrame
+    team_data: PydanticDataFrame
+    type_data: PydanticDataFrame
+    gameweeks: list[int]
+    initial_squad: list[int]
+    team_name: str
+    in_the_bank: float
+    free_transfers: int
+    current_season: str
+
+    class Config:
+        arbitrary_types_allowed = True

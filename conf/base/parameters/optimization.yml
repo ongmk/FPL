@@ -1,6 +1,7 @@
 optimization:
-  mps_path: data/optimization/models/fpl_model.mps
-  solution_path: data/optimization/solutions/fpl_model_solution.sol
+  model_name: fpl_live_model
+  mps_dir: data/optimization/models
+  solution_dir: data/optimization/solutions
 
   team_id: 1792016
 
@@ -24,4 +25,4 @@ optimization:
   backtest_players:
     Me: 1792016
     Donald: 307190
-  backtest_season: 2024-2025
+  backtest_season: 2023-2024

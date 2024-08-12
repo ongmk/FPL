@@ -12,56 +12,44 @@ def find_missing_integer(group, all_teams):
         return missing_opponent[0]
 
 
-def main(conn, cur, fpl_data, season_team_id):
-    for season in fpl_data.season.unique().tolist():
-        season_data = fpl_data.loc[fpl_data["season"] == season].copy()
-        all_teams = sorted(season_data["opponent_team"].unique().tolist())
-        mapping = (
-            season_data.groupby(["season", "full_name"])
-            .apply(find_missing_integer, all_teams)
-            .to_dict()
-        )
-        season_data["team_id"] = season_data.apply(
-            lambda row: mapping.get((row["season"], row["full_name"]), None), axis=1
-        )
-        mode_id = (
-            season_data.groupby(["fixture", "was_home"], group_keys=False)["team_id"]
-            .agg(pd.Series.mode)
-            .to_dict()
-        )
-        season_data["team_id"] = season_data.apply(
-            lambda row: mode_id[(row["fixture"], row["was_home"])], axis=1
+def main(conn, cur, fpl_data):
+    correct = fpl_data.loc[fpl_data["cnt"] > 1].copy()
+    incorrect = fpl_data.loc[fpl_data["cnt"] == 1].copy()
+
+    for idx, row in incorrect.iterrows():
+        correct_team = correct.loc[
+            (correct["kickoff_time"] == row["kickoff_time"])
+            & (correct["opponent_team"] == row["opponent_team"]),
+            "team",
+        ]
+        assert len(correct_team) == 1
+        correct_team = correct_team.iloc[0]
+        correct_team_name = correct.loc[
+            (correct["kickoff_time"] == row["kickoff_time"])
+            & (correct["opponent_team"] == row["opponent_team"]),
+            "team_name",
+        ]
+        assert len(correct_team_name) == 1
+        correct_team_name = correct_team_name.iloc[0]
+        print(
+            row["kickoff_time"],
+            row["team"],
+            row["team_name"],
+            row["opponent_team"],
+            row["opponent_team_name"],
         )
 
-        for idx, group in season_data.groupby(["fixture", "was_home"]):
-            if group.team.notna().all() and group.opponent_team_name.notna().all():
-                continue
-            top_idx = group["total_points"].idxmax()
-            if np.isnan(top_idx):
-                top_home = group.iloc[0]
-            else:
-                top_home = group.loc[top_idx]
-            fixture = top_home.fixture
-            was_home = top_home.was_home
-            team_id = top_home.team_id
-            opponent_team = top_home.opponent_team
-            team = season_team_id[(season, team_id)]
-            opponent_team_name = season_team_id[(season, opponent_team)]
-            if group.team_id.nunique() != 1 or group.opponent_team.nunique() != 1:
-                raise Exception("error")
-
-            team_string = team.replace("'", "''")
-            opponent_team_name_string = opponent_team_name.replace("'", "''")
-            query = f"""
-            UPDATE raw_fpl_data SET team = '{team_string}', opponent_team_name = '{opponent_team_name_string}' 
-            WHERE season = '{season}' and fixture = {fixture} and was_home = {was_home}
-            """
-            cur.execute(query)
-            if cur.rowcount > 0:
-                print(
-                    f"{cur.rowcount} X {season=},{fixture=},{was_home=} --> {team}\te.g. {top_home.full_name}"
-                )
-            conn.commit()
+        team_string = correct_team_name.replace("'", "''")
+        query = f"""
+        UPDATE raw_fpl_data SET team_name = '{team_string}', team = {correct_team}
+        WHERE season = '2023-2024' and kickoff_time = '{row["kickoff_time"]}' and opponent_team = {row["opponent_team"]}
+        """
+        cur.execute(query)
+        if cur.rowcount > 0:
+            print(
+                f"{cur.rowcount} X {row['kickoff_time']=},{row['team']=},{row['team_name']=},{row['opponent_team']=},{row['opponent_team_name']=}--> {correct_team=},{correct_team_name=}"
+            )
+        conn.commit()
     return None
 
 
@@ -70,16 +58,13 @@ if __name__ == "__main__":
     cur = conn.cursor()
 
     fpl_data = pd.read_sql(
-        f"select season, team, full_name, opponent_team, opponent_team_name, fixture, was_home, total_points from raw_fpl_data",
+        """SELECT kickoff_time, team_name, team, opponent_team, opponent_team_name, count(*) cnt
+FROM raw_fpl_data
+WHERE season = '2023-2024'
+GROUP BY kickoff_time, team_name, team, opponent_team, opponent_team_name""",
         conn,
     )
 
-    season_team_id = (
-        pd.read_csv("src/fpl/adhoc/season_team_id.csv")
-        .set_index(["season", "team"])["team_name"]
-        .to_dict()
-    )
-
-    main(conn, cur, fpl_data, season_team_id)
+    main(conn, cur, fpl_data)
 
     conn.close()

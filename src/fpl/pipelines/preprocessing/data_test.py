@@ -20,7 +20,7 @@ def data_tests(
         fpl_data, fpl_2_fbref_team_mapping, team_match_log
     )
 
-    check_dates(fpl_data, team_match_log)
+    check_fpl_teams_uniqueness(fpl_data)
 
     return True
 
@@ -42,30 +42,11 @@ def get_week_number(round_str: str) -> int:
         return None
 
 
-def check_dates(fpl_data, team_match_log):
-    # date_fpl = fpl_data.loc[
-    #     fpl_data["total_points"].notna(),
-    #     ["season", "round", "team_name", "opponent", "kickoff_time", "date"],
-    # ].drop_duplicates()
-    # date_fbref = team_match_log[
-    #     ["season", "round", "team_name", "opponent", "date"]
-    # ].drop_duplicates()
-
-    # combined = pd.merge(
-    #     date_fpl,
-    #     date_fbref,
-    #     on=[
-    #         "season",
-    #         "team",
-    #         "opponent",
-    #         "date",
-    #     ],
-    #     how="outer",
-    # )
-    # assert (
-    #     combined["round_y"].isna().sum() == 0
-    # ), "Some FPL kickoff times are not matched to FBRef dates."
-    pass
+def check_fpl_teams_uniqueness(fpl_data):
+    counts = fpl_data.groupby(
+        ["season", "kickoff_time", "team", "opponent_team"]
+    ).size()
+    assert counts.min() >= 10, "Some team-opponent pairs have less than 10 matches."
 
 
 def check_team_name_mapping(fpl_data, fpl_2_fbref_team_mapping):

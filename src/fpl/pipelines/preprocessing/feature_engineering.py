@@ -297,6 +297,7 @@ def feature_engineering(
     use_cache = parameters["use_cache"]
     ma_lag = parameters["ma_lag"]
     n_cores = parameters["n_cores"]
+    holdout_year = parameters["holdout_year"]
 
     pandarallel.initialize(progress_bar=True, nb_workers=n_cores)
 
@@ -312,8 +313,8 @@ def feature_engineering(
     data = agg_home_away_elo(data)
     data = calculate_pts_data(data, cached_data)
 
-    mask = past_data_mask(data)
-    data.loc[mask] = data.loc[mask].dropna(subset=["player"])
+    train_set = data["season"] < holdout_year
+    data.loc[train_set] = data.loc[train_set].dropna(subset=["player"])
 
     data = extract_mode_pos(data, cached_data)
     data = create_ma_features(data, cached_data, ma_lag, parameters)
@@ -323,7 +324,8 @@ def feature_engineering(
     if use_cache:
         data = pd.concat([cached_data, data], ignore_index=True)
 
-    data.loc[mask, "cached"] = True
+    one_week_ago = datetime.now() - timedelta(days=7)
+    data.loc[data["date"] <= one_week_ago, "cached"] = True
     data = reorder_columns(data)
 
     return data
@@ -339,8 +341,3 @@ def reorder_columns(data):
     )
     data = data[new_columns]
     return data
-
-
-def past_data_mask(data):
-    one_week_ago = datetime.now() - timedelta(days=7)
-    return data["date"] <= one_week_ago

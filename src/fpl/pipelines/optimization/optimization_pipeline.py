@@ -16,7 +16,6 @@ def create_live_pipeline():
                 func=get_live_data,
                 inputs=["INFERENCE_RESULTS", "params:optimization"],
                 outputs="LP_DATA",
-                name="get_live_data",
             ),
             node(
                 func=construct_lp,
@@ -25,7 +24,6 @@ def create_live_pipeline():
                     "params:optimization",
                 ],
                 outputs=["lp_params", "lp_keys", "lp_variables", "variable_sums"],
-                name="construct_lp",
             ),
             node(
                 func=solve_lp,
@@ -35,7 +33,6 @@ def create_live_pipeline():
                     "solved_variable_sums",
                     "solution_time",
                 ],
-                name="solve_lp",
             ),
             node(
                 func=generate_outputs,
@@ -45,8 +42,7 @@ def create_live_pipeline():
                     "solution_time",
                     "params:optimization",
                 ],
-                outputs=["PICKS_SUMMARY", "PICKS_CSV"],
-                name="live_optimization_node",
+                outputs="OPTIMIZATION_SUMMARY",
             ),
         ]
     )
@@ -59,7 +55,6 @@ def create_backtest_pipeline():
                 func=backtest,
                 inputs=["INFERENCE_RESULTS", "FPL_DATA", "params:optimization"],
                 outputs="BACKTEST_PLOTS",
-                name="backtest_optimization_node",
             ),
         ]
     )

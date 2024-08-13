@@ -1,5 +1,7 @@
 from dataclasses import dataclass
+from typing import Any, Literal, Optional
 
+import pandas as pd
 from pulp import LpVariable, lpSum
 from pydantic import BaseModel
 
@@ -30,8 +32,8 @@ class LpKeys:
     teams: list[str]
     players: list[int]
     price_modified_players: list[int]
-    all_gws: list[int]
-    player_all_gws: list[tuple[int, int]]
+    gameweeks_plus: list[int]
+    player_gameweeks_plus: list[tuple[int, int]]
     player_gameweeks: list[tuple[int, int]]
     order: list[int]
     player_gameweeks_order: list[tuple[int, int, int]]
@@ -53,8 +55,8 @@ class LpVariables:
     transfer_out: dict[tuple[int, int], LpVariable]
     transfer_out_first: dict[tuple[int, int], LpVariable]
     transfer_out_regular: dict[tuple[int, int], LpVariable]
-    in_the_bank: dict[int, LpVariable]
-    free_transfers: dict[int, LpVariable]
+    in_the_bank: dict[int, LpVariable]  # after transfers
+    free_transfers: dict[int, LpVariable]  # after transfers
     penalized_transfers: dict[int, LpVariable]
     use_wildcard: dict[int, LpVariable]
     use_bench_boost: dict[int, LpVariable]
@@ -91,3 +93,64 @@ class LpData(BaseModel):
 
     class Config:
         arbitrary_types_allowed = True
+
+
+@dataclass
+class StartingParams:
+    gameweek: int
+    free_transfers: int
+    in_the_bank: float
+
+
+@dataclass
+class GwResults:
+    gameweek: int
+    transfer_data: list[dict[str, Any]]
+    captain: int
+    vicecap: int
+    lineup: list[int]
+    bench: dict[int, int]
+    chip_used: Optional[
+        Literal["wildcard", "bench_boost", "free_hit", "triple_captain"]
+    ]
+    hits: int
+    total_predicted_points: float
+    total_actual_points: float
+    free_transfers: int
+    in_the_bank: float
+    starting_params: StartingParams
+    player_details: pd.DataFrame
+
+
+TYPE_DATA = pd.DataFrame(
+    [
+        {
+            "id": 1,
+            "singular_name": "Goalkeeper",
+            "squad_select": 2,
+            "squad_min_play": 1,
+            "squad_max_play": 1,
+        },
+        {
+            "id": 2,
+            "singular_name_short": "DEF",
+            "squad_select": 5,
+            "squad_min_play": 3,
+            "squad_max_play": 5,
+        },
+        {
+            "id": 3,
+            "singular_name_short": "MID",
+            "squad_select": 5,
+            "squad_min_play": 2,
+            "squad_max_play": 5,
+        },
+        {
+            "id": 4,
+            "singular_name_short": "FWD",
+            "squad_select": 3,
+            "squad_min_play": 1,
+            "squad_max_play": 3,
+        },
+    ]
+)

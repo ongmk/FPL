@@ -57,7 +57,7 @@ def prepare_lp_params(lp_data: LpData, parameters: dict[str, Any]) -> LpParams:
 
 def prepare_lp_keys(lp_data: LpData, lp_params: LpParams) -> LpKeys:
     players = lp_data.merged_data.index.to_list()
-    all_gws = [lp_params.next_gw - 1] + lp_data.gameweeks
+    player_gameweeks_plus = [lp_params.next_gw - 1] + lp_data.gameweeks
     order = [0, 1, 2, 3]
     price_modified_players = lp_data.merged_data.loc[
         lp_data.merged_data["sell_price"] != lp_data.merged_data["now_cost"]
@@ -68,8 +68,8 @@ def prepare_lp_keys(lp_data: LpData, lp_params: LpParams) -> LpKeys:
         teams=lp_data.team_data["name"].to_list(),
         players=players,
         price_modified_players=price_modified_players,
-        all_gws=all_gws,
-        player_all_gws=list(itertools.product(players, all_gws)),
+        gameweeks_plus=player_gameweeks_plus,
+        player_gameweeks_plus=list(itertools.product(players, player_gameweeks_plus)),
         player_gameweeks=list(itertools.product(players, lp_data.gameweeks)),
         order=order,
         player_gameweeks_order=list(
@@ -85,7 +85,7 @@ def prepare_lp_keys(lp_data: LpData, lp_params: LpParams) -> LpKeys:
 
 
 def initialize_variables(lp_data: LpData, lp_keys: LpKeys) -> LpVariables:
-    squad = LpVariable.dicts("squad", lp_keys.player_all_gws, cat=LpBinary)
+    squad = LpVariable.dicts("squad", lp_keys.player_gameweeks_plus, cat=LpBinary)
     squad_free_hit = LpVariable.dicts(
         "squad_free_hit", lp_keys.player_gameweeks, cat=LpBinary
     )
@@ -109,11 +109,11 @@ def initialize_variables(lp_data: LpData, lp_keys: LpKeys) -> LpVariables:
         for w in lp_data.gameweeks
     }
     in_the_bank = LpVariable.dicts(
-        "in_the_bank", lp_keys.all_gws, cat=LpContinuous, lowBound=0
+        "in_the_bank", lp_keys.gameweeks_plus, cat=LpContinuous, lowBound=0
     )
     free_transfers = LpVariable.dicts(
         "free_transfers",
-        lp_keys.all_gws + [lp_keys.all_gws[-1] + 1],
+        lp_keys.gameweeks_plus,
         cat=LpInteger,
         lowBound=0,
         upBound=2,
@@ -214,7 +214,7 @@ def sum_lp_variables(
         for w in lp_data.gameweeks
     }
     points_player_week = {
-        (p, w): lp_data.merged_data.loc[p, f"xPts_{w}"]
+        (p, w): lp_data.merged_data.loc[p, f"pred_pts_{w}"]
         for p in lp_keys.players
         for w in lp_data.gameweeks
     }
@@ -230,7 +230,6 @@ def sum_lp_variables(
         w: lpSum([lp_variables.transfer_out[p, w] for p in lp_keys.players])
         for w in lp_data.gameweeks
     }
-    number_of_transfers[lp_params.next_gw - 1] = 1
     transfer_diff = {
         w: number_of_transfers[w]
         - lp_variables.free_transfers[w]

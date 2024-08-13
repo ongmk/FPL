@@ -11,13 +11,15 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-from fpl.pipelines.optimization.data_classes import LpData, LpVariables, VariableSums
+from fpl.pipelines.optimization.data_classes import (
+    TYPE_DATA,
+    LpData,
+    LpVariables,
+    VariableSums,
+)
 from fpl.pipelines.optimization.fpl_api import get_fpl_base_data, get_fpl_team_data
 from fpl.pipelines.optimization.lp_constructor import construct_lp
-from fpl.pipelines.optimization.output_formatting import (
-    generate_outputs,
-    get_results_dict,
-)
+from fpl.pipelines.optimization.output_formatting import generate_outputs
 from fpl.utils import backup_latest_n
 
 plt.style.use("ggplot")
@@ -44,17 +46,13 @@ def solve_lp(
     mps_path = f"{mps_dir}/{model_name}.mps"
     solution_dir = parameters["solution_dir"]
     solution_path = f"{solution_dir}/{model_name}.sol"
-    solution_init_path = f"{solution_path}.init"
 
     start = time.time()
-    command = f"cbc/bin/cbc.exe {mps_path} cost column ratio 1 solve solu {solution_init_path}"
-    process = Popen(command, shell=False)
-    process.wait()
-    command = f"cbc/bin/cbc.exe {mps_path} mips {solution_init_path} cost column solve solu {solution_path}"
+    command = f"cbc/bin/cbc.exe {mps_path} cost column solve solu {solution_path}"
     process = Popen(command, shell=False)
     process.wait()
     solution_time = time.time() - start
-    print(f"Solved in {solution_time:.1f} seconds.")
+    logger.info(f"Solved in {solution_time:.1f} seconds.")
 
     backup_latest_n(solution_path, 5)
 
@@ -90,10 +88,10 @@ def get_historical_picks(team_id, next_gw, merged_data):
     )
     picks_df["week"] = next_gw
     picks_df = picks_df.merge(
-        merged_data[["web_name", f"xPts_{next_gw}"]],
+        merged_data[["web_name", f"pred_pts_{next_gw}"]],
         left_on="id",
         right_index=True,
-    ).rename({f"xPts_{next_gw}": "predicted_xP"}, axis=1)
+    ).rename({f"pred_pts_{next_gw}": "predicted_xP"}, axis=1)
     summary = [picks_df]
     next_gw_dict = {
         "hits": 0,
@@ -127,36 +125,54 @@ def get_free_transfers(
     return free_transfers
 
 
-def merge_data(elements_team, pred_pts_data):
+def merge_data(elements_team, points_data):
     merged_data = elements_team.merge(
-        pred_pts_data,
+        points_data,
         left_on="full_name",
         right_index=True,
         how="left",
     ).set_index("id")
 
     initial_num_rows = len(merged_data)
-    merged_data = merged_data.dropna(subset=pred_pts_data.columns)
+    prediction_columns = [col for col in points_data if "pred_pts_" in col]
+    merged_data = merged_data.dropna(subset=prediction_columns)
     final_num_rows = len(merged_data)
     percentage_dropped = (initial_num_rows - final_num_rows) / initial_num_rows * 100
     if percentage_dropped > 20:
-        logger.warn(
-            f"More than 20% of the rows were dropped. ({percentage_dropped:.2f}%)"
-        )
+        logger.warn(f"{percentage_dropped:.2f}% of the lp data were dropped.")
 
     return merged_data
 
 
-def get_pred_pts_data(inference_results, current_season, gameweeks):
-    pred_pts_data = inference_results.loc[
+def aggregate_points_data(
+    inference_results: pd.DataFrame, current_season: str, gameweeks: list[int]
+):
+    in_scope_data = inference_results.loc[
         (inference_results["season"] == current_season)
         & inference_results["round"].isin(gameweeks)
     ]
-    pred_pts_data = pred_pts_data.pivot_table(
+    pred_pts_data = in_scope_data.pivot_table(
         index="fpl_name", columns="round", values="prediction", aggfunc="first"
     ).fillna(0)
-    pred_pts_data.columns = [f"xPts_{int(col)}" for col in pred_pts_data.columns]
-    return pred_pts_data
+    pred_pts_data.columns = [f"pred_pts_{int(col)}" for col in pred_pts_data.columns]
+
+    act_pts_data = in_scope_data.pivot_table(
+        index="fpl_name", columns="round", values="fpl_points", aggfunc="first"
+    ).fillna(0)
+    act_pts_data.columns = [f"act_pts_{int(col)}" for col in act_pts_data.columns]
+
+    mins_data = in_scope_data.pivot_table(
+        index="fpl_name", columns="round", values="fpl_minutes", aggfunc="first"
+    ).fillna(0)
+    mins_data.columns = [f"mins_{int(col)}" for col in mins_data.columns]
+
+    merged_data = pd.merge(
+        pred_pts_data, act_pts_data, left_index=True, right_index=True, how="left"
+    )
+    merged_data = pd.merge(
+        merged_data, mins_data, left_index=True, right_index=True, how="left"
+    )
+    return merged_data
 
 
 def get_live_data(
@@ -165,12 +181,14 @@ def get_live_data(
     team_id = parameters["team_id"]
     horizon = parameters["horizon"]
 
-    elements_data, team_data, type_data, all_gws, current_season = get_fpl_base_data()
-    gameweeks = all_gws["future"][:horizon]
-    current_gw = all_gws["current"]
+    elements_data, team_data, type_data, gameweeks_data, current_season = (
+        get_fpl_base_data()
+    )
+    gameweeks = gameweeks_data["future"][:horizon]
+    current_gw = gameweeks_data["current"]
 
-    pred_pts_data = get_pred_pts_data(inference_results, current_season, gameweeks)
-    merged_data = merge_data(elements_data, pred_pts_data)
+    points_data = aggregate_points_data(inference_results, current_season, gameweeks)
+    merged_data = merge_data(elements_data, points_data)
 
     general_data, transfer_data, initial_squad, history_data = get_fpl_team_data(
         team_id, current_gw
@@ -199,7 +217,7 @@ def get_live_data(
 
 
 def sort_by_expected_value(merged_data):
-    keys = [k for k in merged_data.columns.to_list() if "xPts_" in k]
+    keys = [k for k in merged_data.columns.to_list() if "pred_pts_" in k]
     merged_data["total_ev"] = merged_data[keys].sum(axis=1)
     merged_data = merged_data.sort_values(by=["total_ev"], ascending=[False])
     return merged_data
@@ -238,39 +256,7 @@ def convert_to_live_data(
         .reset_index(drop=True)
         .rename(columns={"team": "name"})
     )
-
-    type_data = pd.DataFrame(
-        [
-            {
-                "id": 1,
-                "singular_name": "Goalkeeper",
-                "squad_select": 2,
-                "squad_min_play": 1,
-                "squad_max_play": 1,
-            },
-            {
-                "id": 2,
-                "singular_name_short": "DEF",
-                "squad_select": 5,
-                "squad_min_play": 3,
-                "squad_max_play": 5,
-            },
-            {
-                "id": 3,
-                "singular_name_short": "MID",
-                "squad_select": 5,
-                "squad_min_play": 2,
-                "squad_max_play": 5,
-            },
-            {
-                "id": 4,
-                "singular_name_short": "FWD",
-                "squad_select": 3,
-                "squad_min_play": 1,
-                "squad_max_play": 3,
-            },
-        ]
-    )
+    type_data = TYPE_DATA
 
     return elements_data, team_data, type_data
 

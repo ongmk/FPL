@@ -8,6 +8,7 @@ modelling:
     - fpl_name
     - date
     - player
+    - fpl_minutes
   categorical_features:
     - team
     - opponent

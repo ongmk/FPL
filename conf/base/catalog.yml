@@ -27,13 +27,9 @@ LP_DATA:
   type: fpl.extras.datasets.PydanticDataset
   filepath: data/optimization/lp_data.json
 
-PICKS_SUMMARY:
+OPTIMIZATION_SUMMARY:
   <<: *txt
   filepath: data/optimization/summary.txt
-
-PICKS_CSV:
-  <<: *csv
-  filepath: data/optimization/picks.csv
 
 BACKTEST_PLOTS:
   type: matplotlib.MatplotlibWriter

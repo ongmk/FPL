@@ -28,14 +28,14 @@ def get_fpl_base_data() -> (
     r = requests.get("https://fantasy.premierleague.com/api/bootstrap-static/")
     fpl_data = r.json()
 
-    all_gws = {"current": 0, "finished": [], "future": []}
+    gameweeks = {"current": 0, "finished": [], "future": []}
     for w in fpl_data["events"]:
         if w["is_current"] == True:
-            all_gws["current"] = w["id"]
+            gameweeks["current"] = w["id"]
         elif w["finished"] == True:
-            all_gws["finished"].append(w["id"])
+            gameweeks["finished"].append(w["id"])
         else:
-            all_gws["future"].append(w["id"])
+            gameweeks["future"].append(w["id"])
 
     element_data = pd.DataFrame(fpl_data["elements"])
 
@@ -63,7 +63,7 @@ def get_fpl_base_data() -> (
     ]
     current_season = get_current_season_str(fpl_data["events"])
 
-    return element_data, team_data, type_data, all_gws, current_season
+    return element_data, team_data, type_data, gameweeks, current_season
 
 
 def fetch_player_fixtures(

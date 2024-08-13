@@ -1,14 +1,14 @@
 ## MVP:
-- inference results missing unplayed players
-  - Should they be inferenced?
-    - Yes. If picked by mistake, they would score 0.
-  - Where are they dropped?
+- backtest plot with gw results
 
 
 ## Good-to-haves:
 - Chip week suggestion
   - Wildcard: fixture swing across remaining weeks
+    - best performing teams changed permanently
+    - players with highest predicted score changed permanently
   - Freehit: One week swing across remaining weeks
+    - players with highest predicted score changed for one week
   - Triple captain: most predicted pts across remaining weeks.
 - xP Gain Calculation rethink
   - gain across horizon?

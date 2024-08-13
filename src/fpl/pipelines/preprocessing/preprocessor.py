@@ -81,6 +81,7 @@ def filter_data(
             "team",
             "opponent",
             "fpl_points",
+            "fpl_minutes",
             "value",
             "kickoff_time",
             "venue",
@@ -211,7 +212,11 @@ def align_data_structure(
         }
     )
     fpl_data = fpl_data.rename(
-        columns={"full_name": "fpl_name", "total_points": "fpl_points"}
+        columns={
+            "full_name": "fpl_name",
+            "total_points": "fpl_points",
+            "minutes": "fpl_minutes",
+        }
     )
     fpl_data = fpl_data.drop(
         [

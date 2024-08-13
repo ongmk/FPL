@@ -77,7 +77,7 @@ def add_free_transfer_constraints(
 
     max_constraints = linearize_max_function(
         X=tmp,
-        x1=(lp_variables.free_transfers[week] - non_chip_transfers + 1),
+        x1=(lp_variables.free_transfers[week - 1] - non_chip_transfers + 1),
         x2=1,
         M=6,
         idx=week,
@@ -86,7 +86,7 @@ def add_free_transfer_constraints(
         model += constraint, f"max_constraint{idx}_{week}"
 
     min_constraints = linearize_min_function(
-        X=lp_variables.free_transfers[week + 1],
+        X=lp_variables.free_transfers[week],
         x1=tmp,
         x2=5,
         M=6,
@@ -112,7 +112,8 @@ class TransferConstraints(BaseConstraints):
             "initial_in_the_bank",
         )
         model += (
-            lp_variables.free_transfers[lp_params.next_gw] == lp_data.free_transfers,
+            lp_variables.free_transfers[lp_params.next_gw - 1]
+            == lp_data.free_transfers,
             "initial_free_transfers",
         )
 
@@ -162,12 +163,6 @@ class TransferConstraints(BaseConstraints):
         variable_sums: VariableSums,
     ) -> None:
 
-        if gameweek > lp_params.next_gw:
-            model += (
-                lp_variables.free_transfers[gameweek] >= 1,
-                f"future_ft_limit_{gameweek}",
-            )
-        # Free transfer constraints
         if gameweek >= lp_params.threshold_gw:
             add_free_transfer_constraints(gameweek, lp_variables, variable_sums, model)
         model += (
@@ -181,7 +176,7 @@ class TransferConstraints(BaseConstraints):
             == lp_variables.in_the_bank[gameweek - 1]
             + variable_sums.sold_amount[gameweek]
             - variable_sums.bought_amount[gameweek],
-            f"continuous_budget_{gameweek}",
+            f"continuous_budget_{gameweek+1}",
         )
         model += (
             lpSum(

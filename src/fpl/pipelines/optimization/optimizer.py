@@ -6,8 +6,6 @@ from collections import defaultdict
 from subprocess import Popen
 from typing import Any
 
-import matplotlib
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
@@ -22,11 +20,10 @@ from fpl.pipelines.optimization.lp_constructor import construct_lp
 from fpl.pipelines.optimization.output_formatting import (
     generate_outputs,
     get_gw_results,
+    plot_backtest_results,
 )
 from fpl.utils import backup_latest_n
 
-plt.style.use("ggplot")
-matplotlib.use("Agg")
 logger = logging.getLogger(__name__)
 
 
@@ -189,6 +186,7 @@ def get_live_data(
 ) -> LpData:
     team_id = parameters["team_id"]
     horizon = parameters["horizon"]
+    transfer_horizon = parameters["transfer_horizon"]
 
     elements_data, team_data, type_data, gameweeks_data, current_season = (
         get_fpl_base_data()
@@ -213,7 +211,9 @@ def get_live_data(
 
     logger.info(f"Team: {general_data['name']}.")
     logger.info(f"Current week: {current_gw}")
-    logger.info(f"Optimizing for {horizon} weeks. {gameweeks}")
+    logger.info(
+        f"Optimizing for {horizon} weeks. {gameweeks}. Making transfers for {transfer_horizon} weeks."
+    )
 
     return LpData(
         merged_data=merged_data,
@@ -295,6 +295,10 @@ def backtest(inference_results: pd.DataFrame, fpl_data: pd.DataFrame, parameters
 
     backtest_season = parameters["backtest_season"]
     horizon = parameters["horizon"]
+    transfer_horizon = parameters["transfer_horizon"]
+    if transfer_horizon > horizon:
+        logger.error("Transfer horizon cannot be greater than the horizon.")
+        return {}, 0
 
     min_week = (
         inference_results.loc[inference_results["season"] == backtest_season, "round"]
@@ -311,8 +315,9 @@ def backtest(inference_results: pd.DataFrame, fpl_data: pd.DataFrame, parameters
     in_the_bank = 100
     free_transfers = 1
     backtest_results = []
+    total_actual_points = 0
 
-    for start_week in range(min_week, max_week + 1)[:5]:
+    for start_week in range(min_week, max_week + 1):
         end_week = min(max_week, start_week + horizon - 1)
         gameweeks = [i for i in range(start_week, end_week + 1)]
         elements_data, team_data, type_data = convert_to_live_data(
@@ -330,7 +335,9 @@ def backtest(inference_results: pd.DataFrame, fpl_data: pd.DataFrame, parameters
             initial_squad,
         )
 
-        logger.info(f"Optimizing for {horizon} weeks. {gameweeks}")
+        logger.info(
+            f"Optimizing for {horizon} weeks. {gameweeks}. Making transfers for {transfer_horizon} weeks."
+        )
         logger.info(f"{in_the_bank = }    {free_transfers = }")
 
         lp_data = LpData(
@@ -358,24 +365,14 @@ def backtest(inference_results: pd.DataFrame, fpl_data: pd.DataFrame, parameters
         initial_squad = next_gw_results.lineup + list(next_gw_results.bench.values())
         transfer_data.extend(next_gw_results.transfer_data)
         backtest_results.append(next_gw_results)
+        total_actual_points += next_gw_results.total_actual_points
 
     transfer_horizon = parameters["transfer_horizon"]
-    plot = plot_backtest_results(
-        backtest_results,
-        f"{backtest_season} Backtest results. {horizon=},{transfer_horizon=}",
-    )
-    return plot
+    plot = plot_backtest_results(backtest_results)
 
-
-import pickle
-
-
-def plot_backtest_results(backtest_results, title):
-    print(title)
-    print(backtest_results)
-    with open("tmp/backtest_results.pkl", "wb") as f:
-        pickle.dump(backtest_results, f)
-    return None
+    h = horizon
+    th = transfer_horizon
+    return {f"backtest_{backtest_season}_{h=}_{th=}.png": plot}, total_actual_points
 
 
 if __name__ == "__main__":

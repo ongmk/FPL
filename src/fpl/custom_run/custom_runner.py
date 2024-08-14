@@ -83,6 +83,7 @@ def custom_kedro_run(
 
     if "hyperopt" in param_dict:
         from hyperopt import STATUS_OK, fmin
+
         from fpl.custom_run.hyperopt_helpers import (
             build_run_config,
             find_search_groups,
@@ -108,7 +109,13 @@ def custom_kedro_run(
             }
 
         hyperopt_param = param_dict.pop("hyperopt")
-        hyperopt_run_groups = find_search_groups(hyperopt_param)
+        if "groups" in hyperopt_param:
+            hyperopt_run_groups = find_search_groups(hyperopt_param)
+        else:
+            hyperopt_run_groups = [{}]
+            hyperopt_param[0] = {
+                k: hyperopt_param[k] for k in hyperopt_param if k != "target"
+            }
         for i, group_param in enumerate(hyperopt_run_groups):
             base_param = update_parameters(param_dict, group_param)
             hyperopt_run_config, log_info = build_run_config(

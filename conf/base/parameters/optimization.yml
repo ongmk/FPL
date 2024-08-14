@@ -21,7 +21,6 @@ optimization:
     2: 0.06
     3: 0.002
 
-  backtest_player_history: true
   backtest_players:
     Me: 1792016
     Donald: 307190

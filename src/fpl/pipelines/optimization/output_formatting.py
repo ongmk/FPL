@@ -1,7 +1,10 @@
 import logging
 from typing import Literal, Optional, Union
 
+import matplotlib
+import matplotlib.pyplot as plt
 import pandas as pd
+from matplotlib.figure import Figure
 
 from fpl.pipelines.optimization.data_classes import (
     TYPE_DATA,
@@ -19,20 +22,23 @@ from fpl.pipelines.optimization.lp_constructor import (
     sum_lp_variables,
 )
 
+plt.style.use("ggplot")
+matplotlib.use("Agg")
+
 logger = logging.getLogger(__name__)
 
 
 def get_chip_used(
     gameweek: int, lp_variables: LpVariables, variable_sums: VariableSums
-) -> str:
+) -> Optional[Literal["Wildcard", "Bench Boost", "Free Hit", "Triple Captain"]]:
     if lp_variables.use_wildcard[gameweek].value() > 0.5:
-        return "wildcard"
+        return "Wildcard"
     elif lp_variables.use_free_hit[gameweek].value() > 0.5:
-        return "free hit"
+        return "Free Hit"
     elif lp_variables.use_bench_boost[gameweek].value() > 0.5:
-        return "bench boost"
+        return "Bench Boost"
     elif variable_sums.use_triple_captain_week[gameweek].value() > 0.5:
-        return "triple captain"
+        return "Triple Captain"
     else:
         return None
 
@@ -90,19 +96,19 @@ def calculate_gw_points(
     vicecap: int,
     bench: dict[int, int],
     chip_used: Optional[
-        Literal["wildcard", "bench_boost", "free_hit", "triple_captain"]
+        Literal["Wildcard", "Bench Boost", "Free Hit", "Triple Captain"]
     ],
     hits: int,
     lp_keys: LpKeys,
 ) -> float:
     total_points = points.loc[lineup].sum()
     captain_mins = minutes.loc[captain]
-    captain_multiplier = 2 if chip_used == "triple_captain" else 1
+    captain_multiplier = 2 if chip_used == "Triple Captain" else 1
     if captain_mins > 0:
         total_points += points.loc[captain] * captain_multiplier
     else:
         total_points += points.loc[vicecap] * captain_multiplier
-    if chip_used == "bench_boost":
+    if chip_used == "Bench Boost":
         for o in lp_keys.order:
             total_points += points.loc[bench[o]]
     total_points -= hits * 4
@@ -196,7 +202,7 @@ def get_gw_summary(
     return "\n".join(gw_summary)
 
 
-def get_name(
+def get_lineup_name(
     row: pd.Series,
     captain: int,
     vicecap: int,
@@ -221,7 +227,7 @@ def get_lineup(gw_results: GwResults):
 
     gw_lineup = gw_results.player_details.loc[gw_results.lineup]
     gw_lineup["name"] = gw_lineup.apply(
-        lambda row: get_name(
+        lambda row: get_lineup_name(
             row,
             gw_results.captain,
             gw_results.vicecap,
@@ -242,7 +248,7 @@ def get_lineup(gw_results: GwResults):
     lineup_str.append("")
     lineup_str.append("Bench:")
     for k, v in gw_results.bench.items():
-        name = get_name(
+        name = get_lineup_name(
             gw_results.player_details.loc[v],
             gw_results.captain,
             gw_results.vicecap,
@@ -317,13 +323,13 @@ def get_transfer_summary(
 
 
 def get_chip_summary(gw_results: GwResults):
-    if gw_results.chip_used == "wildcard":
+    if gw_results.chip_used == "Wildcard":
         return "🃏🃏🃏 WILDCARD ACTIVE 🃏🃏🃏"  # fmt: skip
-    elif gw_results.chip_used == "free_hit":
+    elif gw_results.chip_used == "Free Hit":
         return "🆓🆓🆓 FREE HIT ACTIVE 🆓🆓🆓"  # fmt: skip
-    elif gw_results.chip_used == "bench_boost":
+    elif gw_results.chip_used == "Bench Boost":
         return "🚀🚀🚀 BENCH BOOST ACTIVE 🚀🚀🚀"  # fmt: skip
-    elif gw_results.chip_used == "triple_captain":
+    elif gw_results.chip_used == "Triple Captain":
         return "👑👑👑 TRIPLE CAPTAIN ACTIVE 👑👑👑"  # fmt: skip
     else:
         return None
@@ -371,3 +377,150 @@ def generate_outputs(
     summary = "\n".join(summary)
 
     return summary
+
+
+def shorten_name(name):
+    name = name.split(" ")
+    for i in range(len(name) - 1):
+        name[i] = name[i][0]
+    return ".".join(name)
+
+
+def get_name(row, in_players, out_players, gameweek):
+    if row["captain"] == True:
+        cap_string = "[c] "
+    elif row["vicecap"] == True:
+        cap_string = "[v] "
+    else:
+        cap_string = ""
+    if row.name in in_players:
+        in_out_string = "+ "
+    elif row.name in out_players:
+        in_out_string = "- "
+    else:
+        in_out_string = ""
+    shorter_name = shorten_name(row["web_name"])
+    return f"{in_out_string}{cap_string}{shorter_name}: {int(row[f'act_pts_{gameweek}'])} ({int(row[f'pred_pts_{gameweek}'])})"
+
+
+def get_squad_names(gw_results: GwResults, out_players: list[int]):
+    player_details = gw_results.player_details.sort_values(
+        ["element_type", f"act_pts_{gw_results.gameweek}"], ascending=[True, False]
+    )
+    player_details.loc[gw_results.captain, "captain"] = True
+    player_details.loc[gw_results.vicecap, "vicecap"] = True
+
+    lines = []
+    in_players = [gw["element_in"] for gw in gw_results.transfer_data]
+    for _, group in player_details.groupby("element_type"):
+        for i, row in group.iterrows():
+            if i in gw_results.lineup:
+                lines.append(
+                    get_name(row, in_players, out_players, gw_results.gameweek)
+                )
+        lines.append("")
+    lines.pop()
+    lines.append("----------")
+
+    for _, player in gw_results.bench.items():
+        lines.append(
+            get_name(
+                player_details.loc[player], in_players, out_players, gw_results.gameweek
+            )
+        )
+
+    return lines
+
+
+def plot_backtest_results(backtest_results: list[GwResults]) -> Figure:
+    gameweeks = []
+    predicted_pts = []
+    actual_pts = []
+    free_transfers = []
+    in_the_bank = []
+    squad = []
+    chip_used = []
+    hits = []
+    cumulative_actual_pts = 0
+    cumulative_predicted_pts = 0
+    for idx, res in enumerate(backtest_results):
+        gameweeks.append(res.gameweek)
+        cumulative_predicted_pts += res.total_predicted_points
+        predicted_pts.append(cumulative_predicted_pts)
+        cumulative_actual_pts += res.total_actual_points
+        actual_pts.append(cumulative_actual_pts)
+        free_transfers.append(res.free_transfers)
+        in_the_bank.append(res.in_the_bank)
+        out_players = (
+            [
+                transfers["element_out"]
+                for transfers in backtest_results[idx + 1].transfer_data
+            ]
+            if idx + 1 < len(backtest_results)
+            else []
+        )
+        squad.append(get_squad_names(res, out_players))
+        chip_used.append(res.chip_used)
+        hits.append(res.hits)
+    fig, (ax1, ax2, ax3, ax4) = plt.subplots(
+        4,
+        1,
+        sharex=True,
+        figsize=(10, len(gameweeks) * 2),
+        gridspec_kw={"height_ratios": [2, 2.5, 1, 1]},
+    )
+
+    ax1.set_xticks(gameweeks)
+    ax1.set_xticklabels([f"GW{gw}" for gw in gameweeks])
+    ax1.plot(gameweeks, actual_pts, color="blue", marker="o", label="Actual")
+    ax1.plot(
+        gameweeks,
+        predicted_pts,
+        color="grey",
+        marker="o",
+        linestyle=":",
+        label="Predicted",
+    )
+    for gw, pred, act, chip, gw_hits in zip(
+        gameweeks, predicted_pts, actual_pts, chip_used, hits
+    ):
+        tooltip = ""
+        if chip is not None:
+            tooltip += f"{chip}\n"
+        if gw_hits > 0:
+            tooltip += f"{gw_hits} hits\n"
+        if tooltip == "":
+            continue
+        y = max(pred, act)
+        ax1.text(gw, y, tooltip, color="red", fontsize=10, ha="center", va="bottom")
+    ax1.set_title("Total Points")
+    ax1.xaxis.set_tick_params(labelbottom=True)
+    ax1.set_ylim(ymin=0)
+    ax1.legend()
+
+    for x, lines in enumerate(squad):
+        for y, text in enumerate(lines):
+            if "+ " in text:
+                color = "green"
+            elif "- " in text:
+                color = "red"
+            else:
+                color = "black"
+            ax2.text(x + 1, y, text, color=color, fontsize=9, ha="center", va="bottom")
+
+    ax2.yaxis.set_visible(False)
+    ax2.xaxis.set_visible(False)
+    ax2.set_facecolor("white")
+    ax2.set_ylim(0, max([len(x) for x in squad]) + 1)
+    ax2.invert_yaxis()
+
+    ax3.plot(gameweeks, in_the_bank, color="green", marker="o")
+    ax3.set_title("In the Bank")
+    ax3.xaxis.set_tick_params(labelbottom=True)
+
+    ax4.plot(gameweeks, free_transfers, color="red", marker="o")
+    ax4.set_title("Free Transfers")
+
+    plt.tight_layout()
+
+    return fig

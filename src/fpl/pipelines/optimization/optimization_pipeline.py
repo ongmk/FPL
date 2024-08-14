@@ -59,7 +59,7 @@ def create_backtest_pipeline():
             node(
                 func=backtest,
                 inputs=["INFERENCE_RESULTS", "FPL_DATA", "params:optimization"],
-                outputs="BACKTEST_PLOTS",
+                outputs=["BACKTEST_PLOTS", "total_actual_points"],
             ),
         ]
     )

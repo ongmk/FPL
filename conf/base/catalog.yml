@@ -33,7 +33,7 @@ OPTIMIZATION_SUMMARY:
 
 BACKTEST_PLOTS:
   type: matplotlib.MatplotlibWriter
-  filepath: data/optimization/backtest
+  filepath: data/optimization/backtest_results
 
 EXPERIMENT_RECORD:
   <<: *flexible

@@ -521,6 +521,6 @@ def plot_backtest_results(backtest_results: list[GwResults]) -> Figure:
     ax4.plot(gameweeks, free_transfers, color="red", marker="o")
     ax4.set_title("Free Transfers")
 
-    plt.tight_layout()
+    fig.tight_layout()
 
     return fig

@@ -232,7 +232,8 @@ def get_lineup(gw_results: GwResults):
     )
 
     lineup_str = []
-    for p_type in TYPE_DATA["id"]:
+    for details in TYPE_DATA:
+        p_type = details["id"]
         lineup_str.append(
             (gw_lineup.loc[gw_lineup["element_type"] == p_type, "name"]).str.cat(
                 sep="    "

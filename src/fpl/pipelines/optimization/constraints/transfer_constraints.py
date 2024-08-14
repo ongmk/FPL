@@ -44,11 +44,14 @@ def linearize_max_function(X, x1, x2, M, idx):
 def linearize_if_else_function(X, x1, x2, M, flag):
     """
     X = x1 if flag = 1 else x2
+    Let M be a constant such that x1,x2 <= M in any "reasonable" solution to the problem.
     """
 
     constraints = []
-    constraints.append(x1 - M * (1 - flag) <= X <= x1 + M * (1 - flag))
-    constraints.append(x2 - M * flag <= X <= x2 + M * flag)
+    constraints.append(X >= x1 - M * (1 - flag))
+    constraints.append(X <= x1 + M * (1 - flag))
+    constraints.append(X >= x2 - M * flag)
+    constraints.append(X <= x2 + M * flag)
     return constraints
 
 
@@ -59,7 +62,6 @@ def add_free_transfer_constraints(
     F2 = min(max(F1-T+1, 1), 5)
     """
 
-    tmp = LpVariable(f"tmp_{week}", cat=LpInteger, lowBound=1, upBound=6)
     non_chip_transfers = LpVariable(
         f"non_chip_transfers_{week}", cat=LpInteger, lowBound=0, upBound=15
     )
@@ -75,6 +77,7 @@ def add_free_transfer_constraints(
     for idx, constraint in enumerate(if_else_constraints):
         model += constraint, f"if_else_constraint{idx}_{week}"
 
+    tmp = LpVariable(f"tmp_{week}", cat=LpInteger, lowBound=1, upBound=6)
     max_constraints = linearize_max_function(
         X=tmp,
         x1=(lp_variables.free_transfers[week - 1] - non_chip_transfers + 1),
@@ -117,11 +120,6 @@ class TransferConstraints(BaseConstraints):
             "initial_free_transfers",
         )
 
-        if lp_params.next_gw == 1:
-            model += (
-                lp_variables.free_transfers[lp_params.threshold_gw] == 1,
-                "preseason_initial_free_transfers",
-            )
         model += (
             lpSum(
                 lp_variables.transfer_in[p, w] + lp_variables.transfer_out[p, w]
@@ -162,6 +160,11 @@ class TransferConstraints(BaseConstraints):
         lp_variables: LpVariables,
         variable_sums: VariableSums,
     ) -> None:
+        if lp_params.next_gw == 1 and gameweek < lp_params.threshold_gw:
+            model += (
+                lp_variables.free_transfers[gameweek] == 1,
+                f"preseason_initial_free_transfers_{gameweek}",
+            )
 
         if gameweek >= lp_params.threshold_gw:
             add_free_transfer_constraints(gameweek, lp_variables, variable_sums, model)
@@ -176,7 +179,7 @@ class TransferConstraints(BaseConstraints):
             == lp_variables.in_the_bank[gameweek - 1]
             + variable_sums.sold_amount[gameweek]
             - variable_sums.bought_amount[gameweek],
-            f"continuous_budget_{gameweek+1}",
+            f"continuous_budget_{gameweek}",
         )
         model += (
             lpSum(

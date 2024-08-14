@@ -19,7 +19,10 @@ from fpl.pipelines.optimization.data_classes import (
 )
 from fpl.pipelines.optimization.fpl_api import get_fpl_base_data, get_fpl_team_data
 from fpl.pipelines.optimization.lp_constructor import construct_lp
-from fpl.pipelines.optimization.output_formatting import generate_outputs
+from fpl.pipelines.optimization.output_formatting import (
+    generate_outputs,
+    get_gw_results,
+)
 from fpl.utils import backup_latest_n
 
 plt.style.use("ggplot")
@@ -38,7 +41,10 @@ def split_name_key(text):
 
 
 def solve_lp(
-    lp_variables: LpVariables, variable_sums: VariableSums, parameters: dict
+    lp_data: LpData,
+    lp_variables: LpVariables,
+    variable_sums: VariableSums,
+    parameters: dict,
 ) -> float:
 
     model_name = parameters["model_name"]
@@ -46,9 +52,11 @@ def solve_lp(
     mps_path = f"{mps_dir}/{model_name}.mps"
     solution_dir = parameters["solution_dir"]
     solution_path = f"{solution_dir}/{model_name}.sol"
+    gap = 0.01
+    timeout = 60
 
     start = time.time()
-    command = f"cbc/bin/cbc.exe {mps_path} cost column solve solu {solution_path}"
+    command = f"cbc/bin/cbc.exe {mps_path} cost ratio {gap} sec {timeout} column solve solu {solution_path}"
     process = Popen(command, shell=False)
     process.wait()
     solution_time = time.time() - start
@@ -65,7 +73,8 @@ def solve_lp(
             if "objective value" in line:
                 if "Infeasible" in line:
                     logger.error(line)
-                    raise ValueError("No solution found.")
+                    # Troubleshooting with lp_data
+                    raise ValueError(f"No solution found for {model_name}.")
                 else:
                     logger.info(line)
                 continue
@@ -187,17 +196,20 @@ def get_live_data(
     gameweeks = gameweeks_data["future"][:horizon]
     current_gw = gameweeks_data["current"]
 
-    points_data = aggregate_points_data(inference_results, current_season, gameweeks)
-    merged_data = merge_data(elements_data, points_data)
-
     general_data, transfer_data, initial_squad, history_data = get_fpl_team_data(
         team_id, current_gw
     )
     in_the_bank = (general_data["last_deadline_bank"] or 1000) / 10
     free_transfers = get_free_transfers(transfer_data, history_data, current_gw)
 
-    calculate_buy_sell_price(merged_data, transfer_data, initial_squad)
-    merged_data = sort_by_expected_value(merged_data)
+    merged_data = prepare_data(
+        inference_results,
+        elements_data,
+        current_season,
+        gameweeks,
+        transfer_data,
+        initial_squad,
+    )
 
     logger.info(f"Team: {general_data['name']}.")
     logger.info(f"Current week: {current_gw}")
@@ -214,6 +226,21 @@ def get_live_data(
         free_transfers=free_transfers,
         current_season=current_season,
     )
+
+
+def prepare_data(
+    inference_results,
+    elements_data,
+    current_season,
+    gameweeks,
+    transfer_data,
+    initial_squad,
+):
+    points_data = aggregate_points_data(inference_results, current_season, gameweeks)
+    merged_data = merge_data(elements_data, points_data)
+    calculate_buy_sell_price(merged_data, transfer_data, initial_squad)
+    merged_data = sort_by_expected_value(merged_data)
+    return merged_data
 
 
 def sort_by_expected_value(merged_data):
@@ -245,7 +272,10 @@ def convert_to_live_data(
         ["element", "full_name", "team_name", "position", "value"]
     ].drop_duplicates()
     elements_data["web_name"] = elements_data["full_name"]
-    elements_data["element_type"], _ = pd.factorize(elements_data["position"])
+    elements_data["element_type"] = elements_data["position"].map(
+        {d["singular_name_short"]: d["id"] for d in TYPE_DATA}
+    )
+    elements_data["value"] = elements_data["value"].astype(int)
     elements_data = elements_data.rename(
         columns={"element": "id", "team_name": "team", "value": "now_cost"}
     )
@@ -256,7 +286,7 @@ def convert_to_live_data(
         .reset_index(drop=True)
         .rename(columns={"team": "name"})
     )
-    type_data = TYPE_DATA
+    type_data = pd.DataFrame(TYPE_DATA).set_index("id")
 
     return elements_data, team_data, type_data
 
@@ -291,10 +321,14 @@ def backtest(inference_results: pd.DataFrame, fpl_data: pd.DataFrame, parameters
                 & (fpl_data["round"] == start_week)
             ]
         )
-        pred_pts_data = get_pred_pts_data(inference_results, backtest_season, gameweeks)
-        merged_data = merge_data(elements_data, pred_pts_data)
-        calculate_buy_sell_price(merged_data, transfer_data, initial_squad)
-        merged_data = sort_by_expected_value(merged_data)
+        merged_data = prepare_data(
+            inference_results,
+            elements_data,
+            backtest_season,
+            gameweeks,
+            transfer_data,
+            initial_squad,
+        )
 
         logger.info(f"Optimizing for {horizon} weeks. {gameweeks}")
         logger.info(f"{in_the_bank = }    {free_transfers = }")
@@ -311,22 +345,19 @@ def backtest(inference_results: pd.DataFrame, fpl_data: pd.DataFrame, parameters
             current_season=backtest_season,
         )
         parameters["model_name"] = f"backtest_{backtest_season}_{start_week}-{end_week}"
-        lp_params, lp_keys, lp_variables, variable_sums = construct_lp(
-            lp_data, parameters
-        )
+        lp_keys, lp_variables, variable_sums = construct_lp(lp_data, parameters)
         lp_variables, variable_sums, solution_time = solve_lp(
-            lp_variables, variable_sums, parameters
+            lp_data, lp_variables, variable_sums, parameters
         )
         generate_outputs(lp_data, lp_variables, solution_time, parameters)
-        next_gw_dict = get_results_dict(
-            lp_data, lp_params, lp_keys, lp_variables, variable_sums, solution_time
+        next_gw_results = get_gw_results(
+            start_week, lp_data, lp_keys, lp_variables, variable_sums, solution_time
         )
-        in_the_bank = next_gw_dict["in_the_bank"]
-        free_transfers = next_gw_dict["free_transfers"]
-        initial_squad = next_gw_dict["initial_squad"]
-        transfer_data.extend(next_gw_dict["transfer_data"])
-        next_gw_dict["gameweek"] = start_week
-        backtest_results.append(next_gw_dict)
+        in_the_bank = next_gw_results.in_the_bank
+        free_transfers = next_gw_results.free_transfers
+        initial_squad = next_gw_results.lineup + list(next_gw_results.bench.values())
+        transfer_data.extend(next_gw_results.transfer_data)
+        backtest_results.append(next_gw_results)
 
     transfer_horizon = parameters["transfer_horizon"]
     plot = plot_backtest_results(
@@ -336,9 +367,14 @@ def backtest(inference_results: pd.DataFrame, fpl_data: pd.DataFrame, parameters
     return plot
 
 
+import pickle
+
+
 def plot_backtest_results(backtest_results, title):
     print(title)
     print(backtest_results)
+    with open("tmp/backtest_results.pkl", "wb") as f:
+        pickle.dump(backtest_results, f)
     return None
 
 

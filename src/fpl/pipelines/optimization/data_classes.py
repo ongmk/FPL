@@ -122,35 +122,33 @@ class GwResults:
     player_details: pd.DataFrame
 
 
-TYPE_DATA = pd.DataFrame(
-    [
-        {
-            "id": 1,
-            "singular_name": "Goalkeeper",
-            "squad_select": 2,
-            "squad_min_play": 1,
-            "squad_max_play": 1,
-        },
-        {
-            "id": 2,
-            "singular_name_short": "DEF",
-            "squad_select": 5,
-            "squad_min_play": 3,
-            "squad_max_play": 5,
-        },
-        {
-            "id": 3,
-            "singular_name_short": "MID",
-            "squad_select": 5,
-            "squad_min_play": 2,
-            "squad_max_play": 5,
-        },
-        {
-            "id": 4,
-            "singular_name_short": "FWD",
-            "squad_select": 3,
-            "squad_min_play": 1,
-            "squad_max_play": 3,
-        },
-    ]
-)
+TYPE_DATA = [
+    {
+        "id": 1,
+        "singular_name_short": "GKP",
+        "squad_select": 2,
+        "squad_min_play": 1,
+        "squad_max_play": 1,
+    },
+    {
+        "id": 2,
+        "singular_name_short": "DEF",
+        "squad_select": 5,
+        "squad_min_play": 3,
+        "squad_max_play": 5,
+    },
+    {
+        "id": 3,
+        "singular_name_short": "MID",
+        "squad_select": 5,
+        "squad_min_play": 2,
+        "squad_max_play": 5,
+    },
+    {
+        "id": 4,
+        "singular_name_short": "FWD",
+        "squad_select": 3,
+        "squad_min_play": 1,
+        "squad_max_play": 3,
+    },
+]

@@ -23,11 +23,16 @@ def create_live_pipeline():
                     "LP_DATA",
                     "params:optimization",
                 ],
-                outputs=["lp_params", "lp_keys", "lp_variables", "variable_sums"],
+                outputs=["lp_keys", "lp_variables", "variable_sums"],
             ),
             node(
                 func=solve_lp,
-                inputs=["lp_variables", "variable_sums", "params:optimization"],
+                inputs=[
+                    "LP_DATA",
+                    "lp_variables",
+                    "variable_sums",
+                    "params:optimization",
+                ],
                 outputs=[
                     "solved_lp_variables",
                     "solved_variable_sums",

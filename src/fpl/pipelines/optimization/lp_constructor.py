@@ -115,8 +115,8 @@ def initialize_variables(lp_data: LpData, lp_keys: LpKeys) -> LpVariables:
         "free_transfers",
         lp_keys.gameweeks_plus,
         cat=LpInteger,
-        lowBound=0,
-        upBound=2,
+        lowBound=1,
+        upBound=5,
     )
     penalized_transfers = LpVariable.dicts(
         "penalized_transfers", lp_data.gameweeks, cat=LpInteger, lowBound=0
@@ -345,7 +345,9 @@ def add_objective_function(
     return None
 
 
-def construct_lp(lp_data: LpData, parameters: dict) -> tuple[LpVariables, VariableSums]:
+def construct_lp(
+    lp_data: LpData, parameters: dict
+) -> tuple[LpKeys, LpVariables, VariableSums]:
     model_name = parameters["model_name"]
     mps_dir = parameters["mps_dir"]
     mps_path = f"{mps_dir}/{model_name}.mps"
@@ -365,4 +367,4 @@ def construct_lp(lp_data: LpData, parameters: dict) -> tuple[LpVariables, Variab
 
     backup_latest_n(mps_path, n=5)
 
-    return lp_params, lp_keys, lp_variables, variable_sums
+    return lp_keys, lp_variables, variable_sums

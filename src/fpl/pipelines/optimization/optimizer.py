@@ -140,13 +140,8 @@ def merge_data(elements_team, points_data):
         how="left",
     ).set_index("id")
 
-    initial_num_rows = len(merged_data)
     prediction_columns = [col for col in points_data if "pred_pts_" in col]
-    merged_data = merged_data.dropna(subset=prediction_columns)
-    final_num_rows = len(merged_data)
-    percentage_dropped = (initial_num_rows - final_num_rows) / initial_num_rows * 100
-    if percentage_dropped > 20:
-        logger.warn(f"{percentage_dropped:.2f}% of the lp data were dropped.")
+    merged_data[prediction_columns] = merged_data[prediction_columns].fillna(0)
 
     return merged_data
 
@@ -208,6 +203,7 @@ def get_live_data(
         gameweeks,
         transfer_data,
         initial_squad,
+        None,
     )
 
     logger.info(f"Team: {general_data['name']}.")
@@ -236,10 +232,11 @@ def prepare_data(
     gameweeks,
     transfer_data,
     initial_squad,
+    backup_fpl_data,
 ):
     points_data = aggregate_points_data(inference_results, current_season, gameweeks)
     merged_data = merge_data(elements_data, points_data)
-    calculate_buy_sell_price(merged_data, transfer_data, initial_squad)
+    calculate_buy_sell_price(merged_data, transfer_data, initial_squad, backup_fpl_data)
     merged_data = sort_by_expected_value(merged_data)
     return merged_data
 
@@ -251,12 +248,22 @@ def sort_by_expected_value(merged_data):
     return merged_data
 
 
-def calculate_buy_sell_price(merged_data, transfer_data, initial_squad):
+def calculate_buy_sell_price(
+    merged_data, transfer_data, initial_squad, backup_fpl_data
+):
     merged_data["sell_price"] = merged_data["now_cost"]
     for t in transfer_data:
         if t["element_in"] not in initial_squad:
             continue
         bought_price = t["element_in_cost"]
+        if t["element_in"] not in merged_data.index:
+            backup_elements_data = fpl_data_to_elements_data(backup_fpl_data).set_index(
+                "id"
+            )
+            merged_data.loc[t["element_in"]] = backup_elements_data.loc[t["element_in"]]
+            merged_data.loc[t["element_in"]] = merged_data.loc[t["element_in"]].fillna(
+                0
+            )
         merged_data.loc[t["element_in"], "bought_price"] = bought_price
         current_price = merged_data.loc[t["element_in"], "now_cost"]
         if current_price <= bought_price:
@@ -266,9 +273,7 @@ def calculate_buy_sell_price(merged_data, transfer_data, initial_squad):
     return None
 
 
-def convert_to_live_data(
-    fpl_data: pd.DataFrame,
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def fpl_data_to_elements_data(fpl_data):
     elements_data = fpl_data[
         ["element", "full_name", "team_name", "position", "value"]
     ].drop_duplicates()
@@ -280,7 +285,14 @@ def convert_to_live_data(
     elements_data = elements_data.rename(
         columns={"element": "id", "team_name": "team", "value": "now_cost"}
     )
+    return elements_data
 
+
+def convert_to_live_data(
+    fpl_data: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+
+    elements_data = fpl_data_to_elements_data(fpl_data)
     team_data = (
         elements_data[["team"]]
         .drop_duplicates()
@@ -341,7 +353,7 @@ def backtest(
     total_actual_points = 0
 
     # min_week = 18
-    # max_week = 2
+    # max_week = 22
     # in_the_bank = 0
     # free_transfers = 5
     # initial_squad = get_dummy_squad(
@@ -349,6 +361,12 @@ def backtest(
     #         (fpl_data["season"] == backtest_season) & (fpl_data["round"] == min_week)
     #     ]
     # )
+    # initial_squad[-1] = 108
+    # initial_squad[-2] = 355
+    # transfer_data = [
+    #     {"element_in": 108, "element_in_cost": 50},
+    #     {"element_in": 355, "element_in_cost": 50},
+    # ]
     for start_week in range(min_week, max_week + 1):
         end_week = min(max_week, start_week + horizon - 1)
         gameweeks = [i for i in range(start_week, end_week + 1)]
@@ -358,6 +376,9 @@ def backtest(
                 & (fpl_data["round"] == start_week)
             ]
         )
+        backup_fpl_data = fpl_data.loc[
+            (fpl_data["season"] == backtest_season) & (fpl_data["round"] < start_week)
+        ].drop_duplicates(subset=["element"], keep="last")
         merged_data = prepare_data(
             inference_results,
             elements_data,
@@ -365,6 +386,7 @@ def backtest(
             gameweeks,
             transfer_data,
             initial_squad,
+            backup_fpl_data,
         )
 
         logger.info(

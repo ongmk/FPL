@@ -3,11 +3,8 @@ import uuid
 from collections.abc import MutableMapping
 from copy import deepcopy
 from pathlib import Path
-from pprint import pprint
-from textwrap import dedent
 from typing import Dict
 
-import yaml
 from hyperopt import space_eval
 from hyperopt.pyll.base import Apply as hyperopt_apply
 from kedro.config import OmegaConfigLoader

@@ -8,6 +8,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+from matplotlib.figure import Figure
 
 from fpl.pipelines.optimization.data_classes import (
     TYPE_DATA,
@@ -291,14 +292,36 @@ def convert_to_live_data(
     return elements_data, team_data, type_data
 
 
-def backtest(inference_results: pd.DataFrame, fpl_data: pd.DataFrame, parameters: dict):
+def get_dummy_squad(
+    fpl_data: pd.DataFrame,
+):
+    elements_data, _, type_data = convert_to_live_data(fpl_data)
+    elements_data = elements_data.sort_values("now_cost", ascending=False)
+    squad = []
+    for type, row in type_data.iterrows():
+        select = row["squad_select"]
+        squad.extend(
+            elements_data.loc[elements_data["element_type"] == type, "id"]
+            .head(select)
+            .to_list()
+        )
+    return squad
+
+
+def backtest(
+    experiment_id: int,
+    inference_results: pd.DataFrame,
+    fpl_data: pd.DataFrame,
+    parameters: dict,
+) -> tuple[dict[str, Figure], tuple[int, dict[str, float]], float]:
 
     backtest_season = parameters["backtest_season"]
     horizon = parameters["horizon"]
     transfer_horizon = parameters["transfer_horizon"]
     if transfer_horizon > horizon:
         logger.error("Transfer horizon cannot be greater than the horizon.")
-        return {}, 0
+        metrics = (experiment_id, {"total_actual_points": 0})
+        return {}, metrics, 0
 
     min_week = (
         inference_results.loc[inference_results["season"] == backtest_season, "round"]
@@ -317,6 +340,15 @@ def backtest(inference_results: pd.DataFrame, fpl_data: pd.DataFrame, parameters
     backtest_results = []
     total_actual_points = 0
 
+    # min_week = 18
+    # max_week = 2
+    # in_the_bank = 0
+    # free_transfers = 5
+    # initial_squad = get_dummy_squad(
+    #     fpl_data.loc[
+    #         (fpl_data["season"] == backtest_season) & (fpl_data["round"] == min_week)
+    #     ]
+    # )
     for start_week in range(min_week, max_week + 1):
         end_week = min(max_week, start_week + horizon - 1)
         gameweeks = [i for i in range(start_week, end_week + 1)]
@@ -351,7 +383,7 @@ def backtest(inference_results: pd.DataFrame, fpl_data: pd.DataFrame, parameters
             free_transfers=free_transfers,
             current_season=backtest_season,
         )
-        parameters["model_name"] = f"backtest_{backtest_season}_{start_week}-{end_week}"
+        parameters["model_name"] = f"backtest_model"
         lp_keys, lp_variables, variable_sums = construct_lp(lp_data, parameters)
         lp_variables, variable_sums, solution_time = solve_lp(
             lp_data, lp_variables, variable_sums, parameters
@@ -372,7 +404,10 @@ def backtest(inference_results: pd.DataFrame, fpl_data: pd.DataFrame, parameters
 
     h = horizon
     th = transfer_horizon
-    return {f"backtest_{backtest_season}_{h=}_{th=}.png": plot}, total_actual_points
+    backtest_plots = {f"backtest_{backtest_season}_{h=}_{th=}.png": plot}
+    metrics = (experiment_id, {"total_actual_points": total_actual_points})
+
+    return backtest_plots, metrics, total_actual_points
 
 
 if __name__ == "__main__":

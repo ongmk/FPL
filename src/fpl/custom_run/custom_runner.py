@@ -16,6 +16,8 @@ from kedro.framework.project import settings
 from kedro.framework.session import KedroSession
 from kedro.utils import load_obj
 
+logger = logging.getLogger(__name__)
+
 
 def find_hyperopt_apply_keys(dct, parent_key=None, result=None):
     if result is None:
@@ -95,7 +97,9 @@ def custom_kedro_run(
             parameters = tuple_list_type_check(hyperopt_run_config["space"], parameters)
 
             trial_num = len(hyperopt_run_config["trials"].tids)
-            print(f"Hyperopt trial {trial_num}/{hyperopt_run_config['max_evals']}")
+            logger.info(
+                f"Hyperopt trial {trial_num}/{int(hyperopt_run_config['max_evals'])}"
+            )
             res = run_kedro_task(
                 env=env,
                 params=parameters,
@@ -137,9 +141,9 @@ def custom_kedro_run(
 
             best_params = space_eval(compressed_space, best_trial)
 
-            print(f"Best parameters are:")
-            pprint(best_params)
-            print(f"{target_name} = {trials.best_trial['result'][target_name]}")
+            logger.info(f"Best parameters are:")
+            logger.info(best_params)
+            logger.info(f"{target_name} = {trials.best_trial['result'][target_name]}")
         return None
 
     else:
@@ -153,15 +157,11 @@ def custom_kedro_run(
 
 
 def run_kedro_task(env, params, run_args_cli, project_path):
-    print(
-        dedent(
-            f"""\
-            kedro_trains_run started with args:
-            env: {env}
-            extra_params: {params}
-            run_args: {run_args_cli}"""
-        )
-    )
+    logger.info("Starting Kedro pipelines with the following parameters:")
+    logger.info(f"    env: {env}")
+    logger.info(f"    run_args: {run_args_cli}")
+    for key in params:
+        logger.info(f"    {key} params: {params[key]}")
     # NOTE: workaround to overwrite partial keys in the parameters, kedro only replace object in first level
     old_context = KedroSession.create(project_path=project_path, env=env)
 

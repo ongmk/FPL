@@ -64,25 +64,21 @@ def create_hypertuning_pipeline() -> Pipeline:
                 func=run_housekeeping,
                 inputs="params:housekeeping",
                 outputs=None,
-                name="run_housekeeping",
             ),
             node(
                 func=init_experiment,
                 inputs="params:modelling",
                 outputs=["experiment_id", "start_time", "EXPERIMENT_RECORD"],
-                name="init_experiment",
             ),
             node(
                 func=create_sklearn_pipeline,
                 inputs=["TRAIN_VAL_DATA", "params:modelling"],
                 outputs="sklearn_pipeline",
-                name="create_sklearn_pipeline",
             ),
             node(
                 func=model_selection,
                 inputs="params:modelling",
                 outputs="model",
-                name="model_selection",
             ),
             node(
                 func=cross_validation,
@@ -96,10 +92,9 @@ def create_hypertuning_pipeline() -> Pipeline:
                 ],
                 outputs=[
                     "val_score",
-                    "TRAIN_METRICS",
+                    "EXPERIMENT_METRICS",
                     "LAST_FOLD_EVALUATION_PLOTS",
                 ],
-                name="cross_validation",
             ),
         ]
     )

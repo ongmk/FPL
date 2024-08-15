@@ -230,8 +230,9 @@ def cross_validation(
     mean_metrics = get_mean_metrics(all_folds_metrics)
 
     val_score = mean_metrics[f"val_{sort_models}"]
+    metrics = (experiment_id, mean_metrics)
 
-    return (val_score, (experiment_id, mean_metrics), last_fold_evaluation_plots)
+    return val_score, metrics, last_fold_evaluation_plots
 
 
 def train_model(

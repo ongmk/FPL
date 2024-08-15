@@ -1,5 +1,9 @@
 housekeeping:
   to_keep: 50
   keep_model_best: 5
-  metric: val_mae
-  strategy: min
+  metric:
+    - val_mae
+    - total_actual_points
+  maximize:
+    - False
+    - True

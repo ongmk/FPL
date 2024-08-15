@@ -27,7 +27,7 @@ def find_search_groups(hyperopt_param: dict) -> list[dict[str, Any]]:
     hyperopt_group_params = (
         hyperopt_param.pop("groups") if "groups" in hyperopt_param else {}
     )
-    flat_param_dict = flatten(hyperopt_group_params, reducer="dot")
+    flat_param_dict = flatten(hyperopt_group_params, reducer="tuple")
     if len(flat_param_dict.keys()) > 1:
         raise ValueError(f"Cannot group by more than one key.")
     if len(flat_param_dict.keys()) == 0:
@@ -35,28 +35,30 @@ def find_search_groups(hyperopt_param: dict) -> list[dict[str, Any]]:
     else:
         key = list(flat_param_dict.keys())[0]
         groups = list(flat_param_dict.values())[0]
-        return [unflatten({key: group}, splitter="dot") for group in groups]
+        return [unflatten({key: group}, splitter="tuple") for group in groups]
 
 
 def construct_search_space(param_dict: Dict, hyper_param_dict: Dict) -> Dict:
-    flat_param_dict = flatten(param_dict, reducer="dot")
-    flat_hyper_param_dict = flatten(hyper_param_dict, reducer="dot")
+    flat_param_dict = flatten(param_dict, reducer="tuple")
+    flat_hyper_param_dict = flatten(hyper_param_dict, reducer="tuple")
     search_space = dict()
 
-    for key, value in flat_param_dict.items():
-        if not _is_param_key_in_hyper_param_key(key, flat_hyper_param_dict.keys()):
-            search_space[key] = value
+    for param_key, value in flat_param_dict.items():
+        if not _is_param_key_in_hyper_param_key(
+            param_key, flat_hyper_param_dict.keys()
+        ):
+            search_space[param_key] = value
         else:
             hyper_param_details = {
-                k: v for k, v in flat_hyper_param_dict.items() if key in k
+                hyper_param_key: hyper_param_value
+                for hyper_param_key, hyper_param_value in flat_hyper_param_dict.items()
+                if is_subset(param_key, hyper_param_key)
             }
-            param_name_split = key.split(".")
-            param_name = param_name_split[len(param_name_split) - 1]
-            search_space[key] = _build_hyper_param_expression(
-                param_name, _unflatten_hyper_param_details_dict(hyper_param_details)
+            search_space[param_key] = _build_hyper_param_expression(
+                param_key[-1], _unflatten_hyper_param_details_dict(hyper_param_details)
             )
 
-    return unflatten(search_space, splitter="dot")
+    return unflatten(search_space, splitter="tuple")
 
 
 def _build_hyper_param_expression(param_name: str, hyper_param_details: Dict):
@@ -109,23 +111,25 @@ def _build_hyper_param_expression(param_name: str, hyper_param_details: Dict):
 def _unflatten_hyper_param_details_dict(flat_details_dict: Dict) -> Dict:
     unflatten_dict = dict()
     for key, value in flat_details_dict.items():
-        key_split = key.split(".")
-        unflatten_dict[key_split[len(key_split) - 1]] = value
+        unflatten_dict[key[-1]] = value
 
     return unflatten_dict
 
 
 def _is_param_key_in_hyper_param_key(param_key: str, hyper_param_key_list) -> bool:
     for hyper_param_key in hyper_param_key_list:
-        if param_key in hyper_param_key:
+        if is_subset(param_key, hyper_param_key):
             return True
-
     return False
 
 
+def is_subset(inner_tuple, outer_tuple):
+    return set(inner_tuple).issubset(set(outer_tuple))
+
+
 def update_parameters(old_dict: dict, new_dict: dict) -> dict:
-    flat_old = flatten(old_dict, reducer="dot")
-    flat_new = flatten(new_dict, reducer="dot")
+    flat_old = flatten(old_dict, reducer="tuple")
+    flat_new = flatten(new_dict, reducer="tuple")
     flat_old.update(flat_new)
-    updated_old_dict = unflatten(flat_old, splitter="dot")
+    updated_old_dict = unflatten(flat_old, splitter="tuple")
     return updated_old_dict

@@ -1,7 +1,8 @@
 optimization:
-  model_name: fpl_live_model
+  model_name: live_model
   mps_dir: data/optimization/models
   solution_dir: data/optimization/solutions
+  backtest_season: 2023-2024
 
   team_id: 1792016
 
@@ -10,7 +11,7 @@ optimization:
   free_hit_week: null
   triple_captain_week: null
 
-  horizon: 3
+  horizon: 5
   transfer_horizon: 2
   decay: 0.5
   free_transfer_bonus: 1.5
@@ -24,4 +25,3 @@ optimization:
   backtest_players:
     Me: 1792016
     Donald: 307190
-  backtest_season: 2023-2024

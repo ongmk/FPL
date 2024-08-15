@@ -4,7 +4,7 @@ import sqlite3
 import subprocess
 from datetime import datetime
 from sqlite3 import Connection
-from typing import Any
+from typing import Any, Union
 
 import pandas as pd
 from flatten_dict import flatten
@@ -91,8 +91,18 @@ def ensure_metric_col_type(conn: Connection, metric_column: str):
         return "id"
 
 
-def update_model_best(conn: Connection, metric_column: str, top_n: int, maximize: bool):
-    metric_column = ensure_metric_col_type(conn, metric_column)
+def update_model_best(conn: Connection, parameters: dict[str, Any]):
+    metrics = parameters["metric"]
+    top_n = parameters["keep_model_best"]
+    maximize = parameters["maximize"]
+
+    if isinstance(metrics, str):
+        metrics = [metrics]
+    if isinstance(maximize, bool):
+        maximize = [maximize]
+    for idx in range(len(metrics)):
+        metrics[idx] = ensure_metric_col_type(conn, metrics[idx])
+    assert len(metrics) == len(maximize), "Length of metrics and maximize must be equal"
 
     cursor = conn.cursor()
 
@@ -107,7 +117,8 @@ def update_model_best(conn: Connection, metric_column: str, top_n: int, maximize
     groups = cursor.fetchall()
 
     # Get the top n rows based on the metric_column within each group
-    order = "DESC" if maximize else "ASC"
+    order_by = [f"{met}{' DESC' if max else ''}" for met, max in zip(metrics, maximize)]
+    order_by = ", ".join(order_by)
     for group in groups:
         models, numericalFeatures, categoricalFeatures = group
         cursor.execute(
@@ -117,7 +128,7 @@ def update_model_best(conn: Connection, metric_column: str, top_n: int, maximize
             WHERE id IN (
                 SELECT id FROM (
                     SELECT id, ROW_NUMBER() OVER (
-                        ORDER BY {metric_column} {order}
+                        ORDER BY {order_by}
                     ) AS rank
                     FROM experiment
                     WHERE models = ? AND numericalFeatures = ? AND categoricalFeatures = ?
@@ -133,9 +144,6 @@ def update_model_best(conn: Connection, metric_column: str, top_n: int, maximize
 
 def run_housekeeping(parameters: dict[str, Any]):
     to_keep = parameters["to_keep"]
-    metric = parameters["metric"]
-    keep_model_best = parameters["keep_model_best"]
-    maximize = True if parameters["strategy"] == "max" else False
 
     conn = sqlite3.connect("./data/fpl.db")
     cursor = conn.cursor()
@@ -143,7 +151,7 @@ def run_housekeeping(parameters: dict[str, Any]):
     # Get all unique start_time values
     cursor.execute("SELECT start_time FROM experiment")
     unique_start_times = [row[0] for row in cursor.fetchall()]
-    update_model_best(conn, metric, keep_model_best, maximize)
+    update_model_best(conn, parameters)
 
     unique_start_times.sort(reverse=True)
     recent_start_times = unique_start_times[:to_keep]
@@ -163,7 +171,7 @@ def run_housekeeping(parameters: dict[str, Any]):
 
 
 def snake_to_camel(snake_str: str) -> str:
-    components = snake_str.split("_")
+    components = str(snake_str).split("_")
     return components[0] + "".join(x.title() for x in components[1:])
 
 

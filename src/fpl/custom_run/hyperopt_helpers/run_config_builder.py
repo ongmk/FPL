@@ -1,14 +1,19 @@
+import logging
 from typing import Dict
 
-from hyperopt import tpe, rand, Trials, atpe, anneal
+import numpy as np
+from hyperopt import Trials, anneal, atpe, rand, tpe
+from hyperopt.pyll.base import Apply
 
 from fpl.custom_run.hyperopt_helpers import construct_search_space
 from fpl.custom_run.hyperopt_helpers.termination_policy import (
     BanditParam,
-    bandit_policy,
     PercentileStoppingParam,
+    bandit_policy,
     percentile_stopping_policy,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def build_run_config(param_dict: Dict, hyperopt_param: Dict, target_dict: dict):
@@ -18,8 +23,10 @@ def build_run_config(param_dict: Dict, hyperopt_param: Dict, target_dict: dict):
     algo = target_dict.get("algo", "tpe")
     early_stop_config = target_dict.get("early_termination", None)
 
+    search_space = construct_search_space(param_dict, hyperopt_param)
+
     # Validation
-    _validate_max_trials(max_trials)
+    max_trials = _validate_max_trials(max_trials, search_space)
     _validate_strategy(strategy)
     _validate_target(target_name)
 
@@ -28,8 +35,6 @@ def build_run_config(param_dict: Dict, hyperopt_param: Dict, target_dict: dict):
     early_stop_policy = _validate_early_termination_policy(early_stop_config)
 
     trials = Trials("")
-
-    search_space = construct_search_space(param_dict, hyperopt_param)
 
     return {
         "space": search_space,
@@ -46,9 +51,61 @@ def build_run_config(param_dict: Dict, hyperopt_param: Dict, target_dict: dict):
     }
 
 
-def _validate_max_trials(max_trials):
+def recursiveFindNodes(root, node_type="switch"):
+    nodes = []
+    if isinstance(root, (list, tuple)):
+        for node in root:
+            nodes.extend(recursiveFindNodes(node, node_type))
+    elif isinstance(root, dict):
+        for node in root.values():
+            nodes.extend(recursiveFindNodes(node, node_type))
+    elif isinstance(root, (Apply)):
+        if root.name == node_type:
+            nodes.append(root)
+
+        for node in root.pos_args:
+            if node.name == node_type:
+                nodes.append(node)
+        for _, node in root.named_args:
+            if node.name == node_type:
+                nodes.append(node)
+    return nodes
+
+
+def parameters(space):
+    # Analyze the domain instance to find parameters
+    parameters = {}
+    if isinstance(space, dict):
+        space = list(space.values())
+    for node in recursiveFindNodes(space, "switch"):
+
+        # Find the name of this parameter
+        paramNode = node.pos_args[0]
+        assert paramNode.name == "hyperopt_param"
+        paramName = paramNode.pos_args[0].obj
+
+        # Find all possible choices for this parameter
+        values = [literal.obj for literal in node.pos_args[1:]]
+        parameters[paramName] = np.array(range(len(values)))
+    return parameters
+
+
+def spacesize(space):
+    # Compute the number of possible combinations
+    params = parameters(space)
+    return np.prod([len(values) for values in params.values()])
+
+
+def _validate_max_trials(max_trials, space):
+    space_size = spacesize(space)
+    if max_trials > space_size:
+        logger.warn(
+            f"Max trials > possible combinations. Setting max trials to {space_size}"
+        )
+        return space_size
     if max_trials is None or max_trials < 1 or not isinstance(max_trials, int):
         raise ValueError("Please provide a valid number for max_trials")
+    return max_trials
 
 
 def _validate_strategy(strategy):

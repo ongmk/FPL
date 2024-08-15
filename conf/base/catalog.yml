@@ -136,7 +136,7 @@ HOLDOUT_METRICS:
   table_name: experiment
   credentials: db_credentials
 
-TRAIN_METRICS:
+EXPERIMENT_METRICS:
   type: fpl.extras.datasets.ExperimentMetrics
   table_name: experiment
   credentials: db_credentials

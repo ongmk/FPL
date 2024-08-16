@@ -38,6 +38,22 @@ def split_name_key(text):
     return name, key
 
 
+def raise_exceptions(line):
+    if "Infeasible" in line:
+        logger.error(line)
+        # Troubleshooting with lp_data
+        raise ValueError("No solution found.")
+    elif "no integer solution" in line:
+        logger.error(line)
+        raise ValueError("No integer solution found.")
+    elif "Stopped on time" in line:
+        logger.warning(line)
+    elif "Optimal" in line:
+        logger.info(line)
+    else:
+        return None
+
+
 def solve_lp(
     lp_data: LpData,
     lp_variables: LpVariables,
@@ -50,11 +66,16 @@ def solve_lp(
     mps_path = f"{mps_dir}/{model_name}.mps"
     solution_dir = parameters["solution_dir"]
     solution_path = f"{solution_dir}/{model_name}.sol"
+    init_feasible_solution_path = f"{solution_path}.init"
     gap = 0.01
     timeout = 60
 
     start = time.time()
-    command = f"cbc/bin/cbc.exe {mps_path} cost ratio {gap} sec {timeout} column solve solu {solution_path}"
+    command = f"cbc/bin/cbc.exe {mps_path} cost column ratio 1 solve solu {init_feasible_solution_path}"
+    process = Popen(command, shell=False)
+    process.wait()
+
+    command = f"cbc/bin/cbc.exe {mps_path} mips {init_feasible_solution_path} cost column ratio {gap} sec {timeout} solve solu {solution_path}"
     process = Popen(command, shell=False)
     process.wait()
     solution_time = time.time() - start
@@ -69,12 +90,8 @@ def solve_lp(
     with open(f"{solution_path}", "r") as f:
         for line in f:
             if "objective value" in line:
-                if "Infeasible" in line:
-                    logger.error(line)
-                    # Troubleshooting with lp_data
-                    raise ValueError(f"No solution found for {model_name}.")
-                else:
-                    logger.info(line)
+                raise_exceptions(line)
+                logger.info(line)
                 continue
             words = line.split()
             variable, value = words[1], float(words[2])
@@ -325,7 +342,7 @@ def backtest(
     inference_results: pd.DataFrame,
     fpl_data: pd.DataFrame,
     parameters: dict,
-) -> tuple[dict[str, Figure], tuple[int, dict[str, float]], float]:
+) -> tuple[tuple[int, dict[str, float]], float]:
 
     backtest_season = parameters["backtest_season"]
     horizon = parameters["horizon"]
@@ -420,16 +437,18 @@ def backtest(
         transfer_data.extend(next_gw_results.transfer_data)
         backtest_results.append(next_gw_results)
         total_actual_points += next_gw_results.total_actual_points
+        if start_week % 5 == 0 or start_week == end_week:
+            title = f"Backtest {backtest_season} h={horizon} th={transfer_horizon} --> pts={int(total_actual_points)}"
+            plot = plot_backtest_results(backtest_results, title)
+            plot_name = (
+                "plot_backtest_tmp"
+                if start_week != max_week
+                else title.replace("--> ", "")
+            )
+            plot.savefig(f"data/optimization/backtest_results/{plot_name}.png")
 
-    transfer_horizon = parameters["transfer_horizon"]
-    plot = plot_backtest_results(backtest_results)
-
-    h = horizon
-    th = transfer_horizon
-    backtest_plots = {f"backtest_{backtest_season}_{h=}_{th=}.png": plot}
     metrics = (experiment_id, {"total_actual_points": total_actual_points})
-
-    return backtest_plots, metrics, total_actual_points
+    return metrics, total_actual_points
 
 
 if __name__ == "__main__":

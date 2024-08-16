@@ -432,7 +432,7 @@ def get_squad_names(gw_results: GwResults, out_players: list[int]):
     return lines
 
 
-def plot_backtest_results(backtest_results: list[GwResults]) -> Figure:
+def plot_backtest_results(backtest_results: list[GwResults], title: str) -> Figure:
     gameweeks = []
     predicted_pts = []
     actual_pts = []
@@ -466,9 +466,10 @@ def plot_backtest_results(backtest_results: list[GwResults]) -> Figure:
         4,
         1,
         sharex=True,
-        figsize=(10, len(gameweeks) * 2),
-        gridspec_kw={"height_ratios": [2, 2.5, 1, 1]},
+        figsize=(len(backtest_results) * 2, 15),
+        gridspec_kw={"height_ratios": [4, 2, 1, 1]},
     )
+    fig.suptitle(title, fontsize=20)
 
     ax1.set_xticks(gameweeks)
     ax1.set_xticklabels([f"GW{gw}" for gw in gameweeks])
@@ -489,8 +490,6 @@ def plot_backtest_results(backtest_results: list[GwResults]) -> Figure:
             tooltip += f"{chip}\n"
         if gw_hits > 0:
             tooltip += f"{gw_hits} hits\n"
-        if tooltip == "":
-            continue
         y = max(pred, act)
         ax1.text(gw, y, tooltip, color="red", fontsize=10, ha="center", va="bottom")
     ax1.set_title("Total Points")
@@ -521,6 +520,6 @@ def plot_backtest_results(backtest_results: list[GwResults]) -> Figure:
     ax4.plot(gameweeks, free_transfers, color="red", marker="o")
     ax4.set_title("Free Transfers")
 
-    fig.tight_layout()
+    fig.tight_layout(rect=[0, 0.03, 1, 0.95])
 
     return fig

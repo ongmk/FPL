@@ -31,10 +31,6 @@ OPTIMIZATION_SUMMARY:
   <<: *txt
   filepath: data/optimization/summary.txt
 
-BACKTEST_PLOTS:
-  type: matplotlib.MatplotlibWriter
-  filepath: data/optimization/backtest_results
-
 EXPERIMENT_RECORD:
   <<: *flexible
   table_name: experiment

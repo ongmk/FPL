@@ -75,7 +75,7 @@ def create_backtest_pipeline():
                     "FPL_DATA",
                     "params:optimization",
                 ],
-                outputs=["BACKTEST_PLOTS", "EXPERIMENT_METRICS", "total_actual_points"],
+                outputs=["EXPERIMENT_METRICS", "total_actual_points"],
             ),
         ]
     )

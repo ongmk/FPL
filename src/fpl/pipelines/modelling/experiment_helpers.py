@@ -80,9 +80,9 @@ def ensure_metric_col_type(conn: Connection, metric_column: str):
     column_data = next((col for col in columns if col[1] == metric_column), None)
     if column_data:
         column_type = column_data[2]
-        if column_type != "FLOAT":
+        if column_type not in ("REAL", "FLOAT"):
             raise TypeError(
-                f'Metric column {metric_column} is not a float in table "experiment"'
+                f'Metric column {metric_column} is not a float/real in table "experiment"'
             )
         else:
             return metric_column

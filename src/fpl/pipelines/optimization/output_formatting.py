@@ -122,10 +122,12 @@ def get_gw_results(
     lp_variables: LpVariables,
     variable_sums: VariableSums,
     solution_time: int,
+    previous_squad: list[int],
 ) -> GwResults:
     chip_used = get_chip_used(gameweek, lp_variables, variable_sums)
     lineup, bench = get_lineup_bench(gameweek, lp_keys, lp_variables)
-    transfer_data = get_transfer_data(gameweek, lineup + list(bench.values()), lp_data)
+    current_squad = lineup + list(bench.values())
+    transfer_data = get_transfer_data(gameweek, current_squad, previous_squad, lp_data)
     captain, vicecap = get_captain_vicecap(gameweek, lp_keys, lp_variables)
     hits = round(lp_variables.penalized_transfers[gameweek].value())
     total_actual_points = None
@@ -174,6 +176,7 @@ def get_gw_results(
             in_the_bank=round(lp_variables.in_the_bank[gameweek - 1].value(), 1),
         ),
         player_details=lp_data.merged_data.loc[lineup + list(bench.values())],
+        solution_time=solution_time,
     )
 
 
@@ -293,6 +296,7 @@ def get_transfer_summary(
         if transfer["element_out"] is not None
     ]
     for player in out_players:
+        details = gw_results.player_details.loc[player]
         price = details["sell_price"] / 10
         name = f'{details["web_name"]} ({price})'
         pos = details["element_type"]
@@ -357,15 +361,23 @@ def generate_outputs(
     total_predicted_points = 0
     total_actual_points = 0
     actual_points_available = False
+    previous_squad = lp_data.initial_squad
     for w in lp_data.gameweeks:
         gw_results = get_gw_results(
-            w, lp_data, lp_keys, lp_variables, variable_sums, solution_time
+            w,
+            lp_data,
+            lp_keys,
+            lp_variables,
+            variable_sums,
+            solution_time,
+            previous_squad,
         )
         summary.append(get_gw_summary(gw_results))
         total_predicted_points += gw_results.total_predicted_points
         if gw_results.total_actual_points is not None:
             actual_points_available = True
             total_actual_points += gw_results.total_actual_points
+        previous_squad = gw_results.lineup + list(gw_results.bench.values())
 
     summary.append(
         f"{len(lp_data.gameweeks):>2} weeks total predicted points = {total_predicted_points:.2f}"
@@ -374,8 +386,9 @@ def generate_outputs(
         summary.append(f"         total actual points    = {total_actual_points:.2f}")
     summary.append(f"Optimization time = {int(solution_time)} seconds\n")
 
+    for s in summary:
+        logger.info(s)
     summary = "\n".join(summary)
-
     return summary
 
 

@@ -59,6 +59,7 @@ def get_fpl_base_data() -> (
             "element_type",
             "position",
             "now_cost",
+            "chance_of_playing_next_round",
         ]
     ]
     current_season = get_current_season_str(fpl_data["events"])

@@ -120,6 +120,7 @@ class GwResults:
     in_the_bank: float
     starting_params: StartingParams
     player_details: pd.DataFrame
+    solution_time: float
 
 
 TYPE_DATA = [

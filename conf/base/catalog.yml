@@ -29,7 +29,7 @@ LP_DATA:
 
 OPTIMIZATION_SUMMARY:
   <<: *txt
-  filepath: data/optimization/summary.txt
+  filepath: data/optimization/optimization_summary.txt
 
 EXPERIMENT_RECORD:
   <<: *flexible

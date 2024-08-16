@@ -91,7 +91,6 @@ def solve_lp(
         for line in f:
             if "objective value" in line:
                 raise_exceptions(line)
-                logger.info(line)
                 continue
             words = line.split()
             variable, value = words[1], float(words[2])
@@ -158,7 +157,11 @@ def merge_data(elements_team, points_data):
     ).set_index("id")
 
     prediction_columns = [col for col in points_data if "pred_pts_" in col]
-    merged_data[prediction_columns] = merged_data[prediction_columns].fillna(0)
+    merged_data[prediction_columns] = (
+        merged_data[prediction_columns]
+        .fillna(0)
+        .mul(merged_data["chance_of_playing_next_round"].fillna(100) / 100, axis=0)
+    )
 
     return merged_data
 
@@ -204,6 +207,9 @@ def get_live_data(
     elements_data, team_data, type_data, gameweeks_data, current_season = (
         get_fpl_base_data()
     )
+    elements_data = elements_data.loc[
+        ~elements_data["chance_of_playing_next_round"].isin([0, 25])
+    ]
     gameweeks = gameweeks_data["future"][:horizon]
     current_gw = gameweeks_data["current"]
 
@@ -302,6 +308,7 @@ def fpl_data_to_elements_data(fpl_data):
     elements_data = elements_data.rename(
         columns={"element": "id", "team_name": "team", "value": "now_cost"}
     )
+    elements_data["chance_of_playing_next_round"] = 100
     return elements_data
 
 
@@ -350,7 +357,19 @@ def backtest(
     if transfer_horizon > horizon:
         logger.error("Transfer horizon cannot be greater than the horizon.")
         metrics = (experiment_id, {"total_actual_points": 0})
-        return {}, metrics, 0
+        return metrics, 0
+
+    completed = [
+        dict(h=7, th=2),
+        dict(h=6, th=3),
+        dict(h=5, th=1),
+        dict(h=7, th=1),
+    ]
+    for c in completed:
+        if c["h"] == horizon and c["th"] == transfer_horizon:
+            logger.info("Backtest already completed.")
+            metrics = (experiment_id, {"total_actual_points": 0})
+            return metrics, 0
 
     min_week = (
         inference_results.loc[inference_results["season"] == backtest_season, "round"]
@@ -429,7 +448,13 @@ def backtest(
         )
         generate_outputs(lp_data, lp_variables, solution_time, parameters)
         next_gw_results = get_gw_results(
-            start_week, lp_data, lp_keys, lp_variables, variable_sums, solution_time
+            start_week,
+            lp_data,
+            lp_keys,
+            lp_variables,
+            variable_sums,
+            solution_time,
+            previous_squad=initial_squad,
         )
         in_the_bank = next_gw_results.in_the_bank
         free_transfers = next_gw_results.free_transfers

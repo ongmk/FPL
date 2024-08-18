@@ -264,6 +264,22 @@ def sort_by_expected_value(merged_data):
     return merged_data
 
 
+def fpl_data_to_elements_data(fpl_data):
+    elements_data = fpl_data[
+        ["element", "full_name", "team_name", "position", "value"]
+    ].drop_duplicates()
+    elements_data["web_name"] = elements_data["full_name"]
+    elements_data["element_type"] = elements_data["position"].map(
+        {d["singular_name_short"]: d["id"] for d in TYPE_DATA}
+    )
+    elements_data["value"] = elements_data["value"].astype(int)
+    elements_data = elements_data.rename(
+        columns={"element": "id", "team_name": "team", "value": "now_cost"}
+    )
+    elements_data["chance_of_playing_next_round"] = 100
+    return elements_data
+
+
 def calculate_buy_sell_price(
     merged_data, transfer_data, initial_squad, backup_fpl_data
 ):

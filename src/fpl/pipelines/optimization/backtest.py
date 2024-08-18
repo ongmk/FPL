@@ -8,7 +8,11 @@ from fpl.pipelines.modelling.modelling.ensemble import EnsembleModel
 from fpl.pipelines.modelling.modelling.evaluation import evaluate_model_holdout
 from fpl.pipelines.optimization.data_classes import TYPE_DATA, LpData
 from fpl.pipelines.optimization.lp_constructor import construct_lp
-from fpl.pipelines.optimization.optimizer import prepare_data, solve_lp
+from fpl.pipelines.optimization.optimizer import (
+    fpl_data_to_elements_data,
+    prepare_data,
+    solve_lp,
+)
 from fpl.pipelines.optimization.output_formatting import (
     generate_outputs,
     get_gw_results,
@@ -20,22 +24,6 @@ from fpl.pipelines.preprocessing.imputer import impute_missing_values
 from fpl.pipelines.preprocessing.preprocessor import merge_with_elo_data, split_data
 
 logger = logging.getLogger(__name__)
-
-
-def fpl_data_to_elements_data(fpl_data):
-    elements_data = fpl_data[
-        ["element", "full_name", "team_name", "position", "value"]
-    ].drop_duplicates()
-    elements_data["web_name"] = elements_data["full_name"]
-    elements_data["element_type"] = elements_data["position"].map(
-        {d["singular_name_short"]: d["id"] for d in TYPE_DATA}
-    )
-    elements_data["value"] = elements_data["value"].astype(int)
-    elements_data = elements_data.rename(
-        columns={"element": "id", "team_name": "team", "value": "now_cost"}
-    )
-    elements_data["chance_of_playing_next_round"] = 100
-    return elements_data
 
 
 def convert_to_live_data(

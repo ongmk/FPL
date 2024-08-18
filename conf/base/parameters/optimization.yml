@@ -11,7 +11,7 @@ optimization:
   free_hit_week: null
   triple_captain_week: null
 
-  horizon: 7
+  horizon: 8
   transfer_horizon: 1
   decay: 0.84
   free_transfer_bonus: 1.5

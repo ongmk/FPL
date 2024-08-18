@@ -29,8 +29,6 @@ AWAY_ELO_COLS = [
 
 
 def agg_home_away_elo(data: pd.DataFrame) -> pd.DataFrame:
-    data[HOME_ELO_COLS] = data.groupby("team")[HOME_ELO_COLS].ffill()
-    data[AWAY_ELO_COLS] = data.groupby("opponent")[AWAY_ELO_COLS].ffill()
     data["total_att_elo"] = data.att_elo + data.def_elo_opp
     data["home_total_att_elo"] = data.home_att_elo + data.away_def_elo_opp
     data["away_total_att_elo"] = data.away_att_elo + data.home_def_elo_opp

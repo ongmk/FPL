@@ -3,8 +3,9 @@ import logging
 from kedro.pipeline import Pipeline, node
 
 from fpl.pipelines.modelling.experiment_helpers import init_experiment, run_housekeeping
+from fpl.pipelines.optimization.backtest import backtest
 from fpl.pipelines.optimization.lp_constructor import construct_lp
-from fpl.pipelines.optimization.optimizer import backtest, get_live_data, solve_lp
+from fpl.pipelines.optimization.optimizer import get_live_data, solve_lp
 from fpl.pipelines.optimization.output_formatting import generate_outputs
 
 logger = logging.getLogger(__name__)
@@ -71,9 +72,16 @@ def create_backtest_pipeline():
                 func=backtest,
                 inputs=[
                     "experiment_id",
-                    "INFERENCE_RESULTS",
+                    "PROCESSED_DATA",
+                    "READ_ELO_DATA",
+                    "TRAIN_VAL_DATA",
+                    "FITTED_MODEL",
+                    "FITTED_SKLEARN_PIPELINE",
                     "FPL_DATA",
+                    "FPL2FBREF_TEAM_MAPPING",
                     "params:optimization",
+                    "params:preprocessing",
+                    "params:modelling",
                 ],
                 outputs=["EXPERIMENT_METRICS", "total_actual_points"],
             ),

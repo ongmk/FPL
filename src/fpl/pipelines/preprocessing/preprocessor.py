@@ -128,6 +128,25 @@ def combine_data(
         combined_data["opponent"]
     )
     combined_data["pos"] = combined_data["pos"].fillna(combined_data["pos_fpl"])
+    combined_data = merge_with_elo_data(combined_data, elo_data)
+    combined_data = combined_data.drop(
+        [
+            "pos_fpl",
+            "venue_fpl",
+            "round_fpl",
+            "team_fpl",
+            "opponent_fpl",
+            "team_ga_fpl",
+            "team_gf_fpl",
+        ],
+        axis=1,
+    )
+    if parameters["debug_run"]:
+        combined_data = sample_players(combined_data)
+    return combined_data
+
+
+def merge_with_elo_data(combined_data, elo_data):
     elo_data["next_match"] = elo_data.groupby("team")["date"].shift(-1)
     elo_data = elo_data.drop(["date", "season"], axis=1)
     combined_data = pd.merge(
@@ -146,20 +165,9 @@ def combine_data(
         suffixes=("", "_opp"),
     )
     combined_data = combined_data.drop(
-        [
-            "next_match",
-            "pos_fpl",
-            "venue_fpl",
-            "round_fpl",
-            "team_fpl",
-            "opponent_fpl",
-            "team_ga_fpl",
-            "team_gf_fpl",
-        ],
-        axis=1,
+        ["next_match", "team_opp", "next_match_opp"], axis=1
     )
-    if parameters["debug_run"]:
-        combined_data = sample_players(combined_data)
+
     return combined_data
 
 
@@ -317,6 +325,9 @@ def drop_incomplete_data(
     data: pd.DataFrame, feature_columns: list[str], split: str
 ) -> pd.DataFrame:
     original_len = len(data)
+    if original_len == 0:
+        return data
+
     data = data.dropna(subset=feature_columns)
 
     filtered_len = original_len - len(data)

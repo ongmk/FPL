@@ -8,7 +8,6 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from matplotlib.figure import Figure
 
 from fpl.pipelines.optimization.data_classes import (
     TYPE_DATA,
@@ -17,12 +16,6 @@ from fpl.pipelines.optimization.data_classes import (
     VariableSums,
 )
 from fpl.pipelines.optimization.fpl_api import get_fpl_base_data, get_fpl_team_data
-from fpl.pipelines.optimization.lp_constructor import construct_lp
-from fpl.pipelines.optimization.output_formatting import (
-    generate_outputs,
-    get_gw_results,
-    plot_backtest_results,
-)
 from fpl.utils import backup_latest_n
 
 logger = logging.getLogger(__name__)
@@ -294,186 +287,6 @@ def calculate_buy_sell_price(
         sell_price = np.floor(np.mean([current_price, bought_price]))
         merged_data.loc[t["element_in"], "sell_price"] = sell_price
     return None
-
-
-def fpl_data_to_elements_data(fpl_data):
-    elements_data = fpl_data[
-        ["element", "full_name", "team_name", "position", "value"]
-    ].drop_duplicates()
-    elements_data["web_name"] = elements_data["full_name"]
-    elements_data["element_type"] = elements_data["position"].map(
-        {d["singular_name_short"]: d["id"] for d in TYPE_DATA}
-    )
-    elements_data["value"] = elements_data["value"].astype(int)
-    elements_data = elements_data.rename(
-        columns={"element": "id", "team_name": "team", "value": "now_cost"}
-    )
-    elements_data["chance_of_playing_next_round"] = 100
-    return elements_data
-
-
-def convert_to_live_data(
-    fpl_data: pd.DataFrame,
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-
-    elements_data = fpl_data_to_elements_data(fpl_data)
-    team_data = (
-        elements_data[["team"]]
-        .drop_duplicates()
-        .reset_index(drop=True)
-        .rename(columns={"team": "name"})
-    )
-    type_data = pd.DataFrame(TYPE_DATA).set_index("id")
-
-    return elements_data, team_data, type_data
-
-
-def get_dummy_squad(
-    fpl_data: pd.DataFrame,
-):
-    elements_data, _, type_data = convert_to_live_data(fpl_data)
-    elements_data = elements_data.sort_values("now_cost", ascending=False)
-    squad = []
-    for type, row in type_data.iterrows():
-        select = row["squad_select"]
-        squad.extend(
-            elements_data.loc[elements_data["element_type"] == type, "id"]
-            .head(select)
-            .to_list()
-        )
-    return squad
-
-
-def backtest(
-    experiment_id: int,
-    inference_results: pd.DataFrame,
-    fpl_data: pd.DataFrame,
-    parameters: dict,
-) -> tuple[tuple[int, dict[str, float]], float]:
-
-    backtest_season = parameters["backtest_season"]
-    horizon = parameters["horizon"]
-    transfer_horizon = parameters["transfer_horizon"]
-    if transfer_horizon > horizon:
-        logger.error("Transfer horizon cannot be greater than the horizon.")
-        metrics = (experiment_id, {"total_actual_points": 0})
-        return metrics, 0
-
-    completed = [
-        dict(h=7, th=2),
-        dict(h=6, th=3),
-        dict(h=5, th=1),
-        dict(h=7, th=1),
-    ]
-    for c in completed:
-        if c["h"] == horizon and c["th"] == transfer_horizon:
-            logger.info("Backtest already completed.")
-            metrics = (experiment_id, {"total_actual_points": 0})
-            return metrics, 0
-
-    min_week = (
-        inference_results.loc[inference_results["season"] == backtest_season, "round"]
-        .astype(int)
-        .min()
-    )
-    max_week = (
-        inference_results.loc[inference_results["season"] == backtest_season, "round"]
-        .astype(int)
-        .max()
-    )
-    initial_squad = []
-    transfer_data = []
-    in_the_bank = 100
-    free_transfers = 1
-    backtest_results = []
-    total_actual_points = 0
-
-    # min_week = 18
-    # max_week = 22
-    # in_the_bank = 0
-    # free_transfers = 5
-    # initial_squad = get_dummy_squad(
-    #     fpl_data.loc[
-    #         (fpl_data["season"] == backtest_season) & (fpl_data["round"] == min_week)
-    #     ]
-    # )
-    # initial_squad[-1] = 108
-    # initial_squad[-2] = 355
-    # transfer_data = [
-    #     {"element_in": 108, "element_in_cost": 50},
-    #     {"element_in": 355, "element_in_cost": 50},
-    # ]
-    for start_week in range(min_week, max_week + 1):
-        end_week = min(max_week, start_week + horizon - 1)
-        gameweeks = [i for i in range(start_week, end_week + 1)]
-        elements_data, team_data, type_data = convert_to_live_data(
-            fpl_data.loc[
-                (fpl_data["season"] == backtest_season)
-                & (fpl_data["round"] == start_week)
-            ]
-        )
-        backup_fpl_data = fpl_data.loc[
-            (fpl_data["season"] == backtest_season) & (fpl_data["round"] < start_week)
-        ].drop_duplicates(subset=["element"], keep="last")
-        merged_data = prepare_data(
-            inference_results,
-            elements_data,
-            backtest_season,
-            gameweeks,
-            transfer_data,
-            initial_squad,
-            backup_fpl_data,
-        )
-
-        logger.info(
-            f"Optimizing for {horizon} weeks. {gameweeks}. Making transfers for {transfer_horizon} weeks."
-        )
-        logger.info(f"{in_the_bank = }    {free_transfers = }")
-
-        lp_data = LpData(
-            merged_data=merged_data,
-            team_data=team_data,
-            type_data=type_data,
-            gameweeks=gameweeks,
-            initial_squad=initial_squad,
-            team_name="Backtest Strategy",
-            in_the_bank=in_the_bank,
-            free_transfers=free_transfers,
-            current_season=backtest_season,
-        )
-        parameters["model_name"] = f"backtest_model"
-        lp_keys, lp_variables, variable_sums = construct_lp(lp_data, parameters)
-        lp_variables, variable_sums, solution_time = solve_lp(
-            lp_data, lp_variables, variable_sums, parameters
-        )
-        generate_outputs(lp_data, lp_variables, solution_time, parameters)
-        next_gw_results = get_gw_results(
-            start_week,
-            lp_data,
-            lp_keys,
-            lp_variables,
-            variable_sums,
-            solution_time,
-            previous_squad=initial_squad,
-        )
-        in_the_bank = next_gw_results.in_the_bank
-        free_transfers = next_gw_results.free_transfers
-        initial_squad = next_gw_results.lineup + list(next_gw_results.bench.values())
-        transfer_data.extend(next_gw_results.transfer_data)
-        backtest_results.append(next_gw_results)
-        total_actual_points += next_gw_results.total_actual_points
-        if start_week % 5 == 0 or start_week == end_week:
-            title = f"Backtest {backtest_season} h={horizon} th={transfer_horizon} --> pts={int(total_actual_points)}"
-            plot = plot_backtest_results(backtest_results, title)
-            plot_name = (
-                "plot_backtest_tmp"
-                if start_week != max_week
-                else title.replace("--> ", "")
-            )
-            plot.savefig(f"data/optimization/backtest_results/{plot_name}.png")
-
-    metrics = (experiment_id, {"total_actual_points": total_actual_points})
-    return metrics, total_actual_points
 
 
 if __name__ == "__main__":

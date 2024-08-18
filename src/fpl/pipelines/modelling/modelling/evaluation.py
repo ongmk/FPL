@@ -193,6 +193,7 @@ def evaluate_model(
     y_train = train_data[target]
     X_train_preprocessed = sklearn_pipeline.transform(X_train)
     X_test = test_data[numerical_features + categorical_features]
+    X_test.columns = X_test.columns.astype(str)
     X_test_preprocessed = sklearn_pipeline.transform(X_test)
 
     output_plots = {}

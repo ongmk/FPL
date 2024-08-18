@@ -53,23 +53,25 @@ def get_init_elo(team_match_log: pd.DataFrame) -> pd.DataFrame:
 
 def get_promotions_relegations(
     team_match_log: pd.DataFrame,
+    elo_df: pd.DataFrame,
 ) -> tuple[list[str], dict[str, list[str]], dict[str, list[str]]]:
-    seasons = sorted(team_match_log.season.unique().tolist())
+
+    seasons = sorted(
+        set(team_match_log.season.unique().tolist() + elo_df.season.unique().tolist())
+    )
     promotions = {}
     relegations = {}
     for prev_season, curr_season in zip(seasons, seasons[1:]):
-        prev_teams = (
+        prev_teams = set(
             team_match_log[team_match_log.season == prev_season].team.unique().tolist()
+            + elo_df[elo_df.season == prev_season].team.unique().tolist()
         )
-        curr_teams = (
+        curr_teams = set(
             team_match_log[team_match_log.season == curr_season].team.unique().tolist()
+            + elo_df[elo_df.season == curr_season].team.unique().tolist()
         )
-        promotions[curr_season] = [
-            team for team in curr_teams if team not in prev_teams
-        ]
-        relegations[curr_season] = [
-            team for team in prev_teams if team not in curr_teams
-        ]
+        promotions[curr_season] = list(curr_teams - prev_teams)
+        relegations[curr_season] = list(prev_teams - curr_teams)
     return seasons, promotions, relegations
 
 
@@ -235,10 +237,15 @@ def calculate_elo_score(
     team_match_log, elo_df = data_preparation(
         team_match_log, fpl_data, read_elo_data, parameters
     )
+    assert (
+        team_match_log.groupby(["season", "team", "date", "opponent"]).size().max() == 1
+    )
 
     if team_match_log.empty:
         return elo_df
-    seasons, promotions, relegations = get_promotions_relegations(team_match_log)
+    seasons, promotions, relegations = get_promotions_relegations(
+        team_match_log, elo_df
+    )
     team_match_log = add_promoted_team_rows(
         team_match_log=team_match_log,
         promotions=promotions,

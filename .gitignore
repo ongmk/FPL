@@ -169,4 +169,4 @@ cbc/*
 *.sol
 *.sol.init
 lp_data.json
-summary.txt
+optimization_summary.txt

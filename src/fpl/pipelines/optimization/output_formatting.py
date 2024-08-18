@@ -58,10 +58,12 @@ def get_lineup_bench(
 
 
 def get_transfer_data(
-    gameweek: int, squad: list[int], lp_data: LpData
+    gameweek: int, current_squad: list[int], previous_squad: list[int], lp_data: LpData
 ) -> list[dict[str, Union[int, float]]]:
-    in_players = [player for player in squad if player not in lp_data.initial_squad]
-    out_players = [player for player in lp_data.initial_squad if player not in squad]
+    in_players = [
+        player for player in current_squad if player not in lp_data.initial_squad
+    ]
+    out_players = [player for player in previous_squad if player not in current_squad]
     out_players = out_players + (len(in_players) - len(out_players)) * [None]
 
     transfer_data = []
@@ -156,6 +158,11 @@ def get_gw_results(
         hits,
         lp_keys,
     )
+    relevant_players = (
+        lineup
+        + list(bench.values())
+        + [d["element_out"] for d in transfer_data if d["element_out"] is not None]
+    )
 
     return GwResults(
         gameweek=gameweek,
@@ -175,7 +182,7 @@ def get_gw_results(
             free_transfers=round(lp_variables.free_transfers[gameweek - 1].value()),
             in_the_bank=round(lp_variables.in_the_bank[gameweek - 1].value(), 1),
         ),
-        player_details=lp_data.merged_data.loc[lineup + list(bench.values())],
+        player_details=lp_data.merged_data.loc[relevant_players],
         solution_time=solution_time,
     )
 
@@ -250,15 +257,16 @@ def get_lineup(gw_results: GwResults):
         )
     lineup_str.append("")
     lineup_str.append("Bench:")
-    for k, v in gw_results.bench.items():
+    for order in sorted(gw_results.bench.keys()):
+        player_id = gw_results.bench[order]
         name = get_lineup_name(
-            gw_results.player_details.loc[v],
+            gw_results.player_details.loc[player_id],
             gw_results.captain,
             gw_results.vicecap,
             gw_results.gameweek,
             gw_results.total_actual_points is not None,
         )
-        lineup_str.append(f"{k}: {name}")
+        lineup_str.append(f"{order}: {name}")
     length = max([len(s) for s in lineup_str])
     lineup_str = [f"{s:^{length}}" for s in lineup_str]
     lineup_str = "\n".join(lineup_str)

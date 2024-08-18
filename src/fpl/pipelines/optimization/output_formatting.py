@@ -60,9 +60,7 @@ def get_lineup_bench(
 def get_transfer_data(
     gameweek: int, current_squad: list[int], previous_squad: list[int], lp_data: LpData
 ) -> list[dict[str, Union[int, float]]]:
-    in_players = [
-        player for player in current_squad if player not in lp_data.initial_squad
-    ]
+    in_players = [player for player in current_squad if player not in previous_squad]
     out_players = [player for player in previous_squad if player not in current_squad]
     out_players = out_players + (len(in_players) - len(out_players)) * [None]
 

@@ -1,7 +1,7 @@
 import logging
-from datetime import datetime
 from typing import Any
 
+import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
@@ -51,6 +51,20 @@ def get_init_elo(team_match_log: pd.DataFrame) -> pd.DataFrame:
     return init_elo_df
 
 
+def get_teams_set(team_match_log, elo_df, season):
+    return set(
+        np.concatenate(
+            [
+                team_match_log.loc[team_match_log["season"] == season, "team"].unique(),
+                team_match_log.loc[
+                    team_match_log["season"] == season, "opponent"
+                ].unique(),
+                elo_df.loc[elo_df["season"] == season, "team"].unique(),
+            ]
+        )
+    )
+
+
 def get_promotions_relegations(
     team_match_log: pd.DataFrame,
     elo_df: pd.DataFrame,
@@ -62,16 +76,11 @@ def get_promotions_relegations(
     promotions = {}
     relegations = {}
     for prev_season, curr_season in zip(seasons, seasons[1:]):
-        prev_teams = set(
-            team_match_log[team_match_log.season == prev_season].team.unique().tolist()
-            + elo_df[elo_df.season == prev_season].team.unique().tolist()
-        )
-        curr_teams = set(
-            team_match_log[team_match_log.season == curr_season].team.unique().tolist()
-            + elo_df[elo_df.season == curr_season].team.unique().tolist()
-        )
+        prev_teams = get_teams_set(team_match_log, elo_df, prev_season)
+        curr_teams = get_teams_set(team_match_log, elo_df, curr_season)
         promotions[curr_season] = list(curr_teams - prev_teams)
         relegations[curr_season] = list(prev_teams - curr_teams)
+        assert len(promotions[curr_season]) == len(relegations[curr_season]) == 3
     return seasons, promotions, relegations
 
 
@@ -261,7 +270,7 @@ def calculate_elo_score(
         curr_idx = seasons.index(row.season)
         prev_season = seasons[curr_idx - 1]
 
-        promoted_teams = promotions[row.season] if row.season in promotions else []
+        promoted_teams = promotions.get(row.season, [])
         if is_first_match_after_promotion(row.team, promoted_teams, row["round"]):
             home_team_elos = get_relegated_teams_mean_elos(
                 elo_df=elo_df,
@@ -326,6 +335,8 @@ def calculate_elo_score(
         next_home_team_elos = pd.DataFrame(next_home_team_elos, index=[0])
         elo_df = pd.concat([elo_df, next_home_team_elos], ignore_index=True)
 
+        if row.opponent in relegations.get(row.season, []):
+            continue
         next_away_team_elos = {
             "team": row.opponent,
             "season": row.season,

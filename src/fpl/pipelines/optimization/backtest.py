@@ -1,6 +1,7 @@
 import logging
 from typing import Any
 
+import numpy as np
 import pandas as pd
 from sklearn.pipeline import Pipeline
 
@@ -104,8 +105,8 @@ def drop_future_data(
     ma_cols = [col for col in all_cols if "_ma" in col]
     snapshot_data.loc[
         past_five_matches_not_within_one_year & previous_rounds, ma_cols
-    ] = pd.NA
-    snapshot_data.loc[future_rounds, all_cols] = pd.NA
+    ] = np.nan
+    snapshot_data.loc[future_rounds, all_cols] = np.nan
     snapshot_data["value"] = (
         snapshot_data.sort_values("round")
         .groupby("fpl_name")["value"]
@@ -114,18 +115,25 @@ def drop_future_data(
     return snapshot_data
 
 
-def convert_to_team_match_log(
-    snapshot_data: pd.DataFrame, fpl_2_fbref_team_mapping: dict[str, str]
-):
+def convert_to_team_match_log(snapshot_data: pd.DataFrame):
     team_match_log = snapshot_data[
-        ["team", "date", "opponent", "team_xg", "team_xga", "team_gf", "team_ga"]
+        [
+            "date",
+            "team",
+            "opponent",
+            "team_xg",
+            "team_xga",
+            "team_gf",
+            "team_ga",
+        ]
     ].drop_duplicates()
-    team_match_log["team"] = team_match_log["team"].map(fpl_2_fbref_team_mapping)
-    team_match_log["opponent"] = team_match_log["opponent"].map(
-        fpl_2_fbref_team_mapping
-    )
 
     return team_match_log
+
+
+def convert_to_fpl_data(snapshot_data: pd.DataFrame):
+    fpl_data = snapshot_data[["season", "round", "venue", "team", "date", "opponent"]]
+    return fpl_data
 
 
 def get_snapshot_data(
@@ -134,7 +142,6 @@ def get_snapshot_data(
     backtest_season: str,
     start_week: int,
     end_week: int,
-    fpl_2_fbref_team_mapping: dict[str, str],
     model_params: dict[str, Any],
     data_params: dict[str, Any],
 ):
@@ -142,14 +149,13 @@ def get_snapshot_data(
     snapshot_data = drop_future_data(
         processed_data, numerical_features, backtest_season, start_week, end_week
     )
-    snapshot_data[["team_xg", "team_xga", "team_gf", "team_ga"]] = pd.NA
-    snapshot_team_match_log = convert_to_team_match_log(
-        snapshot_data, fpl_2_fbref_team_mapping
-    )
+    snapshot_data[["team_xg", "team_xga", "team_gf", "team_ga"]] = np.nan
+    snapshot_team_match_log = convert_to_team_match_log(snapshot_data)
+    snapshot_fpl_data = convert_to_fpl_data(snapshot_data)
     elo_data = elo_data.loc[elo_data["date"] < snapshot_data["date"].min()]
     data_params["use_cache"] = True
     elo_data = calculate_elo_score(
-        snapshot_team_match_log, snapshot_data, elo_data, data_params
+        snapshot_team_match_log, snapshot_fpl_data, elo_data, data_params
     )
     snapshot_data = merge_with_elo_data(snapshot_data, elo_data)
     snapshot_data = agg_home_away_elo(snapshot_data)
@@ -165,7 +171,6 @@ def snapshot_inference(
     backtest_season: str,
     start_week: int,
     end_week: int,
-    fpl_2_fbref_team_mapping: dict[str, str],
     data_params: dict[str, Any],
     model_params: dict[str, Any],
 ) -> pd.DataFrame:
@@ -175,7 +180,6 @@ def snapshot_inference(
         backtest_season,
         start_week,
         end_week,
-        fpl_2_fbref_team_mapping,
         model_params,
         data_params,
     )
@@ -195,7 +199,6 @@ def backtest(
     model: EnsembleModel,
     sklearn_pipeline: Pipeline,
     fpl_data: pd.DataFrame,
-    fpl_2_fbref_team_mapping: dict[str, str],
     optimization_params: dict,
     data_params: dict,
     model_params: dict,
@@ -243,7 +246,6 @@ def backtest(
             backtest_season,
             start_week,
             end_week,
-            fpl_2_fbref_team_mapping,
             data_params,
             model_params,
         )

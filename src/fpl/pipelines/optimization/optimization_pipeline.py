@@ -78,7 +78,6 @@ def create_backtest_pipeline():
                     "FITTED_MODEL",
                     "FITTED_SKLEARN_PIPELINE",
                     "FPL_DATA",
-                    "FPL2FBREF_TEAM_MAPPING",
                     "params:optimization",
                     "params:preprocessing",
                     "params:modelling",

@@ -77,6 +77,7 @@ def fetch_player_fixtures(
     history = pd.DataFrame(
         data["history"],
         columns=[
+            "fixture",
             "total_points",
             "team_h_score",
             "team_a_score",

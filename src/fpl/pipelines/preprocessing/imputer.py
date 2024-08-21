@@ -170,7 +170,9 @@ def parallel_impute_handler(
                         )
                     )
             values = pool.starmap(
-                impute_columns, tqdm(inputs, total=total * 2, desc=f"Imputing {season}")
+                impute_columns,
+                tqdm(inputs, total=total * 2, desc=f"Imputing {season}"),
+                chunksize=1,
             )
             for f, v in tqdm(
                 zip([i[1] for i in inputs], values),

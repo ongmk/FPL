@@ -5,5 +5,5 @@ preprocessing:
   holdout_year: 2023-2024
   ma_lag: 5
   debug_run: False
-  use_cache: False
+  use_cache: True
   n_cores: 12

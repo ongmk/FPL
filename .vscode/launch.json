@@ -45,7 +45,7 @@
             "args": [
                 "run",
                 "--pipeline",
-                "preprocess_pipeline"
+                "preprocessing_pipeline"
             ],
             "console": "integratedTerminal",
             "justMyCode": false,

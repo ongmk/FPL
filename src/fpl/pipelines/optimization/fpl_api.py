@@ -77,8 +77,13 @@ def fetch_player_fixtures(
     history = pd.DataFrame(
         data["history"],
         columns=[
+            "element",
+            "round",
             "fixture",
+            "opponent_team",
+            "kickoff_time",
             "total_points",
+            "was_home",
             "team_h_score",
             "team_a_score",
             "minutes",
@@ -103,6 +108,7 @@ def fetch_player_fixtures(
             "selected",
             "transfers_in",
             "transfers_out",
+            "starts",
             "expected_goals",
             "expected_goal_involvements",
             "expected_assists",
@@ -162,6 +168,17 @@ def get_current_season_fpl_data() -> pd.DataFrame:
         player_fixtures["value"] = player_fixtures["value"].fillna(row["now_cost"])
         current_season_data.append(player_fixtures)
     current_season_data = pd.concat(current_season_data, ignore_index=True)
+
+    opponents = (
+        current_season_data.groupby(["was_home", "fixture"])["opponent_team"]
+        .apply(lambda x: x.unique()[0])
+        .to_dict()
+    )
+    missing_team = current_season_data["team"].isna()
+    current_season_data.loc[missing_team, "team"] = current_season_data.loc[
+        missing_team
+    ].apply(lambda x: opponents[(not x["was_home"], x["fixture"])], axis=1)
+
     current_season_data = pd.merge(
         element_data.drop(columns=["team"]),
         current_season_data,

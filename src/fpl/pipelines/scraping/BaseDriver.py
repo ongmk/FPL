@@ -15,6 +15,8 @@ from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.ui import WebDriverWait
 from tenacity import retry, stop_after_attempt
 
+from fpl.utils import backup_latest_n
+
 
 class BaseDriver:
     """Base Web Driver for handling timeouts"""
@@ -118,7 +120,7 @@ class BaseDriver:
             cookie_dict[cookie["name"]] = cookie["value"]
         return cookie_dict
 
-    def sleep(self, seconds=3):
+    def sleep(self, seconds=6):
         # One request every three seconds
         time_since_last_visit = time.time() - self.last_visit
         if time_since_last_visit <= seconds:
@@ -138,6 +140,13 @@ class BaseDriver:
         tree = etree.parse(StringIO(element.get_attribute("innerHTML")), parser)
         return tree
 
+    @staticmethod
+    def save_debugging_html(html_content):
+        filename = "tmp/html_debug/debug.html"
+        with open(filename, "w", encoding="utf-8") as file:
+            file.write(html_content)
+        backup_latest_n(filename, 5)
+
     @retry(stop=stop_after_attempt(3))
     def get_element_by_id(self, id):
         try:
@@ -148,6 +157,8 @@ class BaseDriver:
 
         except TimeoutException as e:
             logger.warning(f"Can't find element with ID={id}. Retrying...")
+            self.save_debugging_html(self.driver.page_source)
+            self.sleep()
             self.driver.refresh()
             raise e
 
@@ -160,6 +171,7 @@ class BaseDriver:
             return element
         except TimeoutException as e:
             logger.warning(f"Can't find element with XPath={xpath}. Retrying...")
+            self.sleep()
             self.driver.refresh()
             raise e
 

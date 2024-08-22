@@ -128,6 +128,7 @@ def combine_data(
         combined_data["opponent"]
     )
     combined_data["pos"] = combined_data["pos"].fillna(combined_data["pos_fpl"])
+    combined_data["minutes"] = combined_data["fpl_minutes"].fillna(combined_data["min"])
     combined_data = merge_with_elo_data(combined_data, elo_data)
     combined_data = combined_data.drop(
         [
@@ -138,6 +139,8 @@ def combine_data(
             "opponent_fpl",
             "team_ga_fpl",
             "team_gf_fpl",
+            "fpl_minutes",
+            "min",
         ],
         axis=1,
     )

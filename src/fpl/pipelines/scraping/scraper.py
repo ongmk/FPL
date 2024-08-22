@@ -160,10 +160,11 @@ def crawl_fpl_data(parameters: dict[str, Any]) -> Tuple[pd.DataFrame, pd.DataFra
         )
         return None
 
-    current_season_data = get_current_season_fpl_data()
-
     cur.execute(f"DELETE FROM raw_fpl_data WHERE season = '{current_season}'")
     conn.commit()
+    logger.info(f"Deleting fpl data from previous weeks.")
+
+    current_season_data = get_current_season_fpl_data()
     current_season_data.to_sql("raw_fpl_data", conn, if_exists="append", index=False)
 
     fpl_history = pd.read_sql(

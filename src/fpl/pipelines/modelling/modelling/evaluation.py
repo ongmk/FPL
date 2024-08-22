@@ -23,26 +23,31 @@ plt.style.use("ggplot")
 
 
 def get_transformed_columns(
-    sklearn_pipeline: Pipeline, categorical_features: list[str]
+    sklearn_pipeline: Pipeline,
+    categorical_features: list[str],
+    numerical_features: list[str],
 ) -> list[str]:
     encoder = (
         sklearn_pipeline.named_steps["preprocessor"]
         .named_transformers_["cat"]
         .named_steps["one_hot_encoder"]
     )
-    pca = (
+    numerical_processor_steps = (
         sklearn_pipeline.named_steps["preprocessor"]
         .named_transformers_["num"]
-        .named_steps["pca"]
+        .named_steps
     )
-    n_pca_components = pca.n_components_
-    pca_cols = np.array([f"pca_{i}" for i in range(n_pca_components)])
+    if "pca" in numerical_processor_steps:
+        n_pca_components = numerical_processor_steps["pca"].n_components_
+        numerical_features = np.array(
+            [f"pca_{i}" for i in range(n_pca_components)]
+        ).tolist()
 
     encoded_cat_cols = encoder.get_feature_names_out(
         input_features=categorical_features
     )
 
-    return encoded_cat_cols.tolist() + pca_cols.tolist()
+    return encoded_cat_cols.tolist() + numerical_features
 
 
 def plot_feature_importance(
@@ -52,7 +57,7 @@ def plot_feature_importance(
     columns = [textwrap.fill(label.replace("_", " "), width=10) for label in columns]
 
     feature_importances = pd.DataFrame(
-        data=feature_importances,
+        data=feature_importances.flatten(),
         index=columns,
         columns=["importance"],
     )
@@ -69,6 +74,7 @@ def plot_feature_importance(
 def evaluate_feature_importance(
     sklearn_pipeline: Pipeline,
     categorical_features: list[str],
+    numerical_features: list[str],
     ensemble_model: EnsembleModel,
     X: np.ndarray,
     y: np.ndarray,
@@ -76,7 +82,9 @@ def evaluate_feature_importance(
     start_time: str = datetime.now().strftime("%Y%m%d_%H%M%S"),
 ):
     transformed_columns = get_transformed_columns(
-        sklearn_pipeline=sklearn_pipeline, categorical_features=categorical_features
+        sklearn_pipeline=sklearn_pipeline,
+        categorical_features=categorical_features,
+        numerical_features=numerical_features,
     )
 
     feature_importance_plots = {
@@ -101,13 +109,6 @@ def plot_residual_histogram(
     return None
 
 
-def calculate_r2(target, prediction):
-    not_nan = ~prediction.isna() & ~target.isna()
-    prediction = prediction[not_nan]
-    target = target[not_nan]
-    return r2_score(target, prediction)
-
-
 def plot_residual_scatter(
     ax,
     col: str,
@@ -125,10 +126,28 @@ def plot_residual_scatter(
     return None
 
 
+def calculate_r2(target, prediction):
+    not_nan = ~prediction.isna() & ~target.isna()
+    prediction = prediction[not_nan]
+    target = target[not_nan]
+    return r2_score(target, prediction)
+
+
+def calculate_mae(target, prediction):
+    not_nan = ~prediction.isna() & ~target.isna()
+    prediction = prediction[not_nan]
+    target = target[not_nan]
+    return (prediction - target).abs().mean()
+
+
+metrics_dict = {"r2": calculate_r2, "mae": calculate_mae}
+
+
 def evaluate_residuals(
     inference_results: pd.DataFrame,
     prediction_col: str,
     target: str,
+    metrics: list[str],
     baseline_cols: list[str],
     evaluation_set: str,
     start_time: str = datetime.now().strftime("%Y%m%d_%H%M%S"),
@@ -160,12 +179,11 @@ def evaluate_residuals(
             color=color_pal[i],
         )
 
-    pred_mae = (inference_results[f"{prediction_col}_error"]).abs().mean()
-    pred_r2 = calculate_r2(inference_results[target], inference_results[prediction_col])
-
     error_metrics = {
-        f"{evaluation_set}_mae": pred_mae,
-        f"{evaluation_set}_r2": pred_r2,
+        f"{evaluation_set}_{m}": metrics_dict[m](
+            inference_results[target], inference_results[prediction_col]
+        )
+        for m in metrics
     }
     for metric, score in error_metrics.items():
         logger.info(f"{metric} = {score}")
@@ -188,6 +206,7 @@ def evaluate_model(
     numerical_features = parameters["numerical_features"]
     target = parameters["target"]
     baseline_columns = parameters["baseline_columns"]
+    metrics = parameters["metrics"]
 
     X_train = train_data[numerical_features + categorical_features]
     y_train = train_data[target]
@@ -202,6 +221,7 @@ def evaluate_model(
         evaluate_feature_importance(
             sklearn_pipeline=sklearn_pipeline,
             categorical_features=categorical_features,
+            numerical_features=numerical_features,
             ensemble_model=model,
             X=X_train_preprocessed,
             y=y_train,
@@ -221,6 +241,7 @@ def evaluate_model(
         inference_results=inference_results,
         prediction_col="prediction",
         target=target,
+        metrics=metrics,
         baseline_cols=baseline_columns,
         evaluation_set=evaluation_set,
         start_time=start_time,

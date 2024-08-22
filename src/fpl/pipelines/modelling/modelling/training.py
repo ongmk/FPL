@@ -28,17 +28,18 @@ def create_sklearn_pipeline(
     target = parameters["target"]
     categorical_features = parameters["categorical_features"]
     numerical_features = parameters["numerical_features"]
+    pca_components = parameters.get("pca_components", None)
 
     train_val_data = train_val_data[
         [group_by] + categorical_features + numerical_features + [target]
     ]
 
-    numerical_pipeline = Pipeline(
-        [
-            ("scaler", StandardScaler()),
-            ("pca", PCA(n_components=parameters["pca_components"])),
-        ]
-    )
+    numerical_pipeline = [
+        ("scaler", StandardScaler()),
+    ]
+    if pca_components:
+        numerical_pipeline.append(("pca", PCA(n_components=pca_components))),
+    numerical_pipeline = Pipeline(numerical_pipeline)
 
     categorical_data = train_val_data[categorical_features]
     categories = [
@@ -161,8 +162,7 @@ def pycaret_compare_models(
     train_val_data: pd.DataFrame, sklearn_pipeline: Pipeline, parameters: dict[str, Any]
 ) -> pd.DataFrame:
     target = parameters["target"]
-    groups = train_val_data[parameters["group_by"]]
-    n_splits = groups.nunique()
+    n_splits = train_val_data[parameters["group_by"]].nunique()
     logger.info(f"GroupKFold splits = {n_splits}")
 
     setup(

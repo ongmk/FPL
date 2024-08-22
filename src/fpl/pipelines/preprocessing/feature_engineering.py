@@ -285,7 +285,6 @@ def extract_mode_pos(data: pd.DataFrame, cached_data: pd.DataFrame) -> pd.DataFr
     data["pos"] = (
         data["pos"].map({"MF": "CM", "DF": "CB"}).fillna(data["pos"])
     )  # MF and DF are only used in 2016-2017
-    logger.info("Done")
     return data
 
 
@@ -331,7 +330,7 @@ def feature_engineering(
 
 def reorder_columns(data):
     start_cols = ["season", "fpl_name", "round", "date", "player"]
-    end_cols = ["fpl_points", "cached"]
+    end_cols = ["minutes", "fpl_points", "cached"]
     new_columns = (
         start_cols
         + [col for col in data.columns if col not in start_cols + end_cols]

@@ -75,7 +75,15 @@ class FBRefDriver(BaseDriver):
         match_log_df = self.get_table_df_by_id("matchlogs_for")
 
         match_log_df = match_log_df.drop(
-            ["Attendance", "Captain", "Formation", "Referee", "Match Report", "Notes"],
+            [
+                "Attendance",
+                "Captain",
+                "Formation",
+                "Opp Formation",
+                "Referee",
+                "Match Report",
+                "Notes",
+            ],
             axis=1,
         )
         match_log_df[["GF", "GA"]] = (

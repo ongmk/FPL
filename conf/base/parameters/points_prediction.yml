@@ -1,4 +1,8 @@
-modelling:
+points_prediction:
+  model_type: regression
+  metrics:
+    - mae
+    - r2
   variance_threshold: 0.02
   f_test_method: spearmanr
   f_test_threshold: 0.15
@@ -8,7 +12,7 @@ modelling:
     - fpl_name
     - date
     - player
-    - fpl_minutes
+    - minutes
   categorical_features:
     - team
     - opponent
@@ -27,7 +31,7 @@ modelling:
     - rank_b4_match
     - pts_gap_above
     - pts_gap_below
-    - min_ma5
+    - minutes_ma5
     - gls_ma5
     - ast_ma5
     - pk_ma5

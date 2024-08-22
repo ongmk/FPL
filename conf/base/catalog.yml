@@ -35,6 +35,10 @@ EXPERIMENT_RECORD:
   <<: *flexible
   table_name: experiment
 
+DNP_EXPERIMENT_RECORD:
+  <<: *flexible
+  table_name: experiment
+
 FPL_DATA:
   type: pandas.SQLTableDataSet
   table_name: raw_fpl_data
@@ -93,6 +97,16 @@ HOLDOUT_DATA:
   table_name: holdout_data
   <<: *index
 
+DNP_TRAIN_VAL_DATA:
+  type: pandas.SQLTableDataSet
+  table_name: dnp_train_val_data
+  <<: *index
+
+DNP_HOLDOUT_DATA:
+  type: pandas.SQLTableDataSet
+  table_name: dnp_holdout_data
+  <<: *index
+
 FEATURE_SELECTION_SUMMARY:
   <<: *csv
   filepath: data/preprocessing/feature_selection_summary.csv
@@ -123,20 +137,32 @@ INFERENCE_RESULTS:
   table_name: inference_results
   <<: *index
 
-HOLDOUT_EVALUATION_PLOTS:
-  type: matplotlib.MatplotlibWriter
-  filepath: data/evaluation
-
-HOLDOUT_METRICS:
-  type: fpl.extras.datasets.ExperimentMetrics
-  table_name: experiment
-  credentials: db_credentials
-
 EXPERIMENT_METRICS:
   type: fpl.extras.datasets.ExperimentMetrics
   table_name: experiment
   credentials: db_credentials
 
-LAST_FOLD_EVALUATION_PLOTS:
+EVALUATION_PLOTS:
+  type: matplotlib.MatplotlibWriter
+  filepath: data/evaluation
+DNP_FITTED_MODEL:
+  type: pickle.PickleDataSet
+  filepath: models/dnp_fitted_model.pkl
+
+DNP_FITTED_SKLEARN_PIPELINE:
+  type: pickle.PickleDataSet
+  filepath: models/dnp_fitted_sklearn_pipeline.pkl
+
+DNP_INFERENCE_RESULTS:
+  <<: *flexible
+  table_name: dnp_inference_results
+  <<: *index
+
+DNP_EXPERIMENT_METRICS:
+  type: fpl.extras.datasets.ExperimentMetrics
+  table_name: experiment
+  credentials: db_credentials
+
+DNP_EVALUATION_PLOTS:
   type: matplotlib.MatplotlibWriter
   filepath: data/evaluation

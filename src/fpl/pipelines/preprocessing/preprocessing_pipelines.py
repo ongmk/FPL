@@ -73,13 +73,17 @@ preprocessing_pipeline = Pipeline(
             inputs=[
                 "INTERMEDIATE_DATA",
                 "params:preprocessing",
-                "params:modelling",
+                "params:points_prediction",
             ],
             outputs="PROCESSED_DATA",
         ),
         node(
             func=split_data,
-            inputs=["PROCESSED_DATA", "params:preprocessing", "params:modelling"],
+            inputs=[
+                "PROCESSED_DATA",
+                "params:preprocessing",
+                "params:points_prediction",
+            ],
             outputs=[
                 "TRAIN_VAL_DATA",
                 "HOLDOUT_DATA",

@@ -177,7 +177,7 @@ def aggregate_points_data(
     act_pts_data.columns = [f"act_pts_{int(col)}" for col in act_pts_data.columns]
 
     mins_data = in_scope_data.pivot_table(
-        index="fpl_name", columns="round", values="fpl_minutes", aggfunc="first"
+        index="fpl_name", columns="round", values="minutes", aggfunc="first"
     ).fillna(0)
     mins_data.columns = [f"mins_{int(col)}" for col in mins_data.columns]
 

@@ -84,14 +84,3 @@ backtest_pipeline = Pipeline(
         ),
     ]
 )
-
-
-# if __name__ == "__main__":
-#     import yaml
-
-#     logging.basicConfig(level=logging.INFO)
-#     with open("./conf/base/parameters.yml", "r") as file:
-#         parameters = yaml.safe_load(file)
-#         parameters = parameters["optimization"]
-
-# live_run(options)

@@ -1,0 +1,32 @@
+dnp_prediction:
+  dnp_lookback: 3
+  model_type: classification
+  metrics:
+    - mae
+    - r2
+  target: did_not_play
+  baseline_columns: [pct_played_1]
+  info_columns:
+    - season
+    - fpl_name
+  categorical_features:
+    - team
+    - pos
+  numerical_features:
+    - round
+    - pct_played_1
+    - pct_played_2
+    - pct_played_3
+  group_by: season
+  pca_components: null
+  random_state: 42
+  verbose: false
+  n_jobs: null
+  sort_models: Recall
+  models:
+    - lr
+    - ridge
+    - lightgbm
+    - ada
+    - gbc
+  model_weights: [1, 1, 1, 1, 1]

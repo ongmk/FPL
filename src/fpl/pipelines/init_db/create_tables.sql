@@ -122,8 +122,16 @@ CREATE TABLE IF NOT EXISTS experiment (
 
 ----------------------------
 CREATE TABLE IF NOT EXISTS inference_results (
-    index INTEGER,
+    "index" INTEGER,
     experiment_id INTEGER,
     start_time TEXT NOT NULL,
-    PRIMARY KEY (experiment_id, id)
+    PRIMARY KEY (experiment_id, "index")
+);
+
+----------------------------
+CREATE TABLE IF NOT EXISTS dnp_inference_results (
+    "index" INTEGER,
+    experiment_id INTEGER,
+    start_time TEXT NOT NULL,
+    PRIMARY KEY (experiment_id, "index")
 );

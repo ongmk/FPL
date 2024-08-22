@@ -7,6 +7,9 @@ import numpy as np
 import pandas as pd
 from sklearn.inspection import permutation_importance
 
+from fpl.pipelines.modelling.all_models.classification import (
+    get_classification_model_instance,
+)
 from fpl.pipelines.modelling.all_models.regression import get_regression_model_instance
 
 logger = logging.getLogger(__name__)
@@ -120,6 +123,7 @@ def model_selection(parameters: dict[str, Any]) -> EnsembleModel:
     models = []
     model_ids = parameters["models"]
     model_weights = parameters["model_weights"]
+    model_type = parameters["model_type"]
     if len(model_weights) > len(model_ids):
         logger.warning(
             "Number of model weights > number of models. All model weights will be set to 1."
@@ -127,14 +131,24 @@ def model_selection(parameters: dict[str, Any]) -> EnsembleModel:
         model_weights = len(model_ids) * [1]
 
     for model_id, model_weight in zip(model_ids, model_weights):
-        model_params = parameters[f"{model_id}_params"]
-        model = get_regression_model_instance(
-            model_id=model_id,
-            model_params=model_params,
-            n_jobs=parameters["n_jobs"],
-            random_state=parameters["random_state"],
-            verbose=parameters["verbose"],
-        )
+        model_params = parameters.get(f"{model_id}_params", {})
+        if model_type == "regression":
+            model = get_regression_model_instance(
+                model_id=model_id,
+                model_params=model_params,
+                n_jobs=parameters["n_jobs"],
+                random_state=parameters["random_state"],
+                verbose=parameters["verbose"],
+            )
+        elif model_type == "classification":
+            model = get_classification_model_instance(
+                model_id=model_id,
+                model_params=model_params,
+                n_jobs=parameters["n_jobs"],
+                random_state=parameters["random_state"],
+                verbose=parameters["verbose"],
+            )
+
         models.append(Model(id=model_id, model=model, weight=model_weight))
 
     return EnsembleModel(models=models)

@@ -15,7 +15,11 @@ live_optimization_pipeline = Pipeline(
     [
         node(
             func=get_live_data,
-            inputs=["INFERENCE_RESULTS", "params:optimization"],
+            inputs=[
+                "INFERENCE_RESULTS",
+                "DNP_INFERENCE_RESULTS",
+                "params:optimization",
+            ],
             outputs="LP_DATA",
         ),
         node(
@@ -76,9 +80,10 @@ backtest_pipeline = Pipeline(
                 "FITTED_MODEL",
                 "FITTED_SKLEARN_PIPELINE",
                 "FPL_DATA",
+                "DNP_INFERENCE_RESULTS",
                 "params:optimization",
                 "params:preprocessing",
-                "params:modelling",
+                "params:points_prediction",
             ],
             outputs=["EXPERIMENT_METRICS", "total_actual_points"],
         ),

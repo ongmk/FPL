@@ -7,7 +7,6 @@ dnp_prediction:
   target: did_not_play
   baseline_columns: [pct_played_1]
   info_columns:
-    - season
     - fpl_name
   categorical_features:
     - team

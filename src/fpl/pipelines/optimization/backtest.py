@@ -5,6 +5,10 @@ import numpy as np
 import pandas as pd
 from sklearn.pipeline import Pipeline
 
+from fpl.pipelines.modelling.modelling.dnp_prediction import (
+    evaluate_dnp_model_holdout,
+    process_dnp_data,
+)
 from fpl.pipelines.modelling.modelling.ensemble import EnsembleModel
 from fpl.pipelines.modelling.modelling.evaluation import evaluate_model_holdout
 from fpl.pipelines.optimization.data_classes import TYPE_DATA, LpData
@@ -199,6 +203,7 @@ def backtest(
     model: EnsembleModel,
     sklearn_pipeline: Pipeline,
     fpl_data: pd.DataFrame,
+    dnp_inference_results: pd.DataFrame,
     optimization_params: dict,
     data_params: dict,
     model_params: dict,
@@ -249,8 +254,13 @@ def backtest(
             data_params,
             model_params,
         )
+        snapshot_dnp_inference_results = dnp_inference_results.loc[
+            (dnp_inference_results["season"] == backtest_season)
+            & (dnp_inference_results["round"] == start_week)
+        ]
         merged_data = prepare_data(
             snapshot_inference_results,
+            snapshot_dnp_inference_results,
             elements_data,
             backtest_season,
             gameweeks,

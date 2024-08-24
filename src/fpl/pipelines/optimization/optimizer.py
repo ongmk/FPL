@@ -141,19 +141,34 @@ def get_free_transfers(
     return free_transfers
 
 
-def merge_data(elements_team, points_data):
+def merge_data(elements_team, dnp_inference_results, points_data):
     merged_data = elements_team.merge(
+        dnp_inference_results,
+        left_on=["full_name", "team"],
+        right_on=["fpl_name", "team"],
+        how="left",
+    ).set_index("id")
+    merged_data = merged_data.merge(
         points_data,
         left_on="full_name",
         right_index=True,
         how="left",
-    ).set_index("id")
+    )
+
+    merged_data["chance_of_playing_next_round"] = (
+        merged_data["chance_of_playing_next_round"].fillna(100) / 100
+    )
+    merged_data["prediction"] = 1 - merged_data["prediction"].fillna(1)
+    merged_data["chance_of_playing_next_round"] = merged_data[
+        ["prediction", "chance_of_playing_next_round"]
+    ].min(axis=1)
+    merged_data = merged_data.drop(columns=["prediction"])
 
     prediction_columns = [col for col in points_data if "pred_pts_" in col]
     merged_data[prediction_columns] = (
         merged_data[prediction_columns]
         .fillna(0)
-        .mul(merged_data["chance_of_playing_next_round"].fillna(100) / 100, axis=0)
+        .mul(merged_data["chance_of_playing_next_round"], axis=0)
     )
 
     return merged_data
@@ -191,7 +206,9 @@ def aggregate_points_data(
 
 
 def get_live_data(
-    inference_results: pd.DataFrame, parameters: dict[str, Any]
+    inference_results: pd.DataFrame,
+    dnp_inference_results: pd.DataFrame,
+    parameters: dict[str, Any],
 ) -> LpData:
     team_id = parameters["team_id"]
     horizon = parameters["horizon"]
@@ -200,9 +217,6 @@ def get_live_data(
     elements_data, team_data, type_data, gameweeks_data, current_season = (
         get_fpl_base_data()
     )
-    elements_data = elements_data.loc[
-        ~elements_data["chance_of_playing_next_round"].isin([0, 25])
-    ]
     gameweeks = gameweeks_data["future"][:horizon]
     current_gw = gameweeks_data["current"]
 
@@ -214,6 +228,7 @@ def get_live_data(
 
     merged_data = prepare_data(
         inference_results,
+        dnp_inference_results,
         elements_data,
         current_season,
         gameweeks,
@@ -241,17 +256,36 @@ def get_live_data(
     )
 
 
+def process_dnp_data(
+    data: pd.DataFrame, current_season: str, current_round: int
+) -> pd.DataFrame:
+    data = data.loc[
+        (data["season"] == current_season) & (data["round"] == current_round),
+        [
+            "team",
+            "fpl_name",
+            "prediction",
+        ],
+    ]
+    return data
+
+
 def prepare_data(
     inference_results,
+    dnp_inference_results,
     elements_data,
     current_season,
     gameweeks,
     transfer_data,
     initial_squad,
-    backup_fpl_data,
+    backup_fpl_data,  # for when a player is missing during backtesting
 ):
+
+    dnp_inference_results = process_dnp_data(
+        dnp_inference_results, current_season, gameweeks[0]
+    )
     points_data = aggregate_points_data(inference_results, current_season, gameweeks)
-    merged_data = merge_data(elements_data, points_data)
+    merged_data = merge_data(elements_data, dnp_inference_results, points_data)
     calculate_buy_sell_price(merged_data, transfer_data, initial_squad, backup_fpl_data)
     merged_data = sort_by_expected_value(merged_data)
     return merged_data

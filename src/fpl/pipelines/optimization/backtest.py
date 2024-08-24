@@ -314,7 +314,7 @@ def backtest(
             plot_name = (
                 "plot_backtest_tmp"
                 if start_week != max_week
-                else title.replace("--> ", "")
+                else f"[{int(total_actual_points)}] Backtest {backtest_season} h={horizon} th={transfer_horizon}"
             )
             plot.savefig(f"data/optimization/backtest_results/{plot_name}.png")
 

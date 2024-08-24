@@ -52,7 +52,6 @@ def process_dnp_data(
         .to_frame()
         .reset_index()
     )
-    inputs = []
     player_round_mins_filled = []
     for _, season_data in tqdm(player_round_mins.groupby("season")):
         for _, player_data in season_data.groupby("fpl_name"):
@@ -103,16 +102,16 @@ def process_season(season_data, player_data):
         list(
             itertools.product(
                 [player],
-                [pos],
                 player_data["team"].unique(),
                 season_data["round"].unique(),
             )
         ),
-        columns=["fpl_name", "pos", "team", "round"],
+        columns=["fpl_name", "team", "round"],
     )
     player_team_rounds = player_team_rounds.merge(
-        player_data, on=["fpl_name", "pos", "team", "round"], how="left"
+        player_data, on=["fpl_name", "team", "round"], how="left"
     )
+    player_team_rounds["pos"] = pos
     player_team_rounds["season"] = player_team_rounds["season"].fillna(season)
     player_team_rounds["minutes"] = player_team_rounds["minutes"].fillna(0)
     return player_team_rounds

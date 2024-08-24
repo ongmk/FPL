@@ -223,7 +223,8 @@ def get_live_data(
     general_data, transfer_data, initial_squad, history_data = get_fpl_team_data(
         team_id, current_gw
     )
-    in_the_bank = (general_data["last_deadline_bank"] or 1000) / 10
+    in_the_bank = general_data["last_deadline_bank"]
+    in_the_bank = (100 if in_the_bank is None else in_the_bank) / 10
     free_transfers = get_free_transfers(transfer_data, history_data, current_gw)
 
     merged_data = prepare_data(

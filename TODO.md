@@ -8,14 +8,7 @@
   - Triple captain: most predicted pts across remaining weeks.
   - Do not overlap weeks
 - Settings to set predictions to 0 for player weeks
-- run experiments for longer horizons
-- fix live run tranfers table
-- Calculate chance of playing
-  - add function to feature engineering
-  - add min to info column
-    - dont use fbref min
-  - add chance of playing to info column
-    - ffill for future weeks
+  - unavailable players
 - Test cacheing strategy
 
 

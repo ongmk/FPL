@@ -18,6 +18,7 @@ live_optimization_pipeline = Pipeline(
             inputs=[
                 "INFERENCE_RESULTS",
                 "DNP_INFERENCE_RESULTS",
+                "FPL2FBREF_TEAM_MAPPING",
                 "params:optimization",
             ],
             outputs="LP_DATA",

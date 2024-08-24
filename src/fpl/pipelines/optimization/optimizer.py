@@ -208,6 +208,7 @@ def aggregate_points_data(
 def get_live_data(
     inference_results: pd.DataFrame,
     dnp_inference_results: pd.DataFrame,
+    fpl_2_fbref_team_mapping: dict[str, str],
     parameters: dict[str, Any],
 ) -> LpData:
     team_id = parameters["team_id"]
@@ -217,6 +218,7 @@ def get_live_data(
     elements_data, team_data, type_data, gameweeks_data, current_season = (
         get_fpl_base_data()
     )
+    elements_data["team"] = elements_data["team"].map(fpl_2_fbref_team_mapping)
     gameweeks = gameweeks_data["future"][:horizon]
     current_gw = gameweeks_data["current"]
 

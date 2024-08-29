@@ -21,11 +21,17 @@ class ChipConstraints(BaseConstraints):
     ) -> None:
         # Do not let LP decide when to use chips
         wildcard_limit = bench_boost_limit = free_hit_limit = triple_captain_limit = 0
-        if lp_params.wildcard_week in lp_data.gameweeks:
-            wildcard_limit = 1
+        if lp_params.wildcard1_week in lp_data.gameweeks:
+            wildcard_limit += 1
             model += (
-                lp_variables.use_wildcard[lp_params.wildcard_week] == 1,
-                "force_wildcard",
+                lp_variables.use_wildcard[lp_params.wildcard1_week] == 1,
+                "force_wildcard1",
+            )
+        if lp_params.wildcard2_week in lp_data.gameweeks:
+            wildcard_limit += 1
+            model += (
+                lp_variables.use_wildcard[lp_params.wildcard2_week] == 1,
+                "force_wildcard2",
             )
         if lp_params.bench_boost_week in lp_data.gameweeks:
             bench_boost_limit = 1

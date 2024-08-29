@@ -15,10 +15,11 @@ class LpParams:
     threshold_gw: int
 
     horizon: int
-    wildcard_week: int
-    bench_boost_week: int
+    wildcard1_week: int
+    wildcard2_week: int
     free_hit_week: int
     triple_captain_week: int
+    bench_boost_week: int
 
     decay: float
     free_transfer_bonus: float
@@ -90,6 +91,7 @@ class LpData(BaseModel):
     in_the_bank: float
     free_transfers: int
     current_season: str
+    chips_usage: dict[str, Optional[int]]
 
     class Config:
         arbitrary_types_allowed = True

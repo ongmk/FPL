@@ -14,17 +14,16 @@ from fpl.pipelines.modelling.modelling.evaluation import evaluate_model
 
 
 def process_dnp_data(
-    data: pd.DataFrame,
+    processed_data: pd.DataFrame,
     parameters: dict[str, Any],
     current_season: str = None,
     current_round: int = None,
 ) -> pd.DataFrame:
     dnp_lookback = parameters["dnp_lookback"]
-    cop = data.copy()
 
     logger.info("Processing data for Did-Not-Play prediction...")
     team_match_mins = (
-        cop.groupby(["team", "season", "round", "date"])["minutes"]
+        processed_data.groupby(["team", "season", "round", "date"])["minutes"]
         .max()
         .reset_index()
         .sort_values(["season", "round"])
@@ -42,12 +41,14 @@ def process_dnp_data(
         (team_match_mins["season"] == current_season)
         & (team_match_mins["round"] == current_round)
     ].index[-1]
-    team_match_mins = team_match_mins.loc[: keep_idx + 1]
+    team_match_mins = team_match_mins.loc[:keep_idx]
     team_round_mins = (
         team_match_mins.groupby(["team", "season", "round"])["minutes"].sum().to_frame()
     ).rename(columns={"minutes": "mins_max"})
     player_round_mins = (
-        cop.groupby(["fpl_name", "team", "season", "round", "pos"])["minutes"]
+        processed_data.groupby(
+            ["element", "fpl_name", "team", "season", "round", "pos"]
+        )["minutes"]
         .sum()
         .to_frame()
         .reset_index()

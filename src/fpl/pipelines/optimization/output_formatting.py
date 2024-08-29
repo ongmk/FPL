@@ -94,12 +94,10 @@ def calculate_gw_points(
     lineup: list[int],
     captain: int,
     vicecap: int,
-    bench: dict[int, int],
     chip_used: Optional[
         Literal["Wildcard", "Bench Boost", "Free Hit", "Triple Captain"]
     ],
     hits: int,
-    lp_keys: LpKeys,
 ) -> float:
     total_points = points.loc[lineup].sum()
     captain_mins = minutes.loc[captain]
@@ -108,9 +106,6 @@ def calculate_gw_points(
         total_points += points.loc[captain] * captain_multiplier
     else:
         total_points += points.loc[vicecap] * captain_multiplier
-    if chip_used == "Bench Boost":
-        for o in lp_keys.order:
-            total_points += points.loc[bench[o]]
     total_points -= hits * 4
     return total_points
 
@@ -138,10 +133,8 @@ def get_gw_results(
             lineup,
             captain,
             vicecap,
-            bench,
             chip_used,
             hits,
-            lp_keys,
         )
     predicted_points = lp_data.merged_data[f"pred_pts_{gameweek}"]
     dummy_minutes = pd.Series(90, index=lp_data.merged_data.index)
@@ -151,10 +144,8 @@ def get_gw_results(
         lineup,
         captain,
         vicecap,
-        bench,
         chip_used,
         hits,
-        lp_keys,
     )
     relevant_players = (
         lineup

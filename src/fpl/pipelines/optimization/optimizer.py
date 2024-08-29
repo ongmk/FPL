@@ -3,12 +3,14 @@ import logging
 import re
 import time
 from collections import defaultdict
+from functools import reduce
 from subprocess import Popen
 from typing import Any
 
 import numpy as np
 import pandas as pd
 
+from fpl.pipelines.optimization.chips_suggestion import get_chips_suggestions
 from fpl.pipelines.optimization.data_classes import (
     TYPE_DATA,
     LpData,
@@ -80,7 +82,7 @@ def solve_lp(
         for key in variable:
             variable[key].varValue = 0
 
-    with open(f"{solution_path}", "r") as f:
+    with open(solution_path, "r") as f:
         for line in f:
             if "objective value" in line:
                 raise_exceptions(line)
@@ -121,7 +123,7 @@ def get_historical_picks(team_id, next_gw, merged_data):
 
 
 def get_free_transfers(
-    transfer_data: dict, history_data: dict, current_gameweek: int
+    transfer_data: dict, chips_history: list[dict[str, Any]], current_gameweek: int
 ) -> int:
     free_transfers = 1
     if current_gameweek <= 2:
@@ -131,7 +133,7 @@ def get_free_transfers(
 
     for transfer in transfer_data:
         transfer_count[transfer["event"]] += 1
-    for chip in history_data["chips"]:
+    for chip in chips_history:
         if chip["name"] in ["wildcard", "bboost"]:
             transfer_count[chip["event"]] = 1
 
@@ -141,37 +143,12 @@ def get_free_transfers(
     return free_transfers
 
 
-def merge_data(elements_team, dnp_inference_results, points_data):
-    merged_data = elements_team.merge(
-        dnp_inference_results,
-        left_on=["full_name", "team"],
-        right_on=["fpl_name", "team"],
-        how="left",
-    ).set_index("id")
-    merged_data = merged_data.merge(
-        points_data,
-        left_on="full_name",
-        right_index=True,
-        how="left",
-    )
-
-    merged_data["chance_of_playing_next_round"] = (
-        merged_data["chance_of_playing_next_round"].fillna(100) / 100
-    )
-    merged_data["prediction"] = 1 - merged_data["prediction"].fillna(1)
-    merged_data["chance_of_playing_next_round"] = merged_data[
-        ["prediction", "chance_of_playing_next_round"]
-    ].min(axis=1)
-    merged_data = merged_data.drop(columns=["prediction"])
-
-    prediction_columns = [col for col in points_data if "pred_pts_" in col]
-    merged_data[prediction_columns] = (
-        merged_data[prediction_columns]
-        .fillna(0)
-        .mul(merged_data["chance_of_playing_next_round"], axis=0)
-    )
-
-    return merged_data
+def pivot_column(source_data, column_name, prefix):
+    output_data = source_data.pivot_table(
+        index="fpl_name", columns="round", values=column_name, aggfunc="first"
+    ).fillna(0)
+    output_data.columns = [f"{prefix}{int(col)}" for col in output_data.columns]
+    return output_data
 
 
 def aggregate_points_data(
@@ -181,27 +158,56 @@ def aggregate_points_data(
         (inference_results["season"] == current_season)
         & inference_results["round"].isin(gameweeks)
     ]
-    pred_pts_data = in_scope_data.pivot_table(
-        index="fpl_name", columns="round", values="prediction", aggfunc="first"
-    ).fillna(0)
-    pred_pts_data.columns = [f"pred_pts_{int(col)}" for col in pred_pts_data.columns]
 
-    act_pts_data = in_scope_data.pivot_table(
-        index="fpl_name", columns="round", values="fpl_points", aggfunc="first"
-    ).fillna(0)
-    act_pts_data.columns = [f"act_pts_{int(col)}" for col in act_pts_data.columns]
+    pred_pts_data = pivot_column(in_scope_data, "predicted_points", "pred_pts_")
+    act_pts_data = pivot_column(in_scope_data, "fpl_points", "act_pts_")
+    mins_data = pivot_column(in_scope_data, "minutes", "mins_")
 
-    mins_data = in_scope_data.pivot_table(
-        index="fpl_name", columns="round", values="minutes", aggfunc="first"
-    ).fillna(0)
-    mins_data.columns = [f"mins_{int(col)}" for col in mins_data.columns]
+    merged_data = reduce(
+        lambda left, right: pd.merge(
+            left, right, left_index=True, right_index=True, how="left"
+        ),
+        [pred_pts_data, act_pts_data, mins_data],
+    )
+    return merged_data
 
-    merged_data = pd.merge(
-        pred_pts_data, act_pts_data, left_index=True, right_index=True, how="left"
+
+def combine_inference_results(
+    elements_data,
+    inference_results,
+    dnp_inference_results,
+    current_season,
+    current_gameweek,
+):
+    dnp_inference_results = process_dnp_data(
+        dnp_inference_results, current_season, current_gameweek
     )
     merged_data = pd.merge(
-        merged_data, mins_data, left_index=True, right_index=True, how="left"
+        elements_data,
+        dnp_inference_results,
+        left_index=True,
+        right_on="element",
+        how="left",
+        suffixes=("", "_dnp"),
     )
+    merged_data["chance_of_playing_next_round"] = (
+        merged_data["chance_of_playing_next_round"].fillna(100) / 100
+    )
+    merged_data["prediction"] = 1 - merged_data["prediction"].fillna(1)
+
+    merged_data = pd.merge(
+        merged_data, inference_results, on="element", how="left", suffixes=("_dnp", "")
+    )
+
+    merged_data["chance_of_playing_next_round"] = merged_data[
+        ["prediction_dnp", "chance_of_playing_next_round"]
+    ].min(axis=1)
+
+    merged_data["predicted_points"] = (
+        merged_data["prediction"].fillna(0)
+        * merged_data["chance_of_playing_next_round"]
+    )
+    merged_data["round"] = merged_data["round"].astype(int)
     return merged_data
 
 
@@ -226,12 +232,30 @@ def get_live_data(
         team_id, current_gw
     )
     in_the_bank = general_data["last_deadline_bank"]
-    in_the_bank = (100 if in_the_bank is None else in_the_bank) / 10
-    free_transfers = get_free_transfers(transfer_data, history_data, current_gw)
+    in_the_bank = 1000 if in_the_bank is None else in_the_bank
+    free_transfers = get_free_transfers(
+        transfer_data, history_data["chips"], current_gw
+    )
+
+    inference_results = combine_inference_results(
+        elements_data,
+        inference_results,
+        dnp_inference_results,
+        current_season,
+        gameweeks[0],
+    )
+
+    chips_usage = get_chips_suggestions(
+        inference_results,
+        initial_squad,
+        history_data["chips"],
+        gameweeks[0],
+        parameters,
+    )
+    chips_usage = {k: None for k, v in chips_usage.items()}  # TODO: remove this line
 
     merged_data = prepare_data(
         inference_results,
-        dnp_inference_results,
         elements_data,
         current_season,
         gameweeks,
@@ -256,6 +280,7 @@ def get_live_data(
         in_the_bank=in_the_bank,
         free_transfers=free_transfers,
         current_season=current_season,
+        chips_usage=chips_usage,
     )
 
 
@@ -263,19 +288,23 @@ def process_dnp_data(
     data: pd.DataFrame, current_season: str, current_round: int
 ) -> pd.DataFrame:
     data = data.loc[
-        (data["season"] == current_season) & (data["round"] == current_round),
+        (data["season"] == current_season) & (data["round"] <= current_round),
+    ]
+    data = data.loc[
+        data["round"] == data["round"].max(),
         [
             "team",
+            "element",
             "fpl_name",
             "prediction",
         ],
     ]
+
     return data
 
 
 def prepare_data(
     inference_results,
-    dnp_inference_results,
     elements_data,
     current_season,
     gameweeks,
@@ -283,13 +312,16 @@ def prepare_data(
     initial_squad,
     backup_fpl_data,  # for when a player is missing during backtesting
 ):
-
-    dnp_inference_results = process_dnp_data(
-        dnp_inference_results, current_season, gameweeks[0]
+    agg_data = aggregate_points_data(inference_results, current_season, gameweeks)
+    merged_data = elements_data.merge(
+        agg_data,
+        left_on="full_name",
+        right_index=True,
+        how="left",
     )
-    points_data = aggregate_points_data(inference_results, current_season, gameweeks)
-    merged_data = merge_data(elements_data, dnp_inference_results, points_data)
-    calculate_buy_sell_price(merged_data, transfer_data, initial_squad, backup_fpl_data)
+    pred_pts_cols = [f"pred_pts_{gw}" for gw in gameweeks]
+    merged_data[pred_pts_cols] = merged_data[pred_pts_cols].fillna(0)
+    calculate_buy_sell_price(merged_data, transfer_data, initial_squad, elements_data)
     merged_data = sort_by_expected_value(merged_data)
     return merged_data
 
@@ -301,46 +333,68 @@ def sort_by_expected_value(merged_data):
     return merged_data
 
 
-def fpl_data_to_elements_data(fpl_data):
-    elements_data = fpl_data[
-        ["element", "full_name", "team_name", "position", "value"]
-    ].drop_duplicates()
-    elements_data["web_name"] = elements_data["full_name"]
-    elements_data["element_type"] = elements_data["position"].map(
-        {d["singular_name_short"]: d["id"] for d in TYPE_DATA}
-    )
-    elements_data["value"] = elements_data["value"].astype(int)
-    elements_data = elements_data.rename(
-        columns={"element": "id", "team_name": "team", "value": "now_cost"}
-    )
-    elements_data["chance_of_playing_next_round"] = 100
-    return elements_data
+def get_sell_price(row):
+    if row["now_cost"] <= row["bought_price"]:
+        return row["now_cost"]
+    else:
+        return int(np.floor(np.mean([row["now_cost"], row["bought_price"]])))
 
 
-def calculate_buy_sell_price(
-    merged_data, transfer_data, initial_squad, backup_fpl_data
-):
+def calculate_buy_sell_price(merged_data, transfer_data, initial_squad, elements_data):
+    initial_costs = (
+        elements_data.loc[initial_squad, "now_cost"]
+        + elements_data.loc[initial_squad, "now_cost"]
+    )
     merged_data["sell_price"] = merged_data["now_cost"]
+    merged_data["bought_price"] = np.nan
     for t in transfer_data:
         if t["element_in"] not in initial_squad:
             continue
         bought_price = t["element_in_cost"]
         if t["element_in"] not in merged_data.index:
-            backup_elements_data = fpl_data_to_elements_data(backup_fpl_data).set_index(
-                "id"
-            )
-            merged_data.loc[t["element_in"]] = backup_elements_data.loc[t["element_in"]]
+            merged_data.loc[t["element_in"]] = elements_data.loc[
+                t["element_in"], ["full_name", "team_name", "position", "value"]
+            ]
             merged_data.loc[t["element_in"]] = merged_data.loc[t["element_in"]].fillna(
                 0
             )
         merged_data.loc[t["element_in"], "bought_price"] = bought_price
-        current_price = merged_data.loc[t["element_in"], "now_cost"]
-        if current_price <= bought_price:
-            continue
-        sell_price = np.floor(np.mean([current_price, bought_price]))
-        merged_data.loc[t["element_in"], "sell_price"] = sell_price
+    pre_season_squad = (
+        merged_data.index.isin(initial_squad) & merged_data["bought_price"].isna()
+    )
+    merged_data.loc[pre_season_squad, "bought_price"] = merged_data.loc[
+        pre_season_squad
+    ].index.map(initial_costs)
+
+    merged_data.loc[initial_squad, "sell_price"] = merged_data.loc[initial_squad].apply(
+        get_sell_price, axis=1
+    )
+
     return None
 
 
 if __name__ == "__main__":
-    pass
+    print(
+        get_sell_price(
+            {
+                "now_cost": 54,
+                "bought_price": 50,
+            }
+        )
+    )
+    print(
+        get_sell_price(
+            {
+                "now_cost": 53,
+                "bought_price": 50,
+            }
+        )
+    )
+    print(
+        get_sell_price(
+            {
+                "now_cost": 45,
+                "bought_price": 50,
+            }
+        )
+    )

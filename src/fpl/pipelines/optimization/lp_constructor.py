@@ -13,6 +13,7 @@ from pulp import (
     lpSum,
 )
 
+from fpl.pipelines.optimization.chips_suggestion import get_chips_suggestions
 from fpl.pipelines.optimization.constraints import (
     ChipConstraints,
     SquadConstraints,
@@ -28,26 +29,34 @@ from fpl.pipelines.optimization.data_classes import (
 from fpl.utils import backup_latest_n
 
 
+def in_scope_week(week, transfer_gws):
+    if week in transfer_gws:
+        return week
+    return None
+
+
 def prepare_lp_params(lp_data: LpData, parameters: dict[str, Any]) -> LpParams:
-    wildcard_week = parameters["wildcard_week"]
-    bench_boost_week = parameters["bench_boost_week"]
-    free_hit_week = parameters["free_hit_week"]
-    triple_captain_week = parameters["triple_captain_week"]
     transfer_horizon = parameters["transfer_horizon"]
     next_gw = lp_data.gameweeks[0]
     transfer_gws = lp_data.gameweeks[:transfer_horizon]
+    wildcard1_week = in_scope_week(lp_data.chips_usage["wildcard1"], transfer_gws)
+    wildcard2_week = in_scope_week(lp_data.chips_usage["wildcard2"], transfer_gws)
+    free_hit_week = in_scope_week(lp_data.chips_usage["free_hit"], transfer_gws)
+    triple_captain_week = in_scope_week(
+        lp_data.chips_usage["triple_captain"], transfer_gws
+    )
+    bench_boost_week = in_scope_week(lp_data.chips_usage["bench_boost"], transfer_gws)
 
     return LpParams(
         next_gw=next_gw,
         transfer_gws=transfer_gws,
         threshold_gw=2 if next_gw == 1 else next_gw,
         horizon=parameters["horizon"],
-        wildcard_week=wildcard_week if wildcard_week in transfer_gws else None,
-        bench_boost_week=bench_boost_week if bench_boost_week in transfer_gws else None,
-        free_hit_week=free_hit_week if free_hit_week in transfer_gws else None,
-        triple_captain_week=(
-            triple_captain_week if triple_captain_week in transfer_gws else None
-        ),
+        wildcard1_week=wildcard1_week,
+        wildcard2_week=wildcard2_week,
+        bench_boost_week=bench_boost_week,
+        free_hit_week=free_hit_week,
+        triple_captain_week=triple_captain_week,
         decay=parameters["decay"],
         free_transfer_bonus=parameters["free_transfer_bonus"],
         in_the_bank_bonus=parameters["in_the_bank_bonus"],

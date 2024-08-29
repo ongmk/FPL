@@ -37,7 +37,7 @@ def get_fpl_base_data() -> (
         else:
             gameweeks["future"].append(w["id"])
 
-    element_data = pd.DataFrame(fpl_data["elements"])
+    element_data = pd.DataFrame(fpl_data["elements"]).set_index("id")
 
     team_data = pd.DataFrame(fpl_data["teams"]).set_index("id")
     element_data["team"] = element_data["team"].map(team_data["name"].to_dict())
@@ -52,7 +52,6 @@ def get_fpl_base_data() -> (
     )
     element_data = element_data[
         [
-            "id",
             "web_name",
             "full_name",
             "team",
@@ -164,7 +163,7 @@ def get_current_season_fpl_data() -> pd.DataFrame:
     for idx, row in tqdm(
         element_data.iterrows(), desc="Fetching player history", total=len(element_data)
     ):
-        player_fixtures = fetch_player_fixtures(row["id"], current_season)
+        player_fixtures = fetch_player_fixtures(idx, current_season)
         player_fixtures["value"] = player_fixtures["value"].fillna(row["now_cost"])
         current_season_data.append(player_fixtures)
     current_season_data = pd.concat(current_season_data, ignore_index=True)

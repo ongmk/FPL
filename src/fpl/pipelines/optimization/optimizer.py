@@ -252,7 +252,6 @@ def get_live_data(
         gameweeks[0],
         parameters,
     )
-    chips_usage = {k: None for k, v in chips_usage.items()}  # TODO: remove this line
 
     merged_data = prepare_data(
         inference_results,
@@ -261,7 +260,6 @@ def get_live_data(
         gameweeks,
         transfer_data,
         initial_squad,
-        None,
     )
 
     logger.info(f"Team: {general_data['name']}.")
@@ -310,7 +308,6 @@ def prepare_data(
     gameweeks,
     transfer_data,
     initial_squad,
-    backup_fpl_data,  # for when a player is missing during backtesting
 ):
     agg_data = aggregate_points_data(inference_results, current_season, gameweeks)
     merged_data = elements_data.merge(

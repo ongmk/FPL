@@ -251,9 +251,6 @@ def backtest(
                 & (fpl_data["round"] == start_week)
             ]
         )
-        backup_fpl_data = fpl_data.loc[
-            (fpl_data["season"] == backtest_season) & (fpl_data["round"] < start_week)
-        ].drop_duplicates(subset=["element"], keep="last")
         snapshot_inference_results = snapshot_inference(
             train_val_data,
             model,
@@ -278,7 +275,6 @@ def backtest(
             gameweeks,
             transfer_data,
             initial_squad,
-            backup_fpl_data,
         )
 
         logger.info(

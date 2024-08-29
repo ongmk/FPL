@@ -2,6 +2,7 @@ import logging
 from typing import Any
 
 import pandas as pd
+from matplotlib import pyplot as plt
 
 logger = logging.getLogger(__name__)
 
@@ -64,31 +65,34 @@ def suggest_wildcard_weeks(
     inference_results, squad, column, horizon, current_week, chips_usage
 ):
     wc1_deadline = 19
+    end_week = 38 - horizon + 1
     before_wc = find_step_gains(inference_results, horizon, column, squad)
     if current_week <= wc1_deadline:
         if chips_usage["wildcard1"] is None:
             excluded = get_excluded_weeks(chips_usage, expanded=True)
-            candidates = before_wc.loc[:wc1_deadline]
+            candidates = before_wc.loc[current_week:wc1_deadline]
             candidates = candidates.loc[~candidates.index.isin(excluded)]
             chips_usage["wildcard1"] = candidates.idxmax()
             logger.info(f"Suggested Wildcard 1 week: {chips_usage['wildcard1']}")
         before_wc = before_wc.loc[: chips_usage["wildcard1"]]
     else:
         if chips_usage["wildcard2"] is None:
-            chips_usage["wildcard2"] = before_wc.loc[wc1_deadline + 1 :].idxmax()
+            candidates = before_wc.loc[wc1_deadline + 1 : end_week]
+            chips_usage["wildcard2"] = candidates.idxmax()
             logger.info(f"Suggested Wildcard 2 week: {chips_usage['wildcard2']}")
         before_wc = before_wc.loc[: chips_usage["wildcard2"]]
     after_wc = find_step_gains(inference_results, horizon, column, [])
     if current_week <= wc1_deadline:
         after_wc = after_wc.loc[chips_usage["wildcard1"] + 1 :]
         excluded = get_excluded_weeks(chips_usage, expanded=True)
-        candidates = after_wc.loc[wc1_deadline + 1 :]
+        candidates = after_wc.loc[wc1_deadline + 1 : end_week]
         candidates = candidates.loc[~candidates.index.isin(excluded)]
         chips_usage["wildcard2"] = candidates.idxmax()
+        logger.info(f"Suggested Wildcard 2 week: {chips_usage['wildcard2']}")
     else:
         after_wc = after_wc.loc[chips_usage["wildcard2"] + 1 :]
     fixture_swings = pd.concat([before_wc, after_wc]).loc[
-        max(horizon, current_week) : 38 - horizon + 1
+        max(horizon, current_week) : end_week
     ]
     return fixture_swings
 
@@ -174,6 +178,127 @@ chip_name_mapping = {
 }
 
 
+def plot_chips_suggestions(
+    chips_usage, fixture_swings, fixture_spikes, max_points, bench_points
+):
+    fig, axs = plt.subplots(
+        2,
+        2,
+        figsize=(20, 5),
+    )
+    fig.suptitle("Chips Suggestions")
+    for ax in axs.flat:
+        ax.grid(True)
+
+    axs.flat[0].plot(
+        fixture_swings.index,
+        fixture_swings.values,
+    )
+    axs.flat[0].scatter(
+        chips_usage["wildcard1"],
+        fixture_swings.loc[chips_usage["wildcard1"]],
+        color="red",
+        label="_nolegend_",
+        zorder=5,
+    )
+    axs.flat[0].text(
+        chips_usage["wildcard1"],
+        fixture_swings.loc[chips_usage["wildcard1"]],
+        chips_usage["wildcard1"],
+        color="red",
+        fontsize=10,
+        ha="center",
+        va="bottom",
+    )
+    axs.flat[0].scatter(
+        chips_usage["wildcard2"],
+        fixture_swings.loc[chips_usage["wildcard2"]],
+        color="red",
+        label="_nolegend_",
+        zorder=5,
+    )
+    axs.flat[0].text(
+        chips_usage["wildcard2"],
+        fixture_swings.loc[chips_usage["wildcard2"]],
+        chips_usage["wildcard2"],
+        color="red",
+        fontsize=10,
+        ha="center",
+        va="bottom",
+    )
+    axs.flat[0].set_title(f"Fixture Swings & Wildcards")
+
+    axs.flat[1].plot(
+        fixture_spikes.index,
+        fixture_spikes.values,
+    )
+    axs.flat[1].scatter(
+        chips_usage["free_hit"],
+        fixture_spikes.loc[chips_usage["free_hit"]],
+        color="red",
+        label="_nolegend_",
+        zorder=5,
+    )
+    axs.flat[1].text(
+        chips_usage["free_hit"],
+        fixture_spikes.loc[chips_usage["free_hit"]],
+        chips_usage["free_hit"],
+        color="red",
+        fontsize=10,
+        ha="center",
+        va="bottom",
+    )
+    axs.flat[1].set_title(f"Fixture Spikes & Free Hit")
+
+    axs.flat[2].plot(
+        max_points.index,
+        max_points.values,
+    )
+    axs.flat[2].scatter(
+        chips_usage["triple_captain"],
+        max_points.loc[chips_usage["triple_captain"]],
+        color="red",
+        label="_nolegend_",
+        zorder=5,
+    )
+    axs.flat[2].text(
+        chips_usage["triple_captain"],
+        max_points.loc[chips_usage["triple_captain"]],
+        chips_usage["triple_captain"],
+        color="red",
+        fontsize=10,
+        ha="center",
+        va="bottom",
+    )
+    axs.flat[2].set_title("Top Points & Triple Captain")
+
+    axs.flat[3].plot(
+        bench_points.index,
+        bench_points.values,
+    )
+    axs.flat[3].scatter(
+        chips_usage["bench_boost"],
+        bench_points.loc[chips_usage["bench_boost"]],
+        color="red",
+        label="_nolegend_",
+        zorder=5,
+    )
+    axs.flat[3].text(
+        chips_usage["bench_boost"],
+        bench_points.loc[chips_usage["bench_boost"]],
+        chips_usage["bench_boost"],
+        color="red",
+        fontsize=10,
+        ha="center",
+        va="bottom",
+    )
+    axs.flat[3].set_title("Benched Points & Bench Boost")
+    plt.tight_layout()
+
+    plt.savefig(f"data/optimization/chips_suggestions.png")
+    return None
+
+
 def get_chips_suggestions(
     inference_results: pd.DataFrame,
     squad: list[str],
@@ -197,7 +322,7 @@ def get_chips_suggestions(
         else:
             chips_usage[chip_name_mapping[chip["name"]]] = chip["event"]
 
-    _ = suggest_wildcard_weeks(
+    fixture_swings = suggest_wildcard_weeks(
         inference_results,
         squad,
         column="predicted_points",
@@ -205,7 +330,7 @@ def get_chips_suggestions(
         current_week=current_week,
         chips_usage=chips_usage,
     )
-    _ = suggest_free_hit_week(
+    fixture_spikes = suggest_free_hit_week(
         inference_results,
         squad,
         column="predicted_points",
@@ -213,7 +338,7 @@ def get_chips_suggestions(
         current_week=current_week,
         chips_usage=chips_usage,
     )
-    _ = suggest_triple_captain_week(
+    max_points = suggest_triple_captain_week(
         inference_results,
         squad,
         column="predicted_points",
@@ -221,11 +346,14 @@ def get_chips_suggestions(
         chips_usage=chips_usage,
     )
 
-    _ = suggest_bench_boost_week(
+    bench_points = suggest_bench_boost_week(
         inference_results,
         squad,
         column="predicted_points",
         current_week=current_week,
         chips_usage=chips_usage,
+    )
+    plot_chips_suggestions(
+        chips_usage, fixture_swings, fixture_spikes, max_points, bench_points
     )
     return chips_usage

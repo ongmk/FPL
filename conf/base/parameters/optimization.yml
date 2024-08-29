@@ -6,9 +6,10 @@ optimization:
 
   team_id: 1792016
 
-  wildcard_week: null
-  bench_boost_week: null
+  wildcard1_week: null
+  wildcard2_week: null
   free_hit_week: null
+  bench_boost_week: null
   triple_captain_week: null
 
   unavailable_players:

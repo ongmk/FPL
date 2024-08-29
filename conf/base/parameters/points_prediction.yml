@@ -9,6 +9,7 @@ points_prediction:
   target: fpl_points
   baseline_columns: [fpl_points_ma5]
   info_columns:
+    - element
     - fpl_name
     - date
     - player

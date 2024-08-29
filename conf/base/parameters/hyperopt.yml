@@ -1,17 +1,17 @@
 # hyperopt:
 #   target:
 #     name: total_actual_points
-#     max_trials: 18
+#     max_trials: 8
 #     strategy: max
 #     algo: tpe
 #     early_termination: null
 #   optimization:
 #     horizon:
 #       method: choice
-#       values: [3, 4, 5, 6, 7, 8]
+#       values: [3, 4, 5, 6]
 #     transfer_horizon:
 #       method: choice
-#       values: [1]
+#       values: [2, 3]
 # hyperopt:
 #   target:
 #     name: val_score

@@ -97,31 +97,6 @@ def solve_lp(
     return lp_variables, variable_sums, solution_time
 
 
-def get_historical_picks(team_id, next_gw, merged_data):
-    _, _, initial_squad = get_fpl_team_data(team_id, next_gw)
-    picks_df = (
-        pd.DataFrame(initial_squad)
-        .drop("position", axis=1)
-        .rename({"element": "id"}, axis=1)
-    )
-    picks_df["week"] = next_gw
-    picks_df = picks_df.merge(
-        merged_data[["web_name", f"pred_pts_{next_gw}"]],
-        left_on="id",
-        right_index=True,
-    ).rename({f"pred_pts_{next_gw}": "predicted_xP"}, axis=1)
-    summary = [picks_df]
-    next_gw_dict = {
-        "hits": 0,
-        "in_the_bank": 0,
-        "free_transfers": 0,
-        "solve_time": 0,
-        "n_transfers": 0,
-        "chip_used": None,
-    }
-    return picks_df, summary, next_gw_dict
-
-
 def get_free_transfers(
     transfer_data: dict, chips_history: list[dict[str, Any]], current_gameweek: int
 ) -> int:

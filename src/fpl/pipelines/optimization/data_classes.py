@@ -112,9 +112,7 @@ class GwResults:
     vicecap: int
     lineup: list[int]
     bench: dict[int, int]
-    chip_used: Optional[
-        Literal["wildcard", "bench_boost", "free_hit", "triple_captain"]
-    ]
+    chip_used: Optional[Literal["wildcard", "bboost", "freehit", "3xc"]]
     hits: int
     total_predicted_points: float
     total_actual_points: float

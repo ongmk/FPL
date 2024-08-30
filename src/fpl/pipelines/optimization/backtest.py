@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -11,9 +12,14 @@ from fpl.pipelines.modelling.modelling.dnp_prediction import (
 )
 from fpl.pipelines.modelling.modelling.ensemble import EnsembleModel
 from fpl.pipelines.modelling.modelling.evaluation import evaluate_model_holdout
+from fpl.pipelines.optimization.chips_suggestion import get_chips_suggestions
 from fpl.pipelines.optimization.data_classes import TYPE_DATA, LpData
 from fpl.pipelines.optimization.lp_constructor import construct_lp
-from fpl.pipelines.optimization.optimizer import prepare_data, solve_lp
+from fpl.pipelines.optimization.optimizer import (
+    combine_inference_results,
+    prepare_data,
+    solve_lp,
+)
 from fpl.pipelines.optimization.output_formatting import (
     generate_outputs,
     get_gw_results,
@@ -29,7 +35,7 @@ logger = logging.getLogger(__name__)
 
 def fpl_data_to_elements_data(fpl_data):
     elements_data = fpl_data[
-        ["element", "full_name", "team_name", "position", "value"]
+        ["element", "full_name", "team", "team_name", "position", "value"]
     ].drop_duplicates()
     elements_data["web_name"] = elements_data["full_name"]
     elements_data["element_type"] = elements_data["position"].map(
@@ -37,21 +43,27 @@ def fpl_data_to_elements_data(fpl_data):
     )
     elements_data["value"] = elements_data["value"].astype(int)
     elements_data = elements_data.rename(
-        columns={"element": "id", "team_name": "team", "value": "now_cost"}
+        columns={
+            "element": "id",
+            "team": "team_id",
+            "team_name": "team",
+            "value": "now_cost",
+        }
     )
     elements_data["chance_of_playing_next_round"] = 100
-    return elements_data
+    return elements_data.set_index("id")
 
 
 def convert_to_live_data(
-    fpl_data: pd.DataFrame,
+    fpl_data: pd.DataFrame, start_week: int
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-
-    elements_data = fpl_data_to_elements_data(fpl_data)
+    fpl_data = fpl_data.loc[fpl_data["round"] <= start_week]
+    latest_data = fpl_data.groupby("element").tail(1)
+    elements_data = fpl_data_to_elements_data(latest_data)
     team_data = (
-        elements_data[["team"]]
+        elements_data[["team_id", "team"]]
         .drop_duplicates()
-        .reset_index(drop=True)
+        .set_index("team_id")
         .rename(columns={"team": "name"})
     )
     type_data = pd.DataFrame(TYPE_DATA).set_index("id")
@@ -94,9 +106,7 @@ def dummy_starting_config(fpl_data: pd.DataFrame, backtest_season: str):
     return min_week, max_week, in_the_bank, free_transfers, initial_squad, transfer_data
 
 
-def drop_future_data(
-    processed_data, numerical_features, backtest_season, start_week, end_week
-):
+def drop_future_data(processed_data, numerical_features, backtest_season, start_week):
     five_matches_ago = processed_data.groupby("fpl_name")["date"].shift(5)
     past_five_matches_not_within_one_year = (
         processed_data["date"] - five_matches_ago
@@ -111,7 +121,6 @@ def drop_future_data(
         processed_data.loc[
             (processed_data["season"] == backtest_season)
             & (processed_data["round"] >= start_week)
-            & (processed_data["round"] <= end_week)
         ]
         .sort_values(["fpl_name", "round"])
         .copy()
@@ -157,13 +166,12 @@ def get_snapshot_data(
     elo_data: pd.DataFrame,
     backtest_season: str,
     start_week: int,
-    end_week: int,
     model_params: dict[str, Any],
     data_params: dict[str, Any],
 ):
     numerical_features = model_params["numerical_features"]
     snapshot_data = drop_future_data(
-        processed_data, numerical_features, backtest_season, start_week, end_week
+        processed_data, numerical_features, backtest_season, start_week
     )
     snapshot_data[["team_xg", "team_xga", "team_gf", "team_ga"]] = np.nan
     snapshot_team_match_log = convert_to_team_match_log(snapshot_data)
@@ -186,16 +194,21 @@ def snapshot_inference(
     elo_data: pd.DataFrame,
     backtest_season: str,
     start_week: int,
-    end_week: int,
     data_params: dict[str, Any],
     model_params: dict[str, Any],
 ) -> pd.DataFrame:
+    cache_path = Path(
+        f"data/optimization/backtest_cache/{backtest_season}_{start_week}.csv"
+    )
+    if cache_path.is_file():
+        snapshot_inference_results = pd.read_csv(cache_path)
+        return snapshot_inference_results
+
     snapshot_data = get_snapshot_data(
         processed_data,
         elo_data,
         backtest_season,
         start_week,
-        end_week,
         model_params,
         data_params,
     )
@@ -204,6 +217,7 @@ def snapshot_inference(
     snapshot_inference_results, _, _ = evaluate_model_holdout(
         train_val_data, snapshot_data, model, sklearn_pipeline, 1, "", model_params
     )
+    snapshot_inference_results.to_csv(cache_path, index=False, encoding="utf-8-sig")
     return snapshot_inference_results
 
 
@@ -237,6 +251,7 @@ def backtest(
     max_week = in_scope.max()
     initial_squad = []
     transfer_data = []
+    chips_history = []
     in_the_bank = 100
     free_transfers = 1
     backtest_results = []
@@ -246,10 +261,7 @@ def backtest(
         end_week = min(max_week, start_week + horizon - 1)
         gameweeks = [i for i in range(start_week, end_week + 1)]
         elements_data, team_data, type_data = convert_to_live_data(
-            fpl_data.loc[
-                (fpl_data["season"] == backtest_season)
-                & (fpl_data["round"] == start_week)
-            ]
+            fpl_data.loc[fpl_data["season"] == backtest_season], start_week
         )
         snapshot_inference_results = snapshot_inference(
             train_val_data,
@@ -259,17 +271,27 @@ def backtest(
             elo_data,
             backtest_season,
             start_week,
-            end_week,
             data_params,
             model_params,
         )
-        snapshot_dnp_inference_results = dnp_inference_results.loc[
-            (dnp_inference_results["season"] == backtest_season)
-            & (dnp_inference_results["round"] == start_week)
-        ]
+        snapshot_inference_results = combine_inference_results(
+            elements_data,
+            snapshot_inference_results,
+            dnp_inference_results,
+            backtest_season,
+            start_week,
+        )
+
+        chips_usage = get_chips_suggestions(
+            snapshot_inference_results,
+            initial_squad,
+            chips_history,
+            start_week,
+            optimization_params,
+        )
+
         merged_data = prepare_data(
             snapshot_inference_results,
-            snapshot_dnp_inference_results,
             elements_data,
             backtest_season,
             gameweeks,
@@ -292,6 +314,7 @@ def backtest(
             in_the_bank=in_the_bank,
             free_transfers=free_transfers,
             current_season=backtest_season,
+            chips_usage=chips_usage,
         )
         optimization_params["model_name"] = f"backtest_model"
         lp_keys, lp_variables, variable_sums = construct_lp(
@@ -315,6 +338,10 @@ def backtest(
         initial_squad = next_gw_results.lineup + list(next_gw_results.bench.values())
         transfer_data.extend(next_gw_results.transfer_data)
         backtest_results.append(next_gw_results)
+        if next_gw_results.chip_used:
+            chips_history.append(
+                {"event": next_gw_results.gameweek, "name": next_gw_results.chip_used}
+            )
         total_actual_points += next_gw_results.total_actual_points
         if start_week % 5 == 0 or start_week == end_week:
             title = f"Backtest {backtest_season} h={horizon} th={transfer_horizon} --> pts={int(total_actual_points)}"

@@ -30,15 +30,15 @@ logger = logging.getLogger(__name__)
 
 def get_chip_used(
     gameweek: int, lp_variables: LpVariables, variable_sums: VariableSums
-) -> Optional[Literal["Wildcard", "Bench Boost", "Free Hit", "Triple Captain"]]:
+) -> Optional[Literal["wildcard", "bboost", "freehit", "3xc"]]:
     if lp_variables.use_wildcard[gameweek].value() > 0.5:
-        return "Wildcard"
+        return "wildcard"
     elif lp_variables.use_free_hit[gameweek].value() > 0.5:
-        return "Free Hit"
+        return "freehit"
     elif lp_variables.use_bench_boost[gameweek].value() > 0.5:
-        return "Bench Boost"
+        return "bboost"
     elif variable_sums.use_triple_captain_week[gameweek].value() > 0.5:
-        return "Triple Captain"
+        return "3xc"
     else:
         return None
 
@@ -94,14 +94,12 @@ def calculate_gw_points(
     lineup: list[int],
     captain: int,
     vicecap: int,
-    chip_used: Optional[
-        Literal["Wildcard", "Bench Boost", "Free Hit", "Triple Captain"]
-    ],
+    chip_used: Optional[Literal["wildcard", "bboost", "freehit", "3xc"]],
     hits: int,
 ) -> float:
     total_points = points.loc[lineup].sum()
     captain_mins = minutes.loc[captain]
-    captain_multiplier = 2 if chip_used == "Triple Captain" else 1
+    captain_multiplier = 2 if chip_used == "3xc" else 1
     if captain_mins > 0:
         total_points += points.loc[captain] * captain_multiplier
     else:
@@ -324,13 +322,13 @@ def get_transfer_summary(
 
 
 def get_chip_summary(gw_results: GwResults):
-    if gw_results.chip_used == "Wildcard":
+    if gw_results.chip_used == "wildcard":
         return "🃏🃏🃏 WILDCARD ACTIVE 🃏🃏🃏"  # fmt: skip
-    elif gw_results.chip_used == "Free Hit":
+    elif gw_results.chip_used == "freehit":
         return "🆓🆓🆓 FREE HIT ACTIVE 🆓🆓🆓"  # fmt: skip
-    elif gw_results.chip_used == "Bench Boost":
+    elif gw_results.chip_used == "bboost":
         return "🚀🚀🚀 BENCH BOOST ACTIVE 🚀🚀🚀"  # fmt: skip
-    elif gw_results.chip_used == "Triple Captain":
+    elif gw_results.chip_used == "3xc":
         return "👑👑👑 TRIPLE CAPTAIN ACTIVE 👑👑👑"  # fmt: skip
     else:
         return None
@@ -497,7 +495,7 @@ def plot_backtest_results(backtest_results: list[GwResults], title: str) -> Figu
     ):
         tooltip = ""
         if chip is not None:
-            tooltip += f"{chip}\n"
+            tooltip += f"{chip.upper()}\n"
         if gw_hits > 0:
             tooltip += f"{gw_hits} hits\n"
         y = max(pred, act)

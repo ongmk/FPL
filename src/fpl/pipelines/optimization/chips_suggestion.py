@@ -4,6 +4,8 @@ from typing import Any
 import pandas as pd
 from matplotlib import pyplot as plt
 
+from fpl.utils import backup_latest_n
+
 logger = logging.getLogger(__name__)
 
 
@@ -45,63 +47,87 @@ def find_step_gains(inference_results, horizon, column, squad):
     total_gains = avg_points_gained(
         inference_results, squad, "prev_n_gw_sum", "next_n_gw_sum"
     )
+    total_gains = total_gains.fillna(0)
     return total_gains
 
 
-def get_excluded_weeks(chips_usage, expanded):
+def get_excluded_weeks(chips_usage, gap):
     excluded = set()
     for chip, week in chips_usage.items():
         if week is None:
             continue
-        if chip in ("wildcard1", "wildcard2", "free_hit") and expanded:
-            for w in range(week - 3, week + 3 + 1):
+        if chip in ("wildcard1", "wildcard2", "free_hit"):
+            for w in range(week - gap, week + gap + 1):
                 excluded.add(w)
         else:
             excluded.add(week)
     return excluded
 
 
+def get_candidate_weeks(chips_usage, start, end, expanded):
+    gap = 3 if expanded else 0
+    candidate_weeks = []
+    while gap >= 0:
+        excluded = get_excluded_weeks(chips_usage, gap=gap)
+        candidate_weeks = [w for w in range(start, end + 1) if w not in excluded]
+        if len(candidate_weeks) > 0:
+            return candidate_weeks
+        gap -= 1
+    assert len(candidate_weeks) > 0, "No candidate weeks available"
+
+
 def suggest_wildcard_weeks(
     inference_results, squad, column, horizon, current_week, chips_usage
 ):
     wc1_deadline = 19
+    start_week = max(horizon, current_week)
     end_week = 38 - horizon + 1
-    before_wc = find_step_gains(inference_results, horizon, column, squad)
+    squad_fixture_swings = find_step_gains(inference_results, horizon, column, squad)
+    other_fixture_swings = find_step_gains(inference_results, horizon, column, [])
+
     if current_week <= wc1_deadline:
         if chips_usage["wildcard1"] is None:
-            excluded = get_excluded_weeks(chips_usage, expanded=True)
-            candidates = before_wc.loc[current_week:wc1_deadline]
-            candidates = candidates.loc[~candidates.index.isin(excluded)]
-            chips_usage["wildcard1"] = candidates.idxmax()
+            candidate_weeks = get_candidate_weeks(
+                chips_usage, start_week, wc1_deadline, expanded=True
+            )
+            chips_usage["wildcard1"] = squad_fixture_swings.loc[
+                candidate_weeks
+            ].idxmax()
             logger.info(f"Suggested Wildcard 1 week: {chips_usage['wildcard1']}")
-        before_wc = before_wc.loc[: chips_usage["wildcard1"]]
+        if chips_usage["wildcard2"] is None:
+            candidate_weeks = get_candidate_weeks(
+                chips_usage, wc1_deadline + 1, end_week, expanded=True
+            )
+            chips_usage["wildcard2"] = other_fixture_swings.loc[
+                candidate_weeks
+            ].idxmax()
+            logger.info(f"Suggested Wildcard 2 week: {chips_usage['wildcard2']}")
+        return pd.concat(
+            [
+                squad_fixture_swings.loc[start_week : chips_usage["wildcard1"]],
+                other_fixture_swings.loc[chips_usage["wildcard1"] + 1 : end_week],
+            ]
+        )
     else:
         if chips_usage["wildcard2"] is None:
-            candidates = before_wc.loc[wc1_deadline + 1 : end_week]
-            chips_usage["wildcard2"] = candidates.idxmax()
+            candidate_weeks = get_candidate_weeks(
+                chips_usage, max(wc1_deadline + 1, start_week), end_week, expanded=True
+            )
+            chips_usage["wildcard2"] = squad_fixture_swings.loc[
+                candidate_weeks
+            ].idxmax()
             logger.info(f"Suggested Wildcard 2 week: {chips_usage['wildcard2']}")
-        before_wc = before_wc.loc[: chips_usage["wildcard2"]]
-    after_wc = find_step_gains(inference_results, horizon, column, [])
-    if current_week <= wc1_deadline:
-        after_wc = after_wc.loc[chips_usage["wildcard1"] + 1 :]
-        excluded = get_excluded_weeks(chips_usage, expanded=True)
-        candidates = after_wc.loc[wc1_deadline + 1 : end_week]
-        candidates = candidates.loc[~candidates.index.isin(excluded)]
-        chips_usage["wildcard2"] = candidates.idxmax()
-        logger.info(f"Suggested Wildcard 2 week: {chips_usage['wildcard2']}")
-    else:
-        after_wc = after_wc.loc[chips_usage["wildcard2"] + 1 :]
-    fixture_swings = pd.concat([before_wc, after_wc]).loc[
-        max(horizon, current_week) : end_week
-    ]
-    return fixture_swings
+        return pd.concat(
+            [
+                squad_fixture_swings.loc[start_week : chips_usage["wildcard2"]],
+                other_fixture_swings.loc[chips_usage["wildcard2"] + 1 : end_week],
+            ]
+        )
 
 
 def suggest_free_hit_week(
     inference_results, squad, column, horizon, current_week, chips_usage
 ):
-    if chips_usage["free_hit"] is not None:
-        return None
     inference_results["prev_n_gw_sum"] = inference_results.groupby("fpl_name")[
         column
     ].transform(lambda x: x.shift(1).rolling(horizon - 1).sum())
@@ -114,39 +140,43 @@ def suggest_free_hit_week(
         / 2
     )
     fixture_spikes = avg_points_gained(inference_results, squad, "outside_avg", column)
-    fixture_spikes = fixture_spikes.loc[max(horizon, current_week) : 38 - horizon]
-    excluded = get_excluded_weeks(chips_usage, expanded=True)
-    chips_usage["free_hit"] = fixture_spikes.loc[
-        ~fixture_spikes.index.isin(excluded)
-    ].idxmax()
-    logger.info(f"Suggested Free Hit week: {chips_usage['free_hit']}")
+    fixture_spikes = fixture_spikes.fillna(0)
+
+    start_week = max(horizon, current_week)
+    end_week = 38 - horizon
+    fixture_spikes = fixture_spikes.loc[start_week:end_week]
+    if chips_usage["free_hit"] is None:
+        candidate_weeks = get_candidate_weeks(
+            chips_usage, start_week, end_week, expanded=True
+        )
+        chips_usage["free_hit"] = fixture_spikes.loc[candidate_weeks].idxmax()
+        logger.info(f"Suggested Free Hit week: {chips_usage['free_hit']}")
     return fixture_spikes
 
 
 def suggest_triple_captain_week(
     inference_results, squad, column, current_week, chips_usage
 ):
-    if chips_usage["triple_captain"] is not None:
-        return None
     if len(squad) > 0:
         inference_results = inference_results.loc[
             inference_results["element"].isin(squad)
         ]
     max_points = inference_results.groupby("round")[column].max()
     max_points = max_points.loc[current_week:]
-    excluded = get_excluded_weeks(chips_usage, expanded=False)
-    chips_usage["triple_captain"] = max_points.loc[
-        ~max_points.index.isin(excluded)
-    ].idxmax()
-    logger.info(f"Suggested Triple Captain week: {chips_usage['triple_captain']}")
+
+    if chips_usage["triple_captain"] is None:
+        candidate_weeks = get_candidate_weeks(
+            chips_usage, current_week, 38, expanded=False
+        )
+        chips_usage["triple_captain"] = max_points.loc[candidate_weeks].idxmax()
+        logger.info(f"Suggested Triple Captain week: {chips_usage['triple_captain']}")
     return max_points
 
 
 def suggest_bench_boost_week(
     inference_results, squad, column, current_week, chips_usage
 ):
-    if chips_usage["bench_boost"] is not None:
-        return None
+
     if len(squad) > 0:
         inference_results = inference_results.loc[
             inference_results["element"].isin(squad)
@@ -163,11 +193,13 @@ def suggest_bench_boost_week(
         ]
     bench_points = inference_results.groupby("round")[column].mean()
     bench_points = bench_points.loc[current_week:]
-    excluded = get_excluded_weeks(chips_usage, expanded=False)
-    chips_usage["bench_boost"] = bench_points.loc[
-        ~bench_points.index.isin(excluded)
-    ].idxmax()
-    logger.info(f"Suggested Bench Boost week: {chips_usage['bench_boost']}")
+
+    if chips_usage["bench_boost"] is None:
+        candidate_weeks = get_candidate_weeks(
+            chips_usage, current_week, 38, expanded=False
+        )
+        chips_usage["bench_boost"] = bench_points.loc[candidate_weeks].idxmax()
+        logger.info(f"Suggested Bench Boost week: {chips_usage['bench_boost']}")
     return bench_points
 
 
@@ -191,111 +223,68 @@ def plot_chips_suggestions(
         ax.grid(True)
 
     axs.flat[0].plot(
-        fixture_swings.index,
-        fixture_swings.values,
+        fixture_swings.index, fixture_swings.values, color="grey", linestyle="--"
     )
-    axs.flat[0].scatter(
-        chips_usage["wildcard1"],
-        fixture_swings.loc[chips_usage["wildcard1"]],
-        color="red",
-        label="_nolegend_",
-        zorder=5,
-    )
-    axs.flat[0].text(
-        chips_usage["wildcard1"],
-        fixture_swings.loc[chips_usage["wildcard1"]],
-        chips_usage["wildcard1"],
-        color="red",
-        fontsize=10,
-        ha="center",
-        va="bottom",
-    )
-    axs.flat[0].scatter(
-        chips_usage["wildcard2"],
-        fixture_swings.loc[chips_usage["wildcard2"]],
-        color="red",
-        label="_nolegend_",
-        zorder=5,
-    )
-    axs.flat[0].text(
-        chips_usage["wildcard2"],
-        fixture_swings.loc[chips_usage["wildcard2"]],
-        chips_usage["wildcard2"],
-        color="red",
-        fontsize=10,
-        ha="center",
-        va="bottom",
-    )
+    if chips_usage["wildcard1"] in fixture_swings.index:
+        axs.flat[0].scatter(
+            chips_usage["wildcard1"],
+            fixture_swings.loc[chips_usage["wildcard1"]],
+            color="red",
+            label="_nolegend_",
+            zorder=5,
+        )
+
+    if chips_usage["wildcard2"] in fixture_swings.index:
+        axs.flat[0].scatter(
+            chips_usage["wildcard2"],
+            fixture_swings.loc[chips_usage["wildcard2"]],
+            color="red",
+            label="_nolegend_",
+            zorder=5,
+        )
     axs.flat[0].set_title(f"Fixture Swings & Wildcards")
 
     axs.flat[1].plot(
-        fixture_spikes.index,
-        fixture_spikes.values,
+        fixture_spikes.index, fixture_spikes.values, color="grey", linestyle="--"
     )
-    axs.flat[1].scatter(
-        chips_usage["free_hit"],
-        fixture_spikes.loc[chips_usage["free_hit"]],
-        color="red",
-        label="_nolegend_",
-        zorder=5,
-    )
-    axs.flat[1].text(
-        chips_usage["free_hit"],
-        fixture_spikes.loc[chips_usage["free_hit"]],
-        chips_usage["free_hit"],
-        color="red",
-        fontsize=10,
-        ha="center",
-        va="bottom",
-    )
+    if chips_usage["free_hit"] in fixture_spikes.index:
+        axs.flat[1].scatter(
+            chips_usage["free_hit"],
+            fixture_spikes.loc[chips_usage["free_hit"]],
+            color="red",
+            label="_nolegend_",
+            zorder=5,
+        )
     axs.flat[1].set_title(f"Fixture Spikes & Free Hit")
 
-    axs.flat[2].plot(
-        max_points.index,
-        max_points.values,
-    )
-    axs.flat[2].scatter(
-        chips_usage["triple_captain"],
-        max_points.loc[chips_usage["triple_captain"]],
-        color="red",
-        label="_nolegend_",
-        zorder=5,
-    )
-    axs.flat[2].text(
-        chips_usage["triple_captain"],
-        max_points.loc[chips_usage["triple_captain"]],
-        chips_usage["triple_captain"],
-        color="red",
-        fontsize=10,
-        ha="center",
-        va="bottom",
-    )
+    axs.flat[2].plot(max_points.index, max_points.values, color="grey", linestyle="--")
+    if chips_usage["triple_captain"] in max_points.index:
+        axs.flat[2].scatter(
+            chips_usage["triple_captain"],
+            max_points.loc[chips_usage["triple_captain"]],
+            color="red",
+            label="_nolegend_",
+            zorder=5,
+        )
     axs.flat[2].set_title("Top Points & Triple Captain")
 
     axs.flat[3].plot(
-        bench_points.index,
-        bench_points.values,
+        bench_points.index, bench_points.values, color="grey", linestyle="--"
     )
-    axs.flat[3].scatter(
-        chips_usage["bench_boost"],
-        bench_points.loc[chips_usage["bench_boost"]],
-        color="red",
-        label="_nolegend_",
-        zorder=5,
-    )
-    axs.flat[3].text(
-        chips_usage["bench_boost"],
-        bench_points.loc[chips_usage["bench_boost"]],
-        chips_usage["bench_boost"],
-        color="red",
-        fontsize=10,
-        ha="center",
-        va="bottom",
-    )
+    if chips_usage["bench_boost"] in bench_points.index:
+        axs.flat[3].scatter(
+            chips_usage["bench_boost"],
+            bench_points.loc[chips_usage["bench_boost"]],
+            color="red",
+            label="_nolegend_",
+            zorder=5,
+        )
     axs.flat[3].set_title("Benched Points & Bench Boost")
     plt.tight_layout()
 
-    plt.savefig(f"data/optimization/chips_suggestions.png")
+    filename = "data/optimization/chips_suggestions.png"
+    plt.savefig(filename)
+    backup_latest_n(filename, n=5)
     return None
 
 

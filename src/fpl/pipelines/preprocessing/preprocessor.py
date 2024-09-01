@@ -144,8 +144,6 @@ def combine_data(
         ],
         axis=1,
     )
-    if parameters["debug_run"]:
-        combined_data = sample_players(combined_data)
     return combined_data
 
 
@@ -376,5 +374,3 @@ if __name__ == "__main__":
     player_name_mapping = pd.read_csv("data/preprocess/player_name_mapping.csv")
     with open("data/preprocess/fpl2fbref_team_mapping.yml", "r") as file:
         fpl_2_fbref_team_mapping = yaml.safe_load(file)
-
-    parameters = {"debug_run": False}

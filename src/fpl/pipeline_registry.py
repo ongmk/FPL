@@ -30,8 +30,9 @@ def register_pipelines() -> Dict[str, Pipeline]:
         + dnp_inference_evaluation_pipeline,
         "init_db_pipeline": init_db_pipeline,
         "backtest_optimization_pipeline": backtest_pipeline,
-        "live_prediction_pipeline": scraping_pipeline
-        + preprocessing_pipeline
-        + inference_evaluation_pipeline,
         "live_optimization_pipeline": live_optimization_pipeline,
+        "live_complete_pipeline": scraping_pipeline
+        + preprocessing_pipeline
+        + inference_evaluation_pipeline
+        + live_optimization_pipeline,
     }

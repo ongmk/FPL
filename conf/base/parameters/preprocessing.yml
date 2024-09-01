@@ -4,6 +4,5 @@ preprocessing:
   train_start_year: 2017-2018
   holdout_year: 2023-2024
   ma_lag: 5
-  debug_run: False
   use_cache: True
   n_cores: 12

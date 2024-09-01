@@ -38,6 +38,7 @@ def crawl_team_match_logs(parameters: dict[str, Any]):
                 and date = '{date}'
                 and team = '{home}'
                 and opponent = '{away}'
+                and result is not null
             """,
             conn,
         )

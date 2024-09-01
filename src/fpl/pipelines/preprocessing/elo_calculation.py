@@ -235,6 +235,7 @@ def calculate_elo_score(
     team_match_log: pd.DataFrame,
     fpl_data: pd.DataFrame,
     read_elo_data: pd.DataFrame,
+    read_processed_data: pd.DataFrame,
     parameters: dict[str, Any],
 ) -> pd.DataFrame:
     home_away_weight = parameters["home_away_weight"]
@@ -244,7 +245,7 @@ def calculate_elo_score(
     )
 
     team_match_log, elo_df = data_preparation(
-        team_match_log, fpl_data, read_elo_data, parameters
+        team_match_log, fpl_data, read_elo_data, read_processed_data, parameters
     )
     assert (
         team_match_log.groupby(["season", "team", "date", "opponent"]).size().max() == 1
@@ -374,7 +375,9 @@ def calculate_elo_score(
     return elo_df
 
 
-def data_preparation(team_match_log, fpl_data, read_elo_data, parameters):
+def data_preparation(
+    team_match_log, fpl_data, read_elo_data, read_processed_data, parameters
+):
     team_match_log = pd.merge(
         fpl_data[
             ["season", "round", "venue", "team", "date", "opponent"]
@@ -396,8 +399,9 @@ def data_preparation(team_match_log, fpl_data, read_elo_data, parameters):
     ]
 
     if parameters["use_cache"]:
+        cached_data = read_processed_data.loc[read_processed_data["cached"] == True]
+        cached_date = cached_data["date"].max()
         elo_df = read_elo_data
-        cached_date = elo_df["date"].max()
         team_match_log = team_match_log[team_match_log["date"] > cached_date]
     else:
         elo_df = get_init_elo(team_match_log)

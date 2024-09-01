@@ -126,7 +126,9 @@ def drop_future_data(processed_data, numerical_features, backtest_season, start_
         .copy()
     )
 
-    all_cols = [col for col in numerical_features if col not in ("round", "value")]
+    all_cols = [col for col in numerical_features if col not in ("round", "value")] + [
+        "cached"
+    ]
     ma_cols = [col for col in all_cols if "_ma" in col]
     snapshot_data.loc[
         past_five_matches_not_within_one_year & previous_rounds, ma_cols
@@ -179,7 +181,7 @@ def get_snapshot_data(
     elo_data = elo_data.loc[elo_data["date"] < snapshot_data["date"].min()]
     data_params["use_cache"] = True
     elo_data = calculate_elo_score(
-        snapshot_team_match_log, snapshot_fpl_data, elo_data, data_params
+        snapshot_team_match_log, snapshot_fpl_data, elo_data, snapshot_data, data_params
     )
     snapshot_data = merge_with_elo_data(snapshot_data, elo_data)
     snapshot_data = agg_home_away_elo(snapshot_data)

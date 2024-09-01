@@ -24,82 +24,78 @@ KNN_FEATURES = [
 def impute_with_knn(
     missing_data: pd.DataFrame,
     existing_data: pd.DataFrame,
-    col: str,
+    columns: list[str],
     column_type: Literal["categorical", "numerical"],
 ):
-    if len(missing_data) > 0 and len(existing_data) > 0:
-        model = (
-            KNeighborsClassifier
-            if column_type == "categorical"
-            else KNeighborsRegressor
-        )
-        predictor = model(n_neighbors=min(5, len(existing_data)))
+    if len(existing_data) == 0:
+        return missing_data
+    model = (
+        KNeighborsClassifier if column_type == "categorical" else KNeighborsRegressor
+    )
+    predictor = model(n_neighbors=min(5, len(existing_data)))
 
-        predictor.fit(
-            existing_data[KNN_FEATURES],
-            existing_data[col],
-        )
-        return predictor.predict(missing_data[KNN_FEATURES])
-    else:
-        return None
+    predictor.fit(
+        existing_data[KNN_FEATURES],
+        existing_data[columns],
+    )
+    imputed_values = predictor.predict(missing_data[KNN_FEATURES])
+    imputed_values = pd.DataFrame(
+        imputed_values, columns=columns, index=missing_data.index
+    )
+    missing_data.loc[:, columns] = missing_data.loc[:, columns].fillna(imputed_values)
+    return missing_data
 
 
 def impute_columns(
     data: pd.DataFrame,
-    season_round_pos_filter: _LocIndexer,
+    season_pos_round_mask: _LocIndexer,
     columns: list[str],
     column_type: Literal["categorical", "numerical"],
     season: int,
     pos: str,
     _round: int,
 ):
-    for col in columns:
-        missing = data[col].isnull()
-        if (season_round_pos_filter & missing).sum() == 0:
-            continue
-        data.loc[season_round_pos_filter & missing, col] = impute_with_knn(
-            data.loc[season_round_pos_filter & missing],
-            data.loc[season_round_pos_filter & ~missing],
-            col,
-            column_type,
-        )
-        if (season_round_pos_filter & missing).sum() == 0:
-            logger.info(
-                f"Imputed {col} for {season} {pos} {_round} with same SEASON ROUND POS"
-            )
-            continue
+    missing = data[columns].isna().any(axis=1)
+    data.loc[season_pos_round_mask & missing] = impute_with_knn(
+        data.loc[season_pos_round_mask & missing],
+        data.loc[season_pos_round_mask & ~missing],
+        columns,
+        column_type,
+    )
+    missing = data[columns].isna().any(axis=1)
+    if (season_pos_round_mask & missing).sum() == 0:
+        logger.info(f"Imputed {season} {pos} {_round} with same SEASON ROUND POS")
+        return data
 
-        other_rounds_filter = (data["season"] == season) & (data["round"] != _round)
-        missing = data[col].isnull()
-        data.loc[season_round_pos_filter & missing, col] = impute_with_knn(
-            data.loc[season_round_pos_filter & missing],
-            data.loc[other_rounds_filter & ~missing],
-            col,
-            column_type,
+    other_rounds_filter = (data["season"] == season) & (data["round"] != _round)
+    data.loc[season_pos_round_mask & missing] = impute_with_knn(
+        data.loc[season_pos_round_mask & missing],
+        data.loc[other_rounds_filter & ~missing],
+        columns,
+        column_type,
+    )
+    missing = data[columns].isna().any(axis=1)
+    if (season_pos_round_mask & missing).sum() == 0:
+        logger.info(
+            f"Imputed {season} {pos} {_round} with same SEASON POS different ROUND"
         )
-        if (season_round_pos_filter & missing).sum() == 0:
-            logger.info(
-                f"Imputed {col} for {season} {pos} {_round} with same SEASON POS different ROUND"
-            )
-            continue
+        return data
 
-        other_seasons_filter = (data["season"] != season) & (data["pos"] == pos)
-        missing = data[col].isnull()
-        data.loc[season_round_pos_filter & missing, col] = impute_with_knn(
-            data.loc[season_round_pos_filter & missing],
-            data.loc[other_seasons_filter & ~missing],
-            col,
-            column_type,
-        )
-        if (season_round_pos_filter & missing).sum() == 0:
-            logger.info(
-                f"Imputed {col} for {season} {pos} {_round} with same POS different SEASON"
-            )
-            continue
-        else:
-            logger.warn(f"Could not impute {col} for {season} {pos} {_round}")
+    other_seasons_filter = (data["season"] != season) & (data["pos"] == pos)
+    data.loc[season_pos_round_mask & missing] = impute_with_knn(
+        data.loc[season_pos_round_mask & missing],
+        data.loc[other_seasons_filter & ~missing],
+        columns,
+        column_type,
+    )
+    missing = data[columns].isna().any(axis=1)
+    if (season_pos_round_mask & missing).sum() == 0:
+        logger.info(f"Imputed {season} {pos} {_round} with same POS different SEASON")
+        return data
 
-    return data.loc[season_round_pos_filter]
+    na_cols = data[columns].isna().any()
+    logger.warn(f"Could not impute {na_cols} for {season} {pos} {_round}")
+    return data
 
 
 GK_ONLY_COLS = [
@@ -125,96 +121,91 @@ OUTFIELD_ONLY_COLS = [
 ]
 
 
+def find_missing(data, columns):
+    contains_na = data.groupby(["season", "round", "pos"], group_keys=True)[
+        columns
+    ].apply(lambda x: x.isna().any())
+    contains_na = contains_na[contains_na.any(axis=1)]
+    contains_na = contains_na.loc[contains_na.any(axis=1)]
+    contains_na["missing_cols"] = contains_na.apply(
+        lambda x: [col for col in x.index if x[col] == True], axis=1
+    )
+    contains_na = contains_na.drop(columns=columns)
+    return contains_na
+
+
 def parallel_impute_handler(
     data: pd.DataFrame,
+    missing_data: pd.DataFrame,
     n_cores: int,
-    categorical_columns: list[str],
-    numerical_columns: list[str],
 ) -> pd.DataFrame:
-    data = data.copy()
-
     with mp.Pool(n_cores) as pool:
-        for season in data["season"].dropna().unique():
-            season_filter = data["season"] == season
-            total = len(
-                data.loc[season_filter]
-                .groupby(["season", "round", "pos"])
-                .size()
-                .reset_index()
-            )
-            inputs = []
-            for _round in data.loc[season_filter, "round"].dropna().unique():
-                season_round_filter = season_filter & (data["round"] == _round)
-                for pos in data.loc[season_round_filter, "pos"].dropna().unique():
-                    season_round_pos_filter = season_round_filter & (data["pos"] == pos)
-                    inputs.append(
-                        (
-                            data,
-                            season_round_pos_filter,
-                            categorical_columns,
-                            "categorical",
-                            season,
-                            pos,
-                            _round,
-                        )
-                    )
-                    inputs.append(
-                        (
-                            data,
-                            season_round_pos_filter,
-                            numerical_columns,
-                            "numerical",
-                            season,
-                            pos,
-                            _round,
-                        )
-                    )
+        for season, season_df in missing_data.groupby("season"):
+            inputs = [
+                (
+                    data[(KNN_FEATURES + missing_cols + ["season", "round", "pos"])],
+                    (
+                        (data["season"] == season)
+                        & (data["pos"] == pos)
+                        & (data["round"] == _round)
+                    ),
+                    missing_cols,
+                    col_type,
+                    season,
+                    pos,
+                    _round,
+                )
+                for pos, _round, col_type, missing_cols in zip(
+                    season_df["pos"],
+                    season_df["round"],
+                    season_df["level_0"],
+                    season_df["missing_cols"],
+                )
+            ]
             values = pool.starmap(
                 impute_columns,
-                tqdm(inputs, total=total * 2, desc=f"Imputing {season}"),
+                tqdm(inputs, desc=f"Imputing {season}", total=len(inputs)),
                 chunksize=1,
             )
-            for f, v in tqdm(
-                zip([i[1] for i in inputs], values),
-                total=total * 2,
-                desc=f"Mapping {season}",
+            for mask, val in zip(
+                [i[1] for i in inputs],
+                values,
             ):
-                data.loc[f] = v
+                data.loc[mask, val.columns] = val
     return data
 
 
 def sequential_impute_handler(
     data: pd.DataFrame,
+    missing_data: pd.DataFrame,
     n_cores: int,
-    categorical_columns: list[str],
-    numerical_columns: list[str],
 ) -> pd.DataFrame:
-    data = data.copy()
-
-    for season in data["season"].dropna().unique()[-1:]:
-        season_filter = data["season"] == season
-        for _round in data.loc[season_filter, "round"].dropna().unique()[:10]:
-            season_round_filter = season_filter & (data["round"] == _round)
-            for pos in data.loc[season_round_filter, "pos"].dropna().unique():
-                season_round_pos_filter = season_round_filter & (data["pos"] == pos)
-                impute_columns(
-                    data,
-                    season_round_pos_filter,
-                    categorical_columns,
-                    "categorical",
-                    season,
-                    pos,
-                    _round,
-                )
-                impute_columns(
-                    data,
-                    season_round_pos_filter,
-                    numerical_columns,
-                    "numerical",
-                    season,
-                    pos,
-                    _round,
-                )
+    for season, season_df in missing_data.groupby("season"):
+        for pos, _round, col_type, missing_cols in tqdm(
+            zip(
+                season_df["pos"],
+                season_df["round"],
+                season_df["level_0"],
+                season_df["missing_cols"],
+            ),
+            desc=f"Imputing {season}",
+            total=len(season_df),
+        ):
+            season_pos_round_mask = (
+                (data["season"] == season)
+                & (data["pos"] == pos)
+                & (data["round"] == _round)
+            )
+            relevant_cols = ["season", "round", "pos"] + KNN_FEATURES + missing_cols
+            data[relevant_cols] = impute_columns(
+                data[relevant_cols],
+                season_pos_round_mask,
+                missing_cols,
+                col_type,
+                season,
+                pos,
+                _round,
+            )
     return data
 
 
@@ -223,9 +214,13 @@ def impute_missing_values(
 ) -> pd.DataFrame:
     n_cores = data_params["n_cores"]
     ma_lag = data_params["ma_lag"]
-    categorical_features = model_params["categorical_features"]
-    numerical_features = model_params["numerical_features"]
-    excluded = KNN_FEATURES + ["pos"]
+    excluded = KNN_FEATURES + ["pos", "round"]
+    categorical_columns = [
+        c for c in model_params["categorical_features"] if c not in excluded
+    ]
+    numerical_columns = [
+        n for n in model_params["numerical_features"] if n not in excluded
+    ]
 
     data = data.sort_values(["date", "fpl_name"])
     data[KNN_FEATURES] = data.groupby("fpl_name")[KNN_FEATURES].fillna(method="ffill")
@@ -240,12 +235,19 @@ def impute_missing_values(
     data.loc[data["pos"] != "GK", gk_only_plus_ma_cols] = data.loc[
         data["pos"] != "GK", gk_only_plus_ma_cols
     ].fillna(-1)
-
+    missing_categorical = find_missing(data, categorical_columns)
+    missing_numerical = find_missing(data, numerical_columns)
+    missing_data = (
+        pd.concat(
+            [missing_categorical, missing_numerical], keys=["categorical", "numerical"]
+        )
+        .reset_index()
+        .sort_values(["season", "round", "pos"])
+    )
     data = parallel_impute_handler(
         data,
+        missing_data,
         n_cores=n_cores,
-        categorical_columns=[c for c in categorical_features if c not in excluded],
-        numerical_columns=[n for n in numerical_features if n not in excluded],
     )
     return data
 

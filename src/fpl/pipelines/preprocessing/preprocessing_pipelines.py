@@ -44,6 +44,7 @@ preprocessing_pipeline = Pipeline(
         #         "aligned_team_match_log",
         #         "aligned_fpl_data",
         #         "READ_ELO_DATA",
+        #         "READ_PROCESSED_DATA",
         #         "params:preprocessing",
         #     ],
         #     outputs="ELO_DATA",
@@ -68,26 +69,26 @@ preprocessing_pipeline = Pipeline(
         #     ],
         #     outputs="INTERMEDIATE_DATA",
         # ),
-        # node(
-        #     func=impute_missing_values,
-        #     inputs=[
-        #         "INTERMEDIATE_DATA",
-        #         "params:preprocessing",
-        #         "params:points_prediction",
-        #     ],
-        #     outputs="PROCESSED_DATA",
-        # ),
-        # node(
-        #     func=split_data,
-        #     inputs=[
-        #         "PROCESSED_DATA",
-        #         "params:preprocessing",
-        #         "params:points_prediction",
-        #     ],
-        #     outputs=[
-        #         "TRAIN_VAL_DATA",
-        #         "HOLDOUT_DATA",
-        #     ],
-        # ),
+        node(
+            func=impute_missing_values,
+            inputs=[
+                "INTERMEDIATE_DATA",
+                "params:preprocessing",
+                "params:points_prediction",
+            ],
+            outputs="PROCESSED_DATA",
+        ),
+        node(
+            func=split_data,
+            inputs=[
+                "PROCESSED_DATA",
+                "params:preprocessing",
+                "params:points_prediction",
+            ],
+            outputs=[
+                "TRAIN_VAL_DATA",
+                "HOLDOUT_DATA",
+            ],
+        ),
     ]
 )

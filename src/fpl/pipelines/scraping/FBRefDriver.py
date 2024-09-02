@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timedelta
 
 import pandas as pd
 
@@ -58,7 +59,16 @@ class FBRefDriver(BaseDriver):
         logger.info(f"Getting all fixtures:\t{url}")
         self.get(url)
         fixtures_df = self.get_table_df_by_id(f"sched_{current_season}_9_1")
-        completed = fixtures_df.loc[~fixtures_df["Score"].isna()]
+        fixtures_df["local_datetime"] = (
+            pd.to_datetime(fixtures_df["Date"] + " " + fixtures_df["Time"])
+            .dt.tz_localize("Europe/London")
+            .dt.tz_convert("Asia/Hong_Kong")
+            .dt.tz_localize(None)
+        )
+        completed = fixtures_df.loc[
+            fixtures_df["local_datetime"] + timedelta(hours=2)
+            < datetime.now() - timedelta(hours=1)
+        ]
         if len(completed) == 0:
             return None, None, None
         most_recent_game = completed.sort_values(

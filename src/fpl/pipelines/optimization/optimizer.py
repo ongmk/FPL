@@ -9,14 +9,10 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+from thefuzz import process
 
 from fpl.pipelines.optimization.chips_suggestion import get_chips_suggestions
-from fpl.pipelines.optimization.data_classes import (
-    TYPE_DATA,
-    LpData,
-    LpVariables,
-    VariableSums,
-)
+from fpl.pipelines.optimization.data_classes import LpData, LpVariables, VariableSums
 from fpl.pipelines.optimization.fpl_api import get_fpl_base_data, get_fpl_team_data
 from fpl.utils import backup_latest_n
 
@@ -186,6 +182,45 @@ def combine_inference_results(
     return merged_data
 
 
+def fuzzy_match_elements(input_name, merged_data):
+    webname, _ = process.extractOne(input_name, merged_data["web_name"].tolist())
+    return merged_data.index[merged_data["web_name"] == webname].values[0]
+
+
+def get_forced_transfers(merged_data, parameters):
+    parameters = parameters["force_transfers"]
+
+    in_elements = []
+    if parameters["buy"] is not None:
+        for input_name, buy_price in parameters["buy"].items():
+            element = fuzzy_match_elements(input_name, merged_data)
+            in_elements.append(element)
+            if buy_price is not None:
+                merged_data.loc[element, "bought_price"] = buy_price
+
+    out_elements = []
+    if parameters["sell"] is not None:
+        for input_name, sell_price in parameters["sell"].items():
+            element = fuzzy_match_elements(input_name, merged_data)
+            out_elements.append(element)
+            if sell_price is not None:
+                merged_data.loc[element, "bought_price"] = sell_price
+
+    keep_elements = []
+    if parameters["keep"] is not None:
+        for input_name in parameters["keep"]:
+            element = fuzzy_match_elements(input_name, merged_data)
+            keep_elements.append(element)
+
+    forced_transfers = {
+        "in": in_elements,
+        "out": out_elements,
+        "keep": keep_elements,
+    }
+
+    return forced_transfers, merged_data
+
+
 def get_live_data(
     inference_results: pd.DataFrame,
     dnp_inference_results: pd.DataFrame,
@@ -222,7 +257,7 @@ def get_live_data(
     if current_gw > 1:
         assert (
             inference_results.loc[
-                (inference_results["round"] == current_gw - 1), "fpl_points"
+                (inference_results["round"] == current_gw), "fpl_points"
             ]
             .isna()
             .sum()
@@ -237,14 +272,6 @@ def get_live_data(
         gameweeks[0],
     )
 
-    chips_usage = get_chips_suggestions(
-        inference_results,
-        initial_squad,
-        history_data["chips"],
-        gameweeks[0],
-        parameters,
-    )
-
     merged_data = prepare_data(
         inference_results,
         elements_data,
@@ -252,6 +279,16 @@ def get_live_data(
         gameweeks,
         transfer_data,
         initial_squad,
+    )
+
+    forced_transfers, merged_data = get_forced_transfers(merged_data, parameters)
+
+    chips_usage = get_chips_suggestions(
+        inference_results,
+        initial_squad,
+        history_data["chips"],
+        gameweeks[0],
+        parameters,
     )
 
     logger.info(f"Team: {general_data['name']}.")
@@ -271,6 +308,7 @@ def get_live_data(
         free_transfers=free_transfers,
         current_season=current_season,
         chips_usage=chips_usage,
+        forced_transfers=forced_transfers,
     )
 
 

@@ -15,12 +15,15 @@ optimization:
   unavailable_players:
     Salah: [21, 22, 23, 24]
 
-  buy_player:
-    - Bernardo
-  sell_player:
-    - Salah
-  lock_player:
-    - Bernardo
+  # Check prices at https://fantasy.premierleague.com/api/entry/1792016/transfers-latest/
+  force_transfers:
+    buy:
+      Ederson: 55
+      Bernardo: 66
+    sell:
+      Jose Sa: 45
+      Foden: 94
+    keep:
 
   horizon: 4
   transfer_horizon: 2

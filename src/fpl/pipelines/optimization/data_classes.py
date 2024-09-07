@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, Union
 
 import pandas as pd
 from pulp import LpVariable, lpSum
@@ -92,6 +92,7 @@ class LpData(BaseModel):
     free_transfers: int
     current_season: str
     chips_usage: dict[str, Optional[int]]
+    forced_transfers: dict[str, list[int]]
 
     class Config:
         arbitrary_types_allowed = True

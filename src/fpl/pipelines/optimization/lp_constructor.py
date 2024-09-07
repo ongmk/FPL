@@ -1,7 +1,5 @@
 import itertools
 import statistics
-from datetime import datetime
-from pathlib import Path
 from typing import Any
 
 from pulp import (
@@ -14,7 +12,6 @@ from pulp import (
     lpSum,
 )
 
-from fpl.pipelines.optimization.chips_suggestion import get_chips_suggestions
 from fpl.pipelines.optimization.constraints import (
     ChipConstraints,
     SquadConstraints,

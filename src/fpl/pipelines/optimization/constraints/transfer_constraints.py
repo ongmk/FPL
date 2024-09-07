@@ -120,17 +120,6 @@ class TransferConstraints(BaseConstraints):
             "initial_free_transfers",
         )
 
-        model += (
-            lpSum(
-                lp_variables.transfer_in[p, w] + lp_variables.transfer_out[p, w]
-                for p in lp_keys.players
-                for w in lp_data.gameweeks
-                if w not in lp_params.transfer_gws
-            )
-            == 0,
-            f"no_transfer",
-        )
-
     def player_level(
         player: int,
         lp_data: LpData,
@@ -149,6 +138,25 @@ class TransferConstraints(BaseConstraints):
                 )
                 <= 1,
                 f"multi_sell_3_{player}",
+            )
+        if player in lp_data.forced_transfers["in"]:
+            model += (
+                lp_variables.transfer_in[player, lp_params.next_gw] == 1,
+                f"forced_buy_{player}",
+            )
+        if player in lp_data.forced_transfers["out"]:
+            model += (
+                lp_variables.transfer_out[player, lp_params.next_gw] == 1,
+                f"forced_sell_{player}",
+            )
+        if player in lp_data.forced_transfers["keep"]:
+            model += (
+                lpSum(
+                    lp_variables.transfer_out_first[player, w]
+                    for w in lp_params.transfer_gws
+                )
+                == 0,
+                f"forced_keep_{player}",
             )
 
     def gameweek_level(
@@ -206,6 +214,16 @@ class TransferConstraints(BaseConstraints):
         lp_variables: LpVariables,
         variable_sums: VariableSums,
     ) -> None:
+        if gameweek not in lp_params.transfer_gws:
+            model += (
+                lpSum(
+                    lp_variables.transfer_in[player, gameweek]
+                    + lp_variables.transfer_out[player, gameweek]
+                )
+                == 0,
+                f"no_transfer_{player}_{gameweek}",
+            )
+
         model += (
             lp_variables.squad[player, gameweek]
             == lp_variables.squad[player, gameweek - 1]

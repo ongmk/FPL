@@ -32,8 +32,8 @@ def fuzzy_match_player_names(
     matched_df["fpl_name"] = (
         matched_df["fbref_name"]
         .progress_apply(
-            lambda fbref_name: process.extract(
-                fbref_name, fpl_data["fpl_name"].tolist(), limit=1
+            lambda fbref_name: process.extractOne(
+                fbref_name, fpl_data["fpl_name"].tolist()
             )
         )
         .explode()

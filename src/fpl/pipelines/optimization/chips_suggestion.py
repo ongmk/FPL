@@ -64,11 +64,12 @@ def get_excluded_weeks(chips_usage, gap):
     return excluded
 
 
-def get_candidate_weeks(chips_usage, start, end, expanded):
+def get_candidate_weeks(chips_usage, start, end, expanded, skip_first_week):
     gap = 3 if expanded else 0
     candidate_weeks = []
     while gap >= 0:
         excluded = get_excluded_weeks(chips_usage, gap=gap)
+        excluded.add(start) if skip_first_week else None
         candidate_weeks = [w for w in range(start, end + 1) if w not in excluded]
         if len(candidate_weeks) > 0:
             return candidate_weeks
@@ -77,7 +78,13 @@ def get_candidate_weeks(chips_usage, start, end, expanded):
 
 
 def suggest_wildcard_weeks(
-    inference_results, squad, column, horizon, current_week, chips_usage
+    inference_results,
+    squad,
+    column,
+    horizon,
+    current_week,
+    chips_usage,
+    skip_first_week,
 ):
     wc1_deadline = 19
     start_week = max(horizon, current_week)
@@ -88,7 +95,11 @@ def suggest_wildcard_weeks(
     if current_week <= wc1_deadline:
         if chips_usage["wildcard1"] is None:
             candidate_weeks = get_candidate_weeks(
-                chips_usage, start_week, wc1_deadline, expanded=True
+                chips_usage,
+                start_week,
+                wc1_deadline,
+                expanded=True,
+                skip_first_week=skip_first_week,
             )
             chips_usage["wildcard1"] = squad_fixture_swings.loc[
                 candidate_weeks
@@ -96,7 +107,11 @@ def suggest_wildcard_weeks(
             logger.info(f"Suggested Wildcard 1 week: {chips_usage['wildcard1']}")
         if chips_usage["wildcard2"] is None:
             candidate_weeks = get_candidate_weeks(
-                chips_usage, wc1_deadline + 1, end_week, expanded=True
+                chips_usage,
+                wc1_deadline + 1,
+                end_week,
+                expanded=True,
+                skip_first_week=skip_first_week,
             )
             chips_usage["wildcard2"] = other_fixture_swings.loc[
                 candidate_weeks
@@ -111,7 +126,11 @@ def suggest_wildcard_weeks(
     else:
         if chips_usage["wildcard2"] is None:
             candidate_weeks = get_candidate_weeks(
-                chips_usage, max(wc1_deadline + 1, start_week), end_week, expanded=True
+                chips_usage,
+                max(wc1_deadline + 1, start_week),
+                end_week,
+                expanded=True,
+                skip_first_week=skip_first_week,
             )
             chips_usage["wildcard2"] = squad_fixture_swings.loc[
                 candidate_weeks
@@ -126,7 +145,13 @@ def suggest_wildcard_weeks(
 
 
 def suggest_free_hit_week(
-    inference_results, squad, column, horizon, current_week, chips_usage
+    inference_results,
+    squad,
+    column,
+    horizon,
+    current_week,
+    chips_usage,
+    skip_first_week,
 ):
     inference_results["prev_n_gw_sum"] = inference_results.groupby("fpl_name")[
         column
@@ -147,7 +172,11 @@ def suggest_free_hit_week(
     fixture_spikes = fixture_spikes.loc[start_week:end_week]
     if chips_usage["free_hit"] is None:
         candidate_weeks = get_candidate_weeks(
-            chips_usage, start_week, end_week, expanded=True
+            chips_usage,
+            start_week,
+            end_week,
+            expanded=True,
+            skip_first_week=skip_first_week,
         )
         chips_usage["free_hit"] = fixture_spikes.loc[candidate_weeks].idxmax()
         logger.info(f"Suggested Free Hit week: {chips_usage['free_hit']}")
@@ -166,7 +195,7 @@ def suggest_triple_captain_week(
 
     if chips_usage["triple_captain"] is None:
         candidate_weeks = get_candidate_weeks(
-            chips_usage, current_week, 38, expanded=False
+            chips_usage, current_week, 38, expanded=False, skip_first_week=False
         )
         chips_usage["triple_captain"] = max_points.loc[candidate_weeks].idxmax()
         logger.info(f"Suggested Triple Captain week: {chips_usage['triple_captain']}")
@@ -196,10 +225,10 @@ def suggest_bench_boost_week(
 
     if chips_usage["bench_boost"] is None:
         if all(bench_points <= 1):
-            logger.info("Suggested Bench Boost week: None - Bench points too low.")
+            logger.info("Suggested Bench Boost week: None - Bench points are too low.")
         else:
             candidate_weeks = get_candidate_weeks(
-                chips_usage, current_week, 38, expanded=False
+                chips_usage, current_week, 38, expanded=False, skip_first_week=False
             )
             chips_usage["bench_boost"] = bench_points.loc[candidate_weeks].idxmax()
             logger.info(f"Suggested Bench Boost week: {chips_usage['bench_boost']}")
@@ -305,6 +334,7 @@ def get_chips_suggestions(
         "triple_captain": parameters.get("triple_captain_week"),
         "bench_boost": parameters.get("bench_boost_week"),
     }
+    skip_first_week = any(v is not None for v in parameters["force_transfers"].values())
     for chip in chips_history:
         if chip["name"] == "wildcard":
             if chip["event"] <= 19:
@@ -321,6 +351,7 @@ def get_chips_suggestions(
         horizon=3,
         current_week=current_week,
         chips_usage=chips_usage,
+        skip_first_week=skip_first_week,
     )
     fixture_spikes = suggest_free_hit_week(
         inference_results,
@@ -329,6 +360,7 @@ def get_chips_suggestions(
         horizon=3,
         current_week=current_week,
         chips_usage=chips_usage,
+        skip_first_week=skip_first_week,
     )
     max_points = suggest_triple_captain_week(
         inference_results,

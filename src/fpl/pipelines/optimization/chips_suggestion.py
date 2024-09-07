@@ -196,7 +196,7 @@ def suggest_bench_boost_week(
 
     if chips_usage["bench_boost"] is None:
         if all(bench_points <= 1):
-            logger.info("Benched points are too low for Bench Boost")
+            logger.info("Suggested Bench Boost week: None - Bench points too low.")
         else:
             candidate_weeks = get_candidate_weeks(
                 chips_usage, current_week, 38, expanded=False

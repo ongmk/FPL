@@ -373,7 +373,8 @@ def generate_outputs(
         if gw_results.total_actual_points is not None:
             actual_points_available = True
             total_actual_points += gw_results.total_actual_points
-        previous_squad = gw_results.lineup + list(gw_results.bench.values())
+        if gw_results.chip_used != "freehit":
+            previous_squad = gw_results.lineup + list(gw_results.bench.values())
 
     summary.append(
         f"{len(lp_data.gameweeks):>2} weeks total predicted points = {total_predicted_points:.2f}"

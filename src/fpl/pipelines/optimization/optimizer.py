@@ -151,12 +151,9 @@ def combine_inference_results(
     elements_data,
     inference_results,
     dnp_inference_results,
-    current_season,
     current_gameweek,
 ):
-    dnp_inference_results = process_dnp_data(
-        dnp_inference_results, current_season, current_gameweek
-    )
+    dnp_inference_results = process_dnp_data(dnp_inference_results, current_gameweek)
     merged_data = pd.merge(
         elements_data,
         dnp_inference_results,
@@ -182,6 +179,9 @@ def combine_inference_results(
         merged_data["prediction"].fillna(0)
         * merged_data["chance_of_playing_next_round"]
     )
+    new_players = merged_data.loc[merged_data["round"].isna(), "web_name"].tolist()
+    merged_data = merged_data.dropna(subset=["round"])
+    logger.info(f"{new_players} are dropped from optimization as they are new players.")
     merged_data["round"] = merged_data["round"].astype(int)
     return merged_data
 
@@ -212,11 +212,28 @@ def get_live_data(
         transfer_data, history_data["chips"], current_gw
     )
 
+    inference_results = inference_results.loc[
+        inference_results["season"] == current_season
+    ]
+    dnp_inference_results = dnp_inference_results.loc[
+        dnp_inference_results["season"] == current_season
+    ]
+
+    if current_gw > 1:
+        assert (
+            inference_results.loc[
+                (inference_results["round"] == current_gw - 1), "fpl_points"
+            ]
+            .isna()
+            .sum()
+            == 0,
+            "Missing data for previous gameweek.",
+        )
+
     inference_results = combine_inference_results(
         elements_data,
         inference_results,
         dnp_inference_results,
-        current_season,
         gameweeks[0],
     )
 
@@ -257,12 +274,8 @@ def get_live_data(
     )
 
 
-def process_dnp_data(
-    data: pd.DataFrame, current_season: str, current_round: int
-) -> pd.DataFrame:
-    data = data.loc[
-        (data["season"] == current_season) & (data["round"] <= current_round),
-    ]
+def process_dnp_data(data: pd.DataFrame, current_round: int) -> pd.DataFrame:
+    data = data.loc[(data["round"] <= current_round)]
     data = data.loc[
         data["round"] == data["round"].max(),
         [

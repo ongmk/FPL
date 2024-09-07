@@ -315,7 +315,7 @@ def get_sell_price(row):
 def calculate_buy_sell_price(merged_data, transfer_data, initial_squad, elements_data):
     initial_costs = (
         elements_data.loc[initial_squad, "now_cost"]
-        + elements_data.loc[initial_squad, "now_cost"]
+        - elements_data.loc[initial_squad, "cost_change_start"]
     )
     merged_data["sell_price"] = merged_data["now_cost"]
     merged_data["bought_price"] = np.nan

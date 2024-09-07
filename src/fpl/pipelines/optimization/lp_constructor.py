@@ -1,4 +1,5 @@
 import itertools
+import statistics
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -46,6 +47,13 @@ def prepare_lp_params(lp_data: LpData, parameters: dict[str, Any]) -> LpParams:
         lp_data.chips_usage["triple_captain"], transfer_gws
     )
     bench_boost_week = in_scope_week(lp_data.chips_usage["bench_boost"], transfer_gws)
+    b_range = parameters["bench_weight_range"]
+    bench_weights = {
+        0: round(statistics.mean(b_range.values()), 2),
+        1: b_range["max"],
+        2: round(statistics.mean(b_range.values()), 2),
+        3: b_range["min"],
+    }
 
     return LpParams(
         next_gw=next_gw,
@@ -60,7 +68,7 @@ def prepare_lp_params(lp_data: LpData, parameters: dict[str, Any]) -> LpParams:
         decay=parameters["decay"],
         free_transfer_bonus=parameters["free_transfer_bonus"],
         in_the_bank_bonus=parameters["in_the_bank_bonus"],
-        bench_weights=parameters["bench_weights"],
+        bench_weights=bench_weights,
     )
 
 
@@ -241,7 +249,7 @@ def sum_lp_variables(
     }
     transfer_diff = {
         w: number_of_transfers[w]
-        - lp_variables.free_transfers[w]
+        - lp_variables.free_transfers[w - 1]
         - 15 * lp_variables.use_wildcard[w]
         for w in lp_data.gameweeks
     }

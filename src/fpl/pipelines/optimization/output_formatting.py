@@ -265,8 +265,9 @@ def get_transfer_summary(
 ):
     actual_points_available = gw_results.total_actual_points is not None
 
-    gw_in = pd.DataFrame([], columns=["", "In", "Points", "Pos"])
-    gw_out = pd.DataFrame([], columns=["Out", "Points", "Pos"])
+    points_col = "Actual Points" if actual_points_available else "Predicted Points"
+    gw_in = pd.DataFrame([], columns=["", "In", points_col, "Pos"])
+    gw_out = pd.DataFrame([], columns=["Out", points_col, "Pos"])
     net_cost = 0
     net_points = 0
 
@@ -314,7 +315,7 @@ def get_transfer_summary(
     transfer_summary = (
         f"Points Gain = {net_points:.2f}    Transfers made = {len(gw_results.transfer_data)}\n"
         f"Hits = {gw_results.hits}    Total Cost = {net_cost:.1f}\n"
-        f"Rem. Free Transfers = {gw_results.free_transfers}    Rem. In the bank = {gw_results.free_transfers}\n\n"
+        f"Rem. Free Transfers = {gw_results.free_transfers}    Rem. In the bank = {gw_results.in_the_bank}\n\n"
         f"{transfer_summary}\n"
     )
 

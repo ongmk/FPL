@@ -26,7 +26,7 @@ def build_run_config(param_dict: Dict, hyperopt_param: Dict, target_dict: dict):
     search_space = construct_search_space(param_dict, hyperopt_param)
 
     # Validation
-    max_trials = _validate_max_trials(max_trials, search_space)
+    _validate_max_trials(max_trials)
     _validate_strategy(strategy)
     _validate_target(target_name)
 
@@ -51,61 +51,9 @@ def build_run_config(param_dict: Dict, hyperopt_param: Dict, target_dict: dict):
     }
 
 
-def recursiveFindNodes(root, node_type="switch"):
-    nodes = []
-    if isinstance(root, (list, tuple)):
-        for node in root:
-            nodes.extend(recursiveFindNodes(node, node_type))
-    elif isinstance(root, dict):
-        for node in root.values():
-            nodes.extend(recursiveFindNodes(node, node_type))
-    elif isinstance(root, (Apply)):
-        if root.name == node_type:
-            nodes.append(root)
-
-        for node in root.pos_args:
-            if node.name == node_type:
-                nodes.append(node)
-        for _, node in root.named_args:
-            if node.name == node_type:
-                nodes.append(node)
-    return nodes
-
-
-def parameters(space):
-    # Analyze the domain instance to find parameters
-    parameters = {}
-    if isinstance(space, dict):
-        space = list(space.values())
-    for node in recursiveFindNodes(space, "switch"):
-
-        # Find the name of this parameter
-        paramNode = node.pos_args[0]
-        assert paramNode.name == "hyperopt_param"
-        paramName = paramNode.pos_args[0].obj
-
-        # Find all possible choices for this parameter
-        values = [literal.obj for literal in node.pos_args[1:]]
-        parameters[paramName] = np.array(range(len(values)))
-    return parameters
-
-
-def spacesize(space):
-    # Compute the number of possible combinations
-    params = parameters(space)
-    return np.prod([len(values) for values in params.values()])
-
-
-def _validate_max_trials(max_trials, space):
-    space_size = spacesize(space)
-    if max_trials > space_size:
-        logger.warn(
-            f"Max trials > possible combinations. Setting max trials to {space_size}"
-        )
-        return space_size
+def _validate_max_trials(max_trials):
     if max_trials is None or max_trials < 1 or not isinstance(max_trials, int):
         raise ValueError("Please provide a valid number for max_trials")
-    return max_trials
 
 
 def _validate_strategy(strategy):

@@ -135,7 +135,6 @@ def crawl_player_match_logs(parameters: dict[str, Any]):
 
                 match_log_df = d.get_player_match_log(s, player, pos, link)
 
-                logger.info(f"Saving Match Log:\t{s} {player}")
                 match_log_df.to_sql(
                     "raw_player_match_log", conn, if_exists="append", index=False
                 )

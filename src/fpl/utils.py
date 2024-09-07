@@ -59,9 +59,7 @@ def backup_latest_n(current_file, n=5):
     current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
     shutil.copy2(
         current_file,
-        (dir / f"{current_file.stem}_{current_time}.bak").with_suffix(
-            current_file.suffix
-        ),
+        str(dir / f"{current_file.stem}_{current_time}.bak") + current_file.suffix,
     )
 
     files_with_timestamps = sorted(

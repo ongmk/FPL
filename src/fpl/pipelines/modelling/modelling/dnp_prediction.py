@@ -55,8 +55,9 @@ def process_dnp_data(
     )
     player_round_mins_filled = []
     for _, season_data in tqdm(player_round_mins.groupby("season")):
+        all_rounds = season_data["round"].unique()
         for _, player_data in season_data.groupby("fpl_name"):
-            player_round_mins_filled.append(process_season(season_data, player_data))
+            player_round_mins_filled.append(process_season(player_data, all_rounds))
 
     player_round_mins_filled = pd.concat(player_round_mins_filled).rename(
         columns={"minutes": "mins_played"}
@@ -95,22 +96,24 @@ def process_dnp_data(
     return player_round_mins_filled
 
 
-def process_season(season_data, player_data):
-    season = season_data["season"].mode().values[0]
-    player = player_data["fpl_name"].mode().values[0]
-    pos = player_data["pos"].mode().values[0]
+def process_season(season_player_data, all_rounds):
+    season = season_player_data["season"].mode().values[0]
+    player = season_player_data["fpl_name"].mode().values[0]
+    pos = season_player_data["pos"].mode().values[0]
+    all_teams = season_player_data["team"].unique()
+
     player_team_rounds = pd.DataFrame(
         list(
             itertools.product(
                 [player],
-                player_data["team"].unique(),
-                season_data["round"].unique(),
+                all_teams,
+                all_rounds,
             )
         ),
         columns=["fpl_name", "team", "round"],
     )
     player_team_rounds = player_team_rounds.merge(
-        player_data, on=["fpl_name", "team", "round"], how="left"
+        season_player_data, on=["fpl_name", "team", "round"], how="left"
     )
     player_team_rounds["pos"] = pos
     player_team_rounds["season"] = player_team_rounds["season"].fillna(season)

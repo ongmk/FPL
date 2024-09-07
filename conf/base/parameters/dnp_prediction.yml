@@ -9,6 +9,7 @@ dnp_prediction:
   info_columns:
     - element
     - fpl_name
+    - mins_played
   categorical_features:
     - team
     - pos

@@ -195,11 +195,14 @@ def suggest_bench_boost_week(
     bench_points = bench_points.loc[current_week:]
 
     if chips_usage["bench_boost"] is None:
-        candidate_weeks = get_candidate_weeks(
-            chips_usage, current_week, 38, expanded=False
-        )
-        chips_usage["bench_boost"] = bench_points.loc[candidate_weeks].idxmax()
-        logger.info(f"Suggested Bench Boost week: {chips_usage['bench_boost']}")
+        if all(bench_points <= 1):
+            logger.info("Benched points are too low for Bench Boost")
+        else:
+            candidate_weeks = get_candidate_weeks(
+                chips_usage, current_week, 38, expanded=False
+            )
+            chips_usage["bench_boost"] = bench_points.loc[candidate_weeks].idxmax()
+            logger.info(f"Suggested Bench Boost week: {chips_usage['bench_boost']}")
     return bench_points
 
 

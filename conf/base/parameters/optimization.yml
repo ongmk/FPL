@@ -15,16 +15,21 @@ optimization:
   unavailable_players:
     Salah: [21, 22, 23, 24]
 
-  horizon: 3
+  buy_player:
+    - Bernardo
+  sell_player:
+    - Salah
+  lock_player:
+    - Bernardo
+
+  horizon: 4
   transfer_horizon: 2
   decay: 0.84
-  free_transfer_bonus: 1.5
+  free_transfer_bonus: 1
   in_the_bank_bonus: 0.08
-  bench_weights:
-    0: 0.03
-    1: 0.21
-    2: 0.06
-    3: 0.03
+  bench_weight_range:
+    min: 0.05
+    max: 0.2
 
   backtest_players:
     Me: 1792016

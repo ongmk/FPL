@@ -6,10 +6,6 @@ import numpy as np
 import pandas as pd
 from sklearn.pipeline import Pipeline
 
-from fpl.pipelines.modelling.modelling.dnp_prediction import (
-    evaluate_dnp_model_holdout,
-    process_dnp_data,
-)
 from fpl.pipelines.modelling.modelling.ensemble import EnsembleModel
 from fpl.pipelines.modelling.modelling.evaluation import evaluate_model_holdout
 from fpl.pipelines.optimization.chips_suggestion import get_chips_suggestions
@@ -51,6 +47,7 @@ def fpl_data_to_elements_data(fpl_data):
         }
     )
     elements_data["chance_of_playing_next_round"] = 100
+    elements_data["cost_change_start"] = 0
     return elements_data.set_index("id")
 
 
@@ -345,13 +342,27 @@ def backtest(
                 {"event": next_gw_results.gameweek, "name": next_gw_results.chip_used}
             )
         total_actual_points += next_gw_results.total_actual_points
+        decay = optimization_params["decay"]
+        free_transfer_bonus = optimization_params["free_transfer_bonus"]
+        in_the_bank_bonus = optimization_params["in_the_bank_bonus"]
+        bench_weight_range = list(optimization_params["bench_weight_range"].values())
+
+        main_title = (
+            f"Backtest {backtest_season} "
+            f"h={horizon} "
+            f"th={transfer_horizon} "
+            f"d={decay:.2f} "
+            f"ftb={free_transfer_bonus:.2f} "
+            f"ibb={in_the_bank_bonus:.2f} "
+            f"bwr={bench_weight_range}"
+        )
         if start_week % 5 == 0 or start_week == end_week:
-            title = f"Backtest {backtest_season} h={horizon} th={transfer_horizon} --> pts={int(total_actual_points)}"
+            title = f"{main_title} --> pts={int(total_actual_points)}"
             plot = plot_backtest_results(backtest_results, title)
             plot_name = (
                 "plot_backtest_tmp"
                 if start_week != max_week
-                else f"[{int(total_actual_points)}] Backtest {backtest_season} h={horizon} th={transfer_horizon}"
+                else f"[{int(total_actual_points)}] {main_title}"
             )
             plot.savefig(f"data/optimization/backtest_results/{plot_name}.png")
 

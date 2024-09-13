@@ -235,6 +235,7 @@ def get_live_data(
         get_fpl_base_data()
     )
     elements_data["team"] = elements_data["team"].map(fpl_2_fbref_team_mapping)
+    team_data["name"] = team_data["name"].map(fpl_2_fbref_team_mapping)
     gameweeks = gameweeks_data["future"][:horizon]
     current_gw = gameweeks_data["current"]
 

@@ -18,11 +18,9 @@ optimization:
   # Check prices at https://fantasy.premierleague.com/api/entry/1792016/transfers-latest/
   force_transfers:
     buy:
-      Ederson: 55
-      Bernardo: 66
+    #     Ederson: 55
     sell:
-      Jose Sa: 45
-      Foden: 94
+    #     Jose Sa: 45
     keep:
 
   horizon: 4

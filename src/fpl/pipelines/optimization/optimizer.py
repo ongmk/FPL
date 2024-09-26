@@ -242,7 +242,7 @@ def get_live_data(
     general_data, transfer_data, initial_squad, history_data = get_fpl_team_data(
         team_id, current_gw
     )
-    in_the_bank = general_data["last_deadline_bank"]
+    in_the_bank = general_data["last_deadline_bank"] / 10
     in_the_bank = 1000 if in_the_bank is None else in_the_bank
     free_transfers = get_free_transfers(
         transfer_data, history_data["chips"], gameweeks[0]
@@ -292,8 +292,12 @@ def get_live_data(
         parameters,
     )
 
+    logger.info("=" * 50)
     logger.info(f"Team: {general_data['name']}.")
     logger.info(f"Current week: {current_gw}")
+    logger.info(f"In the bank: {in_the_bank}\tFree transfers: {free_transfers}")
+    logger.info("=" * 50)
+
     logger.info(
         f"Optimizing for {horizon} weeks. {gameweeks}. Making transfers for {transfer_horizon} weeks."
     )

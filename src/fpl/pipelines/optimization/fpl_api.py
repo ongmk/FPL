@@ -248,7 +248,7 @@ def get_fpl_team_data(team_id: int, gw: int) -> list[dict]:
     transfer_request = requests.get(
         f"https://fantasy.premierleague.com/api/entry/{team_id}/transfers/"
     )
-    transfer_data = reversed(transfer_request.json())
+    transfer_data = list(reversed(transfer_request.json()))
     history_request = requests.get(
         f"https://fantasy.premierleague.com/api/entry/{team_id}/history/"
     )

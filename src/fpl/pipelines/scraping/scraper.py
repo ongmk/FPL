@@ -95,12 +95,14 @@ def crawl_player_match_logs(parameters: dict[str, Any]):
     with FBRefDriver(headless=parameters["headless"]) as d:
 
         date, home, away = d.get_most_recent_game(current_season)
+        home_str = home.replace("'", "''")
+        away_str = away.replace("'", "''")
         crawled = pd.read_sql(
             f"""select * from raw_player_match_log 
                 where comp = 'Premier League'
                 and date = '{date}'
-                and squad = '{home}'
-                and opponent = '{away}'
+                and squad = '{home_str}'
+                and opponent = '{away_str}'
             """,
             conn,
         )

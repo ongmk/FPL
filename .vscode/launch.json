@@ -153,6 +153,23 @@
             "justMyCode": false,
         },
         {
+            "name": "End-to-End Pipeline",
+            "type": "debugpy",
+            "request": "launch",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}\\src"
+            },
+            "cwd": "${workspaceFolder}",
+            "program": "src\\fpl\\custom_run\\kedro_cli.py",
+            "args": [
+                "run",
+                "--pipeline",
+                "end_to_end_pipeline"
+            ],
+            "console": "integratedTerminal",
+            "justMyCode": false,
+        },
+        {
             "name": "Backtest Optimization",
             "type": "debugpy",
             "request": "launch",

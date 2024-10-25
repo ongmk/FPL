@@ -58,6 +58,7 @@ def get_fpl_base_data() -> (
             "element_type",
             "position",
             "now_cost",
+            "status",
             "chance_of_playing_next_round",
             "cost_change_start",
         ]

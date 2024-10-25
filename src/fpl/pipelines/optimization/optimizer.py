@@ -166,6 +166,10 @@ def combine_inference_results(
     merged_data = pd.merge(
         merged_data, inference_results, on="element", how="left", suffixes=("_dnp", "")
     )
+    merged_data.loc[
+        (merged_data["status"] == "s") & (merged_data["round"] > current_gameweek),
+        "chance_of_playing_next_round",
+    ] = 1.0
 
     merged_data["chance_of_playing_next_round"] = merged_data[
         ["prediction_dnp", "chance_of_playing_next_round"]

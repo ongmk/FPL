@@ -105,7 +105,7 @@ def get_free_transfers(
     for transfer in transfer_data:
         transfer_count[transfer["event"]] += 1
     for chip in chips_history:
-        if chip["name"] in ["wildcard", "bboost"]:
+        if chip["name"] in ["wildcard", "freehit"]:
             transfer_count[chip["event"]] = 1
 
     # F2 = min(max(F1-T+1, 1), 5)
@@ -406,27 +406,237 @@ def calculate_buy_sell_price(merged_data, transfer_data, initial_squad, elements
 
 
 if __name__ == "__main__":
-    print(
-        get_sell_price(
-            {
-                "now_cost": 54,
-                "bought_price": 50,
-            }
-        )
-    )
-    print(
-        get_sell_price(
-            {
-                "now_cost": 53,
-                "bought_price": 50,
-            }
-        )
-    )
-    print(
-        get_sell_price(
-            {
-                "now_cost": 45,
-                "bought_price": 50,
-            }
-        )
-    )
+    transfer_data = [
+        {
+            "element_in": 277,
+            "element_in_cost": 45,
+            "element_out": 103,
+            "element_out_cost": 45,
+            "entry": 1792016,
+            "event": 3,
+            "time": "2024-08-31T08:25:19.568041Z",
+        },
+        {
+            "element_in": 347,
+            "element_in_cost": 55,
+            "element_out": 554,
+            "element_out_cost": 45,
+            "entry": 1792016,
+            "event": 4,
+            "time": "2024-09-05T01:22:37.163320Z",
+        },
+        {
+            "element_in": 342,
+            "element_in_cost": 66,
+            "element_out": 348,
+            "element_out_cost": 94,
+            "entry": 1792016,
+            "event": 4,
+            "time": "2024-09-05T01:22:37.168334Z",
+        },
+        {
+            "element_in": 339,
+            "element_in_cost": 60,
+            "element_out": 333,
+            "element_out_cost": 43,
+            "entry": 1792016,
+            "event": 4,
+            "time": "2024-09-13T02:01:38.746909Z",
+        },
+        {
+            "element_in": 148,
+            "element_in_cost": 57,
+            "element_out": 401,
+            "element_out_cost": 84,
+            "entry": 1792016,
+            "event": 5,
+            "time": "2024-09-17T16:16:46.250218Z",
+        },
+        {
+            "element_in": 91,
+            "element_in_cost": 45,
+            "element_out": 414,
+            "element_out_cost": 40,
+            "entry": 1792016,
+            "event": 6,
+            "time": "2024-09-26T12:09:33.251677Z",
+        },
+        {
+            "element_in": 18,
+            "element_in_cost": 60,
+            "element_out": 211,
+            "element_out_cost": 49,
+            "entry": 1792016,
+            "event": 6,
+            "time": "2024-09-26T12:09:33.252019Z",
+        },
+        {
+            "element_in": 3,
+            "element_in_cost": 61,
+            "element_out": 335,
+            "element_out_cost": 60,
+            "entry": 1792016,
+            "event": 6,
+            "time": "2024-09-26T12:09:33.252462Z",
+        },
+        {
+            "element_in": 594,
+            "element_in_cost": 46,
+            "element_out": 408,
+            "element_out_cost": 40,
+            "entry": 1792016,
+            "event": 6,
+            "time": "2024-09-26T12:09:33.252809Z",
+        },
+        {
+            "element_in": 327,
+            "element_in_cost": 79,
+            "element_out": 13,
+            "element_out_cost": 82,
+            "entry": 1792016,
+            "event": 6,
+            "time": "2024-09-26T12:09:33.253087Z",
+        },
+        {
+            "element_in": 99,
+            "element_in_cost": 72,
+            "element_out": 199,
+            "element_out_cost": 69,
+            "entry": 1792016,
+            "event": 6,
+            "time": "2024-09-26T12:09:33.253332Z",
+        },
+        {
+            "element_in": 432,
+            "element_in_cost": 53,
+            "element_out": 277,
+            "element_out_cost": 45,
+            "entry": 1792016,
+            "event": 6,
+            "time": "2024-09-26T12:09:33.253568Z",
+        },
+        {
+            "element_in": 434,
+            "element_in_cost": 54,
+            "element_out": 328,
+            "element_out_cost": 126,
+            "entry": 1792016,
+            "event": 6,
+            "time": "2024-09-26T12:09:33.253839Z",
+        },
+        {
+            "element_in": 94,
+            "element_in_cost": 49,
+            "element_out": 342,
+            "element_out_cost": 65,
+            "entry": 1792016,
+            "event": 6,
+            "time": "2024-09-26T12:09:33.254060Z",
+        },
+        {
+            "element_in": 351,
+            "element_in_cost": 153,
+            "element_out": 148,
+            "element_out_cost": 57,
+            "entry": 1792016,
+            "event": 6,
+            "time": "2024-09-26T12:09:33.254303Z",
+        },
+        {
+            "element_in": 232,
+            "element_in_cost": 54,
+            "element_out": 207,
+            "element_out_cost": 74,
+            "entry": 1792016,
+            "event": 6,
+            "time": "2024-09-26T12:09:33.254538Z",
+        },
+        {
+            "element_in": 498,
+            "element_in_cost": 51,
+            "element_out": 594,
+            "element_out_cost": 46,
+            "entry": 1792016,
+            "event": 8,
+            "time": "2024-10-18T06:39:41.336418Z",
+        },
+        {
+            "element_in": 447,
+            "element_in_cost": 62,
+            "element_out": 4,
+            "element_out_cost": 81,
+            "entry": 1792016,
+            "event": 8,
+            "time": "2024-10-18T06:39:41.342586Z",
+        },
+        {
+            "element_in": 326,
+            "element_in_cost": 53,
+            "element_out": 3,
+            "element_out_cost": 62,
+            "entry": 1792016,
+            "event": 10,
+            "time": "2024-11-01T00:53:40.046509Z",
+        },
+        {
+            "element_in": 180,
+            "element_in_cost": 79,
+            "element_out": 447,
+            "element_out_cost": 63,
+            "entry": 1792016,
+            "event": 10,
+            "time": "2024-11-01T00:53:40.052804Z",
+        },
+        {
+            "element_in": 328,
+            "element_in_cost": 131,
+            "element_out": 327,
+            "element_out_cost": 76,
+            "entry": 1792016,
+            "event": 13,
+            "time": "2024-11-29T02:01:54.203457Z",
+        },
+        {
+            "element_in": 401,
+            "element_in_cost": 85,
+            "element_out": 351,
+            "element_out_cost": 151,
+            "entry": 1792016,
+            "event": 13,
+            "time": "2024-11-29T02:01:54.209803Z",
+        },
+        {
+            "element_in": 52,
+            "element_in_cost": 44,
+            "element_out": 326,
+            "element_out_cost": 53,
+            "entry": 1792016,
+            "event": 14,
+            "time": "2024-12-02T03:02:04.604030Z",
+        },
+        {
+            "element_in": 17,
+            "element_in_cost": 103,
+            "element_out": 434,
+            "element_out_cost": 54,
+            "entry": 1792016,
+            "event": 14,
+            "time": "2024-12-02T03:02:04.610327Z",
+        },
+        {
+            "element_in": 541,
+            "element_in_cost": 71,
+            "element_out": 401,
+            "element_out_cost": 85,
+            "entry": 1792016,
+            "event": 14,
+            "time": "2024-12-02T03:02:04.610711Z",
+        },
+    ]
+    chips_history = [
+        {"name": "wildcard", "time": "2024-09-26T12:09:22.708252Z", "event": 6},
+        {"name": "bboost", "time": "2024-10-18T06:40:13.874045Z", "event": 8},
+    ]
+    gameweeks = [16, 17, 18, 19]
+    ft = get_free_transfers(transfer_data, chips_history, gameweeks[0])
+    print(ft)

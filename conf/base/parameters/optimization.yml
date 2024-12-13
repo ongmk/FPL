@@ -8,7 +8,7 @@ optimization:
 
   wildcard1_week: null
   wildcard2_week: null
-  free_hit_week: null
+  free_hit_week: 20
   bench_boost_week: null
   triple_captain_week: null
 

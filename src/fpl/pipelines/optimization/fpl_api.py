@@ -153,6 +153,7 @@ def fetch_player_fixtures(
 def get_most_recent_fpl_game() -> dict:
     r = requests.get(f"https://fantasy.premierleague.com/api/fixtures/")
     data = r.json()
+    data = filter(lambda f: f["kickoff_time"] is not None, data)
     data = sorted(data, key=lambda f: f["kickoff_time"], reverse=True)
     most_recent_fixture = next((d for d in data if d["finished"] == True), None)
     return most_recent_fixture

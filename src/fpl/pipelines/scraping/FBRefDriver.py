@@ -27,7 +27,7 @@ class FBRefDriver(BaseDriver):
             logger.warn(f"No match played for {season}")
             return []
         links = tree.xpath("*/tbody/tr/td[1]/a")
-        return [(l.text, self.absolute_url(l.get("href"))) for l in links]
+        return [(link.text, self.absolute_url(link.get("href"))) for link in links]
 
     def get_player_season_links(self, season: str) -> list[str, str, str]:
         url = self.absolute_url(
@@ -36,9 +36,9 @@ class FBRefDriver(BaseDriver):
         logger.info(f"Crawling Season Result:\t{season}\t{url}")
         self.get(url)
         try:
-            tree = self.get_tree_by_id(f"stats_standard")
-        except Exception as e:
-            logger.warn(f"No player match logs to fetch for {season}")
+            tree = self.get_tree_by_id("stats_standard")
+        except Exception:
+            logger.warning(f"No player match logs to fetch for {season}")
             return []
         rows = tree.xpath("*/tbody/tr[not(@class)]")
         player_season_links = []

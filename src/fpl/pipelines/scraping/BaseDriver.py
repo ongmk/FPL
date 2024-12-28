@@ -1,12 +1,9 @@
 import logging
 import time
-
-import pandas as pd
-
-logger = logging.getLogger(__name__)
 from io import StringIO
 from urllib.parse import urljoin
 
+import pandas as pd
 from lxml import etree
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
@@ -16,6 +13,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from tenacity import retry, stop_after_attempt
 
 from fpl.utils import backup_latest_n
+
+logger = logging.getLogger(__name__)
 
 
 class BaseDriver:
@@ -95,9 +94,6 @@ class BaseDriver:
 
         if headless:
             chrome_options.add_argument("--headless")
-        chrome_options.binary_location = (
-            "../chromedriver//chromedriver-win64//chromedriver.exe"
-        )
 
         self.driver: webdriver.Chrome = webdriver.Chrome(
             options=chrome_options,

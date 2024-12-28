@@ -51,7 +51,6 @@ def solve_lp(
     variable_sums: VariableSums,
     parameters: dict,
 ) -> float:
-
     model_name = parameters["model_name"]
     mps_dir = parameters["mps_dir"]
     mps_path = f"{mps_dir}/{model_name}.mps"

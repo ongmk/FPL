@@ -265,9 +265,8 @@ def get_live_data(
             ]
             .isna()
             .sum()
-            == 0,
-            "Missing data for previous gameweek.",
-        )
+            == 0
+        ), "Missing data for previous gameweek."
 
     inference_results = combine_inference_results(
         elements_data,

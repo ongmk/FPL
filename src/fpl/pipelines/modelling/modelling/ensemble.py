@@ -6,6 +6,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 from sklearn.inspection import permutation_importance
+from xgboost import XGBModel
 
 from fpl.pipelines.modelling.all_models.classification import (
     get_classification_model_instance,
@@ -65,7 +66,12 @@ class EnsembleModel:
 
     def __repr__(self):
         if self.is_ensemble:
-            models = ",\n\t".join([str(m.model) for m in self.models])
+            strings = []
+            for m in self.models:
+                if isinstance(m.model, XGBModel):
+                    m.model.device = m.model.multi_strategy = None
+                strings.append(str(m.model))
+            models = ",\n\t".join(strings)
             return f"EnsembleModel(\n\t{models}\n)"
         else:
             return f"SingleModel({self.models[0].model})"

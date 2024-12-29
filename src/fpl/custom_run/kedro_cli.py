@@ -1,58 +1,40 @@
-import sys
-
-if not sys.warnoptions:
-    import os, warnings
-
-    warnings.simplefilter("ignore")  # Change the filter in this process
-    os.environ["PYTHONWARNINGS"] = "ignore"  # Also affect subprocesses
-
-from itertools import chain
-from pathlib import Path
-from typing import Dict
 import importlib
+import sys
+from itertools import chain
+from pathlib import Path
+from typing import Dict, Sequence
+
+import click
 import urllib3
-
-urllib3.disable_warnings()
-
-import click
-from kedro.framework.cli.cli import _init_plugins
-from kedro.framework.cli.utils import (
-    KedroCliError,
-    env_option,
-    split_string,
-)
-from itertools import chain
-from pathlib import Path
-
-import click
-
-from kedro.framework.cli.utils import (
-    KedroCliError,
-    CONTEXT_SETTINGS,
-)
-from itertools import chain
-from pathlib import Path
-from typing import Sequence
-
-import click
+from custom_runner import custom_kedro_run
 from kedro import __version__ as version
 from kedro.framework.cli.catalog import catalog_cli
+from kedro.framework.cli.cli import _init_plugins
 from kedro.framework.cli.hooks import CLIHooksManager
 from kedro.framework.cli.jupyter import jupyter_cli
 from kedro.framework.cli.pipeline import pipeline_cli
 from kedro.framework.cli.project import project_group
 from kedro.framework.cli.starters import create_cli
 from kedro.framework.cli.utils import (
+    CONTEXT_SETTINGS,
     CommandCollection,
     KedroCliError,
+    env_option,
     load_entry_points,
-    CONTEXT_SETTINGS,
+    split_string,
 )
 from kedro.framework.startup import _is_project, bootstrap_project
-import sys
-from custom_runner import custom_kedro_run
 
-CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])
+if not sys.warnoptions:
+    import os
+    import warnings
+
+    warnings.simplefilter("ignore")  # Change the filter in this process
+    os.environ["PYTHONWARNINGS"] = "ignore"  # Also affect subprocesses
+urllib3.disable_warnings()
+
+
+CONTEXT_SETTINGS = dict(help_option_names=["-h", "--help"])  # noqa: F811
 
 # get our package onto the python path
 PROJ_PATH = Path(__file__).resolve().parent
@@ -261,11 +243,6 @@ def _try_convert_to_numeric(value):
     return int(value) if value.is_integer() else value
 
 
-@click.group(context_settings=CONTEXT_SETTINGS, name=__file__)
-def cli():
-    """Command line tools for manipulating a Kedro project."""
-
-
 @cli.command()
 @click.option(
     "--from-inputs", type=str, default="", help=FROM_INPUTS_HELP, callback=split_string
@@ -369,4 +346,5 @@ def main():  # pragma: no cover
 
 
 if __name__ == "__main__":
+    main()
     main()

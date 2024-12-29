@@ -4,12 +4,25 @@ from typing import Dict
 
 from kedro.pipeline import Pipeline
 
-from fpl.pipelines.init_db.init_db_pipelines import *
-from fpl.pipelines.modelling.dnp_prediction_pipelines import *
-from fpl.pipelines.modelling.modelling_pipelines import *
-from fpl.pipelines.optimization.optimization_pipelines import *
-from fpl.pipelines.preprocessing.preprocessing_pipelines import *
-from fpl.pipelines.scraping.scraping_pipelines import *
+from fpl.pipelines.init_db.init_db_pipelines import init_db_pipeline
+from fpl.pipelines.modelling.dnp_prediction_pipelines import (
+    dnp_inference_evaluation_pipeline,
+    dnp_preprocessing_pipeline,
+    dnp_training_pipeline,
+)
+from fpl.pipelines.modelling.modelling_pipelines import (
+    compare_model_pipeline,
+    feature_selection_pipeline,
+    hypertuning_pipeline,
+    inference_evaluation_pipeline,
+    training_pipeline,
+)
+from fpl.pipelines.optimization.optimization_pipelines import (
+    backtest_pipeline,
+    live_optimization_pipeline,
+)
+from fpl.pipelines.preprocessing.preprocessing_pipelines import preprocessing_pipeline
+from fpl.pipelines.scraping.scraping_pipelines import scraping_pipeline
 
 
 def register_pipelines() -> Dict[str, Pipeline]:

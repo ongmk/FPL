@@ -1,5 +1,4 @@
 import logging
-import uuid
 from collections.abc import MutableMapping
 from copy import deepcopy
 from pathlib import Path
@@ -125,9 +124,6 @@ def custom_kedro_run(
             trials = hyperopt_run_config["trials"]
             target_name = log_info["target_name"]
             strategy = log_info["strategy"]
-            algo = log_info["algo"]
-            uuid_tag = log_info["uuid"]
-            uuid_str = uuid.uuid4().hex
 
             hyperopt_run_config["fn"] = optimize
             fmin(**hyperopt_run_config, show_progressbar=False)
@@ -138,7 +134,7 @@ def custom_kedro_run(
 
             best_params = space_eval(compressed_space, best_trial)
 
-            logger.info(f"Best parameters are:")
+            logger.info("Best parameters are:")
             logger.info(best_params)
             logger.info(f"{target_name} = {trials.best_trial['result'][target_name]}")
         return None

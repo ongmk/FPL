@@ -8,12 +8,12 @@ optimization:
 
   wildcard1_week: null
   wildcard2_week: null
-  free_hit_week: 20
+  free_hit_week: null
   bench_boost_week: null
   triple_captain_week: null
 
   unavailable_players:
-    Salah: [21, 22, 23, 24]
+    # Salah: [21, 22, 23, 24]
 
   # Check prices at https://fantasy.premierleague.com/api/entry/1792016/transfers-latest/
   force_transfers:

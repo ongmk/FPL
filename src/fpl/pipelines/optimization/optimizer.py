@@ -115,7 +115,7 @@ def get_free_transfers(
 
 def pivot_column(source_data, column_name, prefix):
     output_data = source_data.pivot_table(
-        index="fpl_name", columns="round", values=column_name, aggfunc="first"
+        index="fpl_name", columns="round", values=column_name, aggfunc="sum"
     ).fillna(0)
     output_data.columns = [f"{prefix}{int(col)}" for col in output_data.columns]
     return output_data
@@ -251,9 +251,6 @@ def get_live_data(
         transfer_data, history_data["chips"], gameweeks[0]
     )
 
-    inference_results = inference_results.loc[
-        inference_results["season"] == current_season
-    ]
     dnp_inference_results = dnp_inference_results.loc[
         dnp_inference_results["season"] == current_season
     ]

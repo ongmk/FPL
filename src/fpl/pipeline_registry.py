@@ -32,20 +32,25 @@ def register_pipelines() -> Dict[str, Pipeline]:
         A mapping from pipeline names to ``Pipeline`` objects.
     """
 
+    preprocessing_both = preprocessing_pipeline + dnp_preprocessing_pipeline
+    training_both = training_pipeline + dnp_training_pipeline
+    inference_evaluation_both = (
+        inference_evaluation_pipeline + dnp_inference_evaluation_pipeline
+    )
+
     return {
         "scraping_pipeline": scraping_pipeline,
-        "preprocessing_pipeline": preprocessing_pipeline + dnp_preprocessing_pipeline,
+        "preprocessing_pipeline": preprocessing_both,
         "feature_selection_pipeline": feature_selection_pipeline,
         "compare_model_pipeline": compare_model_pipeline,
         "hypertuning_pipeline": hypertuning_pipeline,
-        "training_pipeline": training_pipeline + dnp_training_pipeline,
-        "inference_evaluation_pipeline": inference_evaluation_pipeline
-        + dnp_inference_evaluation_pipeline,
+        "training_pipeline": training_both,
+        "inference_evaluation_pipeline": inference_evaluation_both,
         "init_db_pipeline": init_db_pipeline,
         "backtest_optimization_pipeline": backtest_pipeline,
         "live_optimization_pipeline": live_optimization_pipeline,
         "end_to_end_pipeline": scraping_pipeline
-        + preprocessing_pipeline
-        + inference_evaluation_pipeline
+        + preprocessing_both
+        + inference_evaluation_both
         + live_optimization_pipeline,
     }

@@ -176,18 +176,19 @@ def get_gw_results(
 
 def get_gw_summary(
     gw_results: GwResults,
+    actual_points_available: bool,
 ) -> tuple[list[str], dict]:
     gw_summary = []
     header = f" GW {gw_results.gameweek} "
-    transfer_summary = get_transfer_summary(gw_results)
+    transfer_summary = get_transfer_summary(gw_results, actual_points_available)
     chip_summary = get_chip_summary(gw_results)
-    lineup = get_lineup(gw_results)
+    lineup = get_lineup(gw_results, actual_points_available)
     hit_str = f"({gw_results.hits} hits)" if gw_results.hits > 0 else ""
 
     gw_summary.append(f"\n{header:{'*'}^80}\n")
     if chip_summary is not None:
         gw_summary.append(chip_summary)
-    if gw_results.total_actual_points is not None:
+    if actual_points_available:
         gw_summary.append(
             f"Gameweek Actual Points    = {gw_results.total_actual_points:.2f} {hit_str}"
         )
@@ -220,8 +221,7 @@ def get_lineup_name(
     return name
 
 
-def get_lineup(gw_results: GwResults):
-
+def get_lineup(gw_results: GwResults, total_points_available: bool) -> str:
     gw_lineup = gw_results.player_details.loc[gw_results.lineup]
     gw_lineup["name"] = gw_lineup.apply(
         lambda row: get_lineup_name(
@@ -229,7 +229,7 @@ def get_lineup(gw_results: GwResults):
             gw_results.captain,
             gw_results.vicecap,
             gw_results.gameweek,
-            gw_results.total_actual_points is not None,
+            total_points_available,
         ),
         axis=1,
     )
@@ -251,7 +251,7 @@ def get_lineup(gw_results: GwResults):
             gw_results.captain,
             gw_results.vicecap,
             gw_results.gameweek,
-            gw_results.total_actual_points is not None,
+            total_points_available,
         )
         lineup_str.append(f"{order}: {name}")
     length = max([len(s) for s in lineup_str])
@@ -260,11 +260,7 @@ def get_lineup(gw_results: GwResults):
     return lineup_str
 
 
-def get_transfer_summary(
-    gw_results: GwResults,
-):
-    actual_points_available = gw_results.total_actual_points is not None
-
+def get_transfer_summary(gw_results: GwResults, actual_points_available: bool):
     points_col = "Actual Points" if actual_points_available else "Predicted Points"
     gw_in = pd.DataFrame([], columns=["", "In", points_col, "Pos"])
     gw_out = pd.DataFrame([], columns=["Out", points_col, "Pos"])
@@ -275,7 +271,7 @@ def get_transfer_summary(
     for player in in_players:
         details = gw_results.player_details.loc[player]
         price = details["now_cost"] / 10
-        name = f'{details["web_name"]} ({price})'
+        name = f"{details['web_name']} ({price})"
         pos = details["element_type"]
         points = (
             details[f"act_pts_{gw_results.gameweek}"]
@@ -294,7 +290,7 @@ def get_transfer_summary(
     for player in out_players:
         details = gw_results.player_details.loc[player]
         price = details["sell_price"] / 10
-        name = f'{details["web_name"]} ({price})'
+        name = f"{details['web_name']} ({price})"
         pos = details["element_type"]
         points = (
             details[f"act_pts_{gw_results.gameweek}"]
@@ -368,10 +364,12 @@ def generate_outputs(
             solution_time,
             previous_squad,
         )
-        summary.append(get_gw_summary(gw_results))
+        actual_points_available = (
+            gw_results.total_actual_points != 0.0 or actual_points_available
+        )
+        summary.append(get_gw_summary(gw_results, actual_points_available))
         total_predicted_points += gw_results.total_predicted_points
-        if gw_results.total_actual_points is not None:
-            actual_points_available = True
+        if actual_points_available:
             total_actual_points += gw_results.total_actual_points
         if gw_results.chip_used != "freehit":
             previous_squad = gw_results.lineup + list(gw_results.bench.values())

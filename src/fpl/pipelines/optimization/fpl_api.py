@@ -22,9 +22,9 @@ def get_current_season_str(events_data: list[dict]) -> str:
     return f"{top_years_sorted[0]}-{top_years_sorted[1]}"
 
 
-def get_fpl_base_data() -> (
-    tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, dict[str, Any], str]
-):
+def get_fpl_base_data() -> tuple[
+    pd.DataFrame, pd.DataFrame, pd.DataFrame, dict[str, Any], str
+]:
     r = requests.get("https://fantasy.premierleague.com/api/bootstrap-static/")
     fpl_data = r.json()
 
@@ -271,4 +271,5 @@ def get_fpl_team_data(team_id: int, gw: int) -> list[dict]:
 
 
 if __name__ == "__main__":
-    fetch_player_fixtures(30, "2023-2024")
+    df = get_fpl_base_data()
+    print(df)

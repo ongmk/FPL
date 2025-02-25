@@ -205,7 +205,6 @@ def suggest_triple_captain_week(
 def suggest_bench_boost_week(
     inference_results, squad, column, current_week, chips_usage
 ):
-
     if len(squad) > 0:
         inference_results = inference_results.loc[
             inference_results["element"].isin(squad)
@@ -327,6 +326,12 @@ def get_chips_suggestions(
     current_week: int,
     parameters: dict[str, Any],
 ) -> dict[str, Any]:
+    inference_results = (
+        inference_results.groupby(["fpl_name", "element", "round"])
+        .agg({"predicted_points": "sum"})
+        .reset_index()
+    )
+
     chips_usage = {
         "wildcard1": parameters.get("wildcard1_week"),
         "wildcard2": parameters.get("wildcard2_week"),

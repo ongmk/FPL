@@ -30,9 +30,9 @@ def get_fpl_base_data() -> tuple[
 
     gameweeks = {"current": 0, "finished": [], "future": []}
     for w in fpl_data["events"]:
-        if w["is_current"] == True:
+        if w["is_current"]:
             gameweeks["current"] = w["id"]
-        elif w["finished"] == True:
+        elif w["finished"]:
             gameweeks["finished"].append(w["id"])
         else:
             gameweeks["future"].append(w["id"])
@@ -64,6 +64,10 @@ def get_fpl_base_data() -> tuple[
         ]
     ]
     current_season = get_current_season_str(fpl_data["events"])
+
+    element_data = element_data.loc[
+        element_data["position"] != "MNG"
+    ]  # Remove managers
 
     return element_data, team_data, type_data, gameweeks, current_season
 
@@ -151,11 +155,11 @@ def fetch_player_fixtures(
 
 
 def get_most_recent_fpl_game() -> dict:
-    r = requests.get(f"https://fantasy.premierleague.com/api/fixtures/")
+    r = requests.get("https://fantasy.premierleague.com/api/fixtures/")
     data = r.json()
     data = filter(lambda f: f["kickoff_time"] is not None, data)
     data = sorted(data, key=lambda f: f["kickoff_time"], reverse=True)
-    most_recent_fixture = next((d for d in data if d["finished"] == True), None)
+    most_recent_fixture = next((d for d in data if d["finished"]), None)
     return most_recent_fixture
 
 
@@ -260,13 +264,15 @@ def get_fpl_team_data(team_id: int, gw: int) -> list[dict]:
     )
     picks_data = picks_request.json()
     if picks_data.get("detail") == "Not found.":
-        logger.warn(
+        logger.warning(
             f"Team {team_id} has not made picks for GW {gw}. Setting intial squad to empty."
         )
         initial_squad = []
     else:
         initial_squad = picks_data["picks"]
-        initial_squad = [p["element"] for p in initial_squad]
+        initial_squad = [
+            p["element"] for p in initial_squad if p["element_type"] < 5
+        ]  # Remove managers
     return general_data, transfer_data, initial_squad, history_data
 
 

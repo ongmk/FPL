@@ -238,6 +238,7 @@ chip_name_mapping = {
     "bboost": "bench_boost",
     "freehit": "free_hit",
     "3xc": "triple_captain",
+    "manager": "manager",
 }
 
 

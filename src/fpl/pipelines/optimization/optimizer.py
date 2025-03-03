@@ -258,6 +258,10 @@ def get_live_data(
     )
     in_the_bank = general_data["last_deadline_bank"] / 10
     in_the_bank = 1000 if in_the_bank is None else in_the_bank
+
+    # in_the_bank = in_the_bank - 0.8
+    # logger.warning(f"For assistant manager chip, 0.8 is deducted from the bank.")
+
     free_transfers = get_free_transfers(
         transfer_data, history_data["chips"], gameweeks[0]
     )

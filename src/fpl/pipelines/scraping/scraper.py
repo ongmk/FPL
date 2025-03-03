@@ -23,14 +23,13 @@ def crawl_team_match_logs(parameters: dict[str, Any]):
         seasons = [current_year]
     else:
         seasons = [i for i in range(2016, current_year + 1)]
-    seasons = [f"{s}-{s+1}" for s in seasons]
+    seasons = [f"{s}-{s + 1}" for s in seasons]
 
     conn = sqlite3.connect("./data/fpl.db")
     cur = conn.cursor()
-    logger.info(f"Initializing FBRefDriver...")
+    logger.info("Initializing FBRefDriver...")
 
     with FBRefDriver(headless=parameters["headless"]) as d:
-
         date, home, away = d.get_most_recent_game(current_season)
         home_str = home.replace("'", "''")
         away_str = away.replace("'", "''")
@@ -47,13 +46,13 @@ def crawl_team_match_logs(parameters: dict[str, Any]):
 
         if len(crawled) > 0:
             logger.info(
-                f"Most recent match was already crawled. Skipping fetching of team match logs."
+                "Most recent match was already crawled. Skipping fetching of team match logs."
             )
             return None
 
         cur.execute(f"DELETE FROM raw_team_match_log WHERE season = '{current_season}'")
         conn.commit()
-        logger.info(f"Deleting team logs from previous weeks.")
+        logger.info("Deleting team logs from previous weeks.")
 
         crawled_df = pd.read_sql(
             "select distinct team, season from raw_team_match_log", conn
@@ -88,14 +87,13 @@ def crawl_player_match_logs(parameters: dict[str, Any]):
         seasons = [current_year]
     else:
         seasons = [i for i in range(2016, current_year + 1)]
-    seasons = [f"{s}-{s+1}" for s in seasons]
+    seasons = [f"{s}-{s + 1}" for s in seasons]
 
     conn = sqlite3.connect("./data/fpl.db")
     cur = conn.cursor()
 
-    logger.info(f"Initializing FBRefDriver...")
+    logger.info("Initializing FBRefDriver...")
     with FBRefDriver(headless=parameters["headless"]) as d:
-
         date, home, away = d.get_most_recent_game(current_season)
         home_str = home.replace("'", "''")
         away_str = away.replace("'", "''")
@@ -111,7 +109,7 @@ def crawl_player_match_logs(parameters: dict[str, Any]):
 
         if len(crawled) > 5:
             logger.info(
-                f"Most recent match was already crawled. Skipping fetching of player match logs."
+                "Most recent match was already crawled. Skipping fetching of player match logs."
             )
             return None
 
@@ -119,7 +117,7 @@ def crawl_player_match_logs(parameters: dict[str, Any]):
             f"DELETE FROM raw_player_match_log WHERE season = '{current_season}'"
         )
         conn.commit()
-        logger.info(f"Deleting player logs from previous weeks.")
+        logger.info("Deleting player logs from previous weeks.")
 
         crawled_df = pd.read_sql(
             "select distinct player, season from raw_player_match_log", conn
@@ -160,13 +158,13 @@ def crawl_fpl_data(parameters: dict[str, Any]) -> Tuple[pd.DataFrame, pd.DataFra
 
     if len(crawled) > 0:
         logger.info(
-            f"Most recent match was already crawled. Skipping fetching of FPL data."
+            "Most recent match was already crawled. Skipping fetching of FPL data."
         )
         return None
 
     cur.execute(f"DELETE FROM raw_fpl_data WHERE season = '{current_season}'")
     conn.commit()
-    logger.info(f"Deleting fpl data from previous weeks.")
+    logger.info("Deleting fpl data from previous weeks.")
 
     current_season_data = get_current_season_fpl_data()
     current_season_data.to_sql("raw_fpl_data", conn, if_exists="append", index=False)

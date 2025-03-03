@@ -14,7 +14,6 @@ from fpl.pipelines.optimization.data_classes import (
 )
 from fpl.pipelines.optimization.lp_constructor import (
     LpKeys,
-    LpParams,
     LpVariables,
     VariableSums,
     prepare_lp_keys,
@@ -365,7 +364,7 @@ def generate_outputs(
             previous_squad,
         )
         actual_points_available = (
-            gw_results.total_actual_points != 0.0 or actual_points_available
+            gw_results.total_actual_points > 0.0 or actual_points_available
         )
         summary.append(get_gw_summary(gw_results, actual_points_available))
         total_predicted_points += gw_results.total_predicted_points
@@ -395,9 +394,9 @@ def shorten_name(name):
 
 
 def get_name(row, in_players, out_players, gameweek):
-    if row["captain"] == True:
+    if row["captain"]:
         cap_string = "[c] "
-    elif row["vicecap"] == True:
+    elif row["vicecap"]:
         cap_string = "[v] "
     else:
         cap_string = ""

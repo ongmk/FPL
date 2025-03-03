@@ -125,6 +125,10 @@ def initialize_variables(lp_data: LpData, lp_keys: LpKeys) -> LpVariables:
     in_the_bank = LpVariable.dicts(
         "in_the_bank", lp_keys.gameweeks_plus, cat=LpContinuous, lowBound=0
     )
+    # in_the_bank = LpVariable.dicts(
+    #     "in_the_bank", lp_keys.gameweeks_plus, cat=LpContinuous, lowBound=-80
+    # )
+
     free_transfers = LpVariable.dicts(
         "free_transfers",
         lp_keys.gameweeks_plus,
@@ -372,6 +376,11 @@ def construct_lp(
     variable_sums = sum_lp_variables(lp_data, lp_params, lp_keys, lp_variables)
 
     model = LpProblem(name=model_name, sense=LpMinimize)
+    # for w in lp_data.gameweeks:
+    #     model += (
+    #         lp_variables.in_the_bank[w] >= 0,
+    #         f"budget_constraint_{w}",
+    #     )
     add_constraints(lp_data, model, lp_params, lp_keys, lp_variables, variable_sums)
     add_objective_function(
         lp_data, model, lp_params, lp_keys, lp_variables, variable_sums

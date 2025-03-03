@@ -10,6 +10,7 @@ from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as ec
 from selenium.webdriver.support.ui import WebDriverWait
+from selenium_stealth import stealth
 from tenacity import retry, stop_after_attempt
 
 from fpl.utils import backup_latest_n
@@ -98,6 +99,15 @@ class BaseDriver:
         self.driver: webdriver.Chrome = webdriver.Chrome(
             options=chrome_options,
         )
+        stealth(
+            self.driver,
+            languages=["en-US", "en"],
+            vendor="Google Inc.",
+            platform="Win32",
+            webgl_vendor="Intel Inc.",
+            renderer="Intel Iris OpenGL Engine",
+            fix_hairline=True,
+        )
         self.base_url = ""
         self.last_visit = 0
 
@@ -120,7 +130,7 @@ class BaseDriver:
         # One request every three seconds
         time_since_last_visit = time.time() - self.last_visit
         if time_since_last_visit <= seconds:
-            logger.info(f"sleep for {seconds-time_since_last_visit:.2f}s")
+            logger.info(f"sleep for {seconds - time_since_last_visit:.2f}s")
             time.sleep(seconds - time_since_last_visit)
         self.last_visit = time.time()
 
@@ -232,8 +242,9 @@ class BaseDriver:
 
 
 if __name__ == "__main__":
-    driver = BaseDriver(headless=False)
+    driver = BaseDriver(headless=True)
     driver.get(
         "https://fbref.com/en/players/2973d8ff/matchlogs/2016-2017/Michy-Batshuayi-Match-Logs"
     )
+    driver.save_debugging_html(driver.driver.page_source)
     pass

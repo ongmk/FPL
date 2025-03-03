@@ -870,6 +870,7 @@ dependencies = [
     { name = "scipy" },
     { name = "seaborn" },
     { name = "selenium" },
+    { name = "selenium-stealth" },
     { name = "sqlalchemy" },
     { name = "tenacity" },
     { name = "thefuzz" },
@@ -900,6 +901,7 @@ requires-dist = [
     { name = "scipy", specifier = "<1.12" },
     { name = "seaborn", specifier = ">=0.13.2" },
     { name = "selenium", specifier = ">=4.27.1" },
+    { name = "selenium-stealth", specifier = ">=1.0.6" },
     { name = "sqlalchemy", specifier = "<2.0" },
     { name = "tenacity", specifier = ">=9.0.0" },
     { name = "thefuzz", specifier = ">=0.22.1" },
@@ -3412,6 +3414,17 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/44/8c/62c47c91072aa03af1c3b7d7f1c59b987db41c9fec0f158fb03a0da51aa6/selenium-4.27.1.tar.gz", hash = "sha256:5296c425a75ff1b44d0d5199042b36a6d1ef76c04fb775b97b40be739a9caae2", size = 973526 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/a6/1e/5f1a5dd2a28528c4b3ec6e076b58e4c035810c805328f9936123283ca14e/selenium-4.27.1-py3-none-any.whl", hash = "sha256:b89b1f62b5cfe8025868556fe82360d6b649d464f75d2655cb966c8f8447ea18", size = 9707007 },
+]
+
+[[package]]
+name = "selenium-stealth"
+version = "1.0.6"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "selenium" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cb/ac/7877df8b819d54a4e317a093a0a9e0a38d21d884a7250aa713f2f0869442/selenium_stealth-1.0.6-py3-none-any.whl", hash = "sha256:b62da5452aa4a84f29a4dfb21a9696aff20788a7c570dd0b81bc04a940848b97", size = 32195 },
 ]
 
 [[package]]

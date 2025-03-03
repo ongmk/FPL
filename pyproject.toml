@@ -31,6 +31,7 @@ dependencies = [
     "xgboost>=1.7.1",
     "scipy<1.12",
     "selenium>=4.27.1",
+    "selenium-stealth>=1.0.6",
 ]
 
 [tool.kedro]
